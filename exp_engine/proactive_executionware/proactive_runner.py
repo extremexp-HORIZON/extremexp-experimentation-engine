@@ -165,7 +165,7 @@ def execute_wf(w):
     fork_env = _create_fork_env(gateway, job)
 
     created_tasks = []
-    for t in w.tasks:
+    for t in sorted(w.tasks, key=lambda t: t.order):
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
         task_to_execute = _create_python_task(gateway, t.name, fork_env, t.impl_file, t.input_files, t.dependent_modules, dependent_tasks)
         if len(t.params) > 0:

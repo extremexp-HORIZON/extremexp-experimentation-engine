@@ -138,6 +138,9 @@ def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
                 if "implementation" in task_data:
                     print(f"Changing implementation of task '{task.name}' to '{task_data['implementation']}'")
                     task.add_implementation_file(task_data["implementation"])
+                if "dependency" in task_data:
+                    print(f"Changing dependency of task '{task.name}' to '{task_data['dependency']}'")
+                    task.add_dependent_module(task_data["dependency"])
             else:
                 print(f"Do not need to configure task '{task.name}'")
             if task.sub_workflow:

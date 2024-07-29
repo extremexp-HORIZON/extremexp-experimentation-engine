@@ -246,9 +246,9 @@ def get_workflow_components(experiment_model,parsed_workflows,task_dependencies)
                                 workflow_specification = file.read()
                                 # print(workflow_specification)
                                 subworkflow_model = experiments_metamodel.model_from_str(workflow_specification)
-                                wf, parsed_workflows, task_dependencies = get_workflow_components(subworkflow_model,parsed_workflows,task_dependencies)
-                                task.add_sub_workflow(wf)
-                                task.add_sub_workflow_name(wf.name)
+                                sub_wf, parsed_workflows, task_dependencies = get_workflow_components(subworkflow_model,parsed_workflows,task_dependencies)
+                                task.add_sub_workflow(sub_wf)
+                                task.add_sub_workflow_name(sub_wf.name)
                         else:
                             task.add_implementation_file(task_file_path)
                     if e.dependency:
@@ -342,12 +342,13 @@ for component in experiment_model.component:
                     assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
                 elif config.filename:
                     implementation = config.filename
-                    task_file_path,_ = get_task_implementation_path(implementation)
-                    # print(task_file_path)
+                    task_file_path, _ = get_task_implementation_path(implementation)
                     if not os.path.exists(task_file_path):
                         raise exp_engine_exceptions.ImplementationFileNotFound(f"{task_file_path} in task {config.alias.name}")
                     assembled_workflow_task["implementation"] = task_file_path
                     assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
+                if config.dependency:
+                    assembled_workflow_task["dependency"] = config.dependency
                 configurations.remove(config)
                 configurations += config.subtasks
 
