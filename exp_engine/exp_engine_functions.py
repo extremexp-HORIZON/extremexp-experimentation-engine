@@ -21,12 +21,17 @@ def add_input_output_data(wf, nodes):
         if n1.__class__.__name__ == "DefineTask":
             ds = wf.get_dataset(n2.name)
             wf.get_task(n1.name).output_files.append(ds)
-        if n1.__class__.__name__ == "DefineData":
+        if n1.__class__.__name__ == "Data":
             ds = wf.get_dataset(n1.name)
             wf.get_task(n2.name).input_files.append(ds)
 
 
 def apply_task_dependencies_and_set_order(wf, task_dependencies):
+    for task in wf.tasks:
+        print(task.name)
+
+
+    print(task_dependencies)
     for t in wf.tasks:
         if t.name in task_dependencies.keys():
             t.add_dependencies(task_dependencies[t.name])
@@ -93,6 +98,7 @@ def flatten_workflows(assembled_wf):
     new_wf = classes.Workflow(assembled_wf.name)
     for t in assembled_wf.tasks:
         if t.sub_workflow:
+            print (t.sub_workflow.name)
             tasks_to_add = get_underlying_tasks(t, assembled_wf, [])
             for t in tasks_to_add:
                 new_wf.add_task(t)

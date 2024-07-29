@@ -1,0 +1,18 @@
+workflow IDEKO_DataPreprocessing {
+  define task SplitData;
+  define task AddPadding;
+
+  // Task CONNECTIONS
+  START -> AddPadding -> SplitData -> END;
+
+  configure task SplitData {
+    implementation "IDEKO-task-library.SplitData";
+    dependency "tasks/IDEKO/Binary_v1/src/**";
+  }
+
+  configure task AddPadding {
+    implementation "IDEKO-task-library.AddPadding";
+    dependency "tasks/IDEKO/Binary_v1/src/**";
+  }
+
+}

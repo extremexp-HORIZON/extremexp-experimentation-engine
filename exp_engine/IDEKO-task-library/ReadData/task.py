@@ -1,7 +1,6 @@
-
 import os, sys
 import pandas as pd
-sys.path.append(os.path.join(os.getcwd(), "tasks/IDEKO/src"))
+[sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
 from classes import preprocessing_functions
 from helpers.logger import LoggerHelper, logging
 import proactive_helper as ph
@@ -9,8 +8,7 @@ import proactive_helper as ph
 LoggerHelper.init_logger()
 logger = logging.getLogger(__name__)
 
-# input_data_folder = "datasets/ideko"
-input_data_folder = "datasets/ideko-subset"
+input_data_folder = variables.get("InputData")
 
 indicator_list = ["f3"]
 X, Y = preprocessing_functions.read_data(input_data_folder, indicator_list)
