@@ -1,0 +1,19 @@
+task SplitData {
+
+    define input data Features;
+    define input data Labels;
+
+    define output data FeaturesTrain;
+    define output data FeaturesTest;
+    define output data LabelsTrain;
+    define output data LabelsTest;
+
+    implementation "extremexp-mltask-library/DataPreparation/SplitData/task.py"
+    
+    param split_percentage {
+        type Integer;
+        default 70;
+        // MA: let's have the range as the following
+        range [50,90];
+    };
+}
