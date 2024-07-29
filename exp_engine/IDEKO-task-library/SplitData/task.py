@@ -1,17 +1,20 @@
+import os
+import json
+[sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
+from classes import preprocessing_functions
 import proactive_helper as ph
-from sklearn.model_selection import train_test_split
 
-features = ph.get_input("Features")
+X_pad, Y_pad_json = ph.load_datasets(variables, "X_pad", "Y_pad_json")
+Y_pad = json.loads(Y_pad_json)
 
-data = list()
-data.append(df[indicator_list].to_numpy())
+# Split data into training set and test set
 
-features = ph.get_input("Features")
-labels = ph.get_input("Labels")
+X_train, X_test, y_train, y_test = preprocessing_functions.split_data(X_pad, Y_pad)
 
-X_train, X_test, y_train, y_test = train_test_split(features, labels)
+n_timestamps = X_train.shape[1]
+n_features = X_train.shape[2]
 
-ph.save_output(("FeaturesTrain", X_train))
-ph.save_output(("FeaturesTest", X_test))
-ph.save_output(("LabelsTrain", y_train))
-ph.save_output(("LabelsTest", y_test))
+ph.save_datasets(variables, ("n_timestamps", n_timestamps), ("n_features", n_features))
+ph.save_datasets(variables, ("X_train", X_train), ("X_test", X_test))
+ph.save_datasets(variables, ("y_train", y_train), ("y_test", y_test))
+ph.save_datasets(variables, ("X_pad", X_pad), ("Y_pad", Y_pad))

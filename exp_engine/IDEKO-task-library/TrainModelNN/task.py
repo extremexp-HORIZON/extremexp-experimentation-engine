@@ -1,7 +1,6 @@
-
 import os
 import numpy as np
-sys.path.append(os.path.join(os.getcwd(), "tasks/IDEKO/src"))
+[sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
 from classes.binary_models import NeuralNetwork
 import proactive_helper as ph
 
@@ -22,7 +21,9 @@ import proactive_helper as ph
 
 # Model name
 folder_name = "NeuralNetwork"
-model_name = "model_nn.h5"
+
+# TODO note: changed .h5 to .keras
+model_name = "model_nn.keras"
 
 # Path to store the model
 working_dir = os.getcwd()
@@ -39,8 +40,6 @@ activation_function = "relu"
 units =[100, 100, 100]
 
 # Number of epochs y batch_size
-# epochs = 2
-# batch_size = 64
 epochs = int(variables.get("epochs"))
 batch_size = int(variables.get("batch_size"))
 
@@ -75,4 +74,4 @@ history_nn = model_nn.model_fitting(model_nn.model, X_train, y_train, X_test, y_
 
 # Model evaluation
 Y_pad = np.asarray(Y_pad)
-model_nn.model_evaluation(model_nn.model, X_pad, Y_pad, X_test, y_test)
+resultMap = model_nn.model_evaluation(model_nn.model, X_pad, Y_pad, X_test, y_test, variables, resultMap)
