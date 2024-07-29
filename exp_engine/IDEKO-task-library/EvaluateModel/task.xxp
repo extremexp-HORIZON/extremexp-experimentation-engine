@@ -1,0 +1,8 @@
+task ReadIDEKOData {
+
+    define input data TrainedModel;
+    define input data Features;
+    define input data Labels;
+
+    implementation "IDEKO-task-library/EvaluateModel/task.py";
+}
