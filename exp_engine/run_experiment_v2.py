@@ -287,6 +287,13 @@ def get_workflow_components(experiment_model,parsed_workflows,task_dependencies)
     return wf, parsed_workflows, task_dependencies
 
 
+def find_start_node(nodes):
+    values = nodes.values()
+    for n in nodes:
+        if n not in values:
+            return n
+
+
 # dsl_file = input("Please provide the name of the DSL file (without the extension):")
 
 dsl_file="IDEKO_main"
@@ -648,10 +655,12 @@ for component in experiment_model.component:
 print("\n*********************************************************")
 print("***************** RUNNING WORKFLOWS ***********************")
 print("*********************************************************")
-start_node = list(nodes)[0]
-print("Start Node: ", start_node)
-node = start_node
 
+start_node = find_start_node(automated_dict)
+print("Nodes: ", nodes)
+print("Start Node: ", start_node)
+
+node = start_node
 result = execute_node(node)
 while node in automated_dict:
     next_action = automated_dict[node]
