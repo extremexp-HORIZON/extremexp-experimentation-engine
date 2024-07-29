@@ -1,0 +1,24 @@
+task TrainModelNN {
+
+    define input data XPad;
+    define input data YPad;
+    define input data FeaturesTrain;
+    define input data LabelsTrain;
+    define input data LabelsTest;
+    define input data FeaturesTest;
+    define output data TrainedModel;
+
+    implementation "IDEKO-task-library/TrainModelNN/task.py";
+
+    param epochs {
+        type Integer;
+        default 90;
+        range [1,200];
+    }
+
+    param batch_size {
+        type Integer;
+        default 64;
+        range [8,256];
+    }
+}

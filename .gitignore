@@ -2,5 +2,6 @@ credentials.py
 .idea
 env
 __pycache__
-exp-engine/datasets/ideko-full-dataset
+exp_engine/datasets/ideko-full-dataset
 intents/untracked
+streamlit

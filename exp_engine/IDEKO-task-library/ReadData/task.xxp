@@ -1,0 +1,8 @@
+task ReadIDEKOData {
+    define input data ExternalDataFile;
+    define output data X;
+    define output data Y;
+    define output data IndicatorList;
+
+    implementation "IDEKO-task-library/ReadIDEKOData/task.py";
+}
