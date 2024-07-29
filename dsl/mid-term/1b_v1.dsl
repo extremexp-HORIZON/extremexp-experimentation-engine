@@ -4,8 +4,9 @@ workflow IDEKO {
   define task AddPadding;
   define task SplitData;
   define task TrainModel;
+  define task EvaluateModel;
 
-  START -> ReadData -> AddPadding -> SplitData -> TrainModel -> END;
+  START -> ReadData -> AddPadding -> SplitData -> TrainModel -> EvaluateModel-> END;
 
   configure task ReadData {
     implementation "tasks/IDEKO/Binary_v1/read_data.py";
@@ -23,6 +24,11 @@ workflow IDEKO {
   }
 
   configure task TrainModel {
+      dependency "tasks/IDEKO/Binary_v1/src/**";
+  }
+
+  configure task EvaluateModel {
+      implementation "tasks/IDEKO/Binary_v1/evaluate_model.py";
       dependency "tasks/IDEKO/Binary_v1/src/**";
   }
 

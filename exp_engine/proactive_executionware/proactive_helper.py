@@ -55,6 +55,13 @@ def load_large_dataset(variables, key):
         file_contents = pickle.load(f)
     return file_contents
 
+def create_dir(variables, key):
+    job_id = variables.get("PA_JOB_ID")
+    task_id = variables.get("PREVIOUS_TASK_ID")
+    folder = os.path.join("/shared", job_id, task_id, key)
+    os.makedirs(folder, exist_ok=True)
+
+    return folder
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
