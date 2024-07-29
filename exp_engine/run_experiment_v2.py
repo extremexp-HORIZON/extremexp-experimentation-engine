@@ -235,9 +235,9 @@ for component in experiment_model.component:
                 if e.filename:
                     implementation = e.filename
                     task_file_path = get_task_implementation_path(implementation)
-
                     # print(task_file_path)
                     parts = implementation.split('.')
+
                     if parts[0] == 'IDEKO-experiment1':
                         task_file_path = get_task_implementation_path(implementation)
                         with open('../dsl/' + task_file_path) as file:
@@ -247,11 +247,53 @@ for component in experiment_model.component:
                             subworkflow_model = experiments_metamodel.model_from_str(workflow_specification)
 
                             for component in subworkflow_model.component:
+                                if component.__class__.__name__ == 'Workflow':
+                                    wf = classes.Workflow(component.name)
+                                    parsed_workflows.append(wf)
+                                    task.add_sub_workflow_name(wf.name)
+
                                 for e in component.elements:
                                     if e.__class__.__name__ == "DefineTask":
                                         task = classes.WorkflowTask(e.name)
                                         wf.add_task(task)
 
+                                    if e.__class__.__name__ == "DefineData":
+                                        ds = classes.WorkflowDataset(e.name)
+                                        wf.add_dataset(ds)
+
+                                    if e.__class__.__name__ == "ConfigureTask":
+                                        task = wf.get_task(e.alias.name)
+                                        if e.filename:
+                                            implementation = e.filename
+                                            task_file_path = get_task_implementation_path(implementation)
+
+                                            if not os.path.exists(task_file_path):
+                                                raise exp_engine_exceptions.ImplementationFileNotFound(
+                                                    f"{task_file_path} in task {e.alias.name}")
+                                            task.add_implementation_file(task_file_path)
+                                        if e.dependency:
+                                            task.add_dependent_module(e.dependency)
+
+                                # if e.__class__.__name__ == "ConfigureData":
+                                #     print(e.alias.name)
+                                #     ds = wf.get_dataset(e.alias.name)
+                                #     ds.add_path(e.path)
+
+                                if e.__class__.__name__ == "StartAndEndEvent":
+                                    functions.process_dependencies(task_dependencies, e.nodes, "StartAndEndEvent")
+
+                                if e.__class__.__name__ == "StartEvent":
+                                    functions.process_dependencies(task_dependencies, e.nodes, "StartEvent")
+
+                                if e.__class__.__name__ == "EndEvent":
+                                    functions.process_dependencies(task_dependencies, e.nodes, "EndEvent")
+
+                                if e.__class__.__name__ == "TaskLink":
+                                    functions.process_dependencies(task_dependencies, [e.initial_node] + e.nodes,
+                                                                   "TaskLink")
+
+                                if e.__class__.__name__ == "DataLink":
+                                    functions.add_input_output_data(wf, [e.initial] + e.rest)
 
                     elif not os.path.exists(task_file_path):
                         raise exp_engine_exceptions.ImplementationFileNotFound(
@@ -574,6 +616,21 @@ for component in experiment_model.component:
 
                                 manual_dict[explink.fromspace.name][explink.condition] = explink.tospace.name
                 print('------------------------------------------')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # print("Nodes: ",nodes)
 # print("Automated Events:", automated_events)
