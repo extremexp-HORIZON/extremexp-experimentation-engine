@@ -145,7 +145,7 @@
               "nodes": []
             },
             "id_task": "variant-1-ReadData",
-            "implementationRef": "IDEKO-task-library.ReadData",
+            "implementationRef": "ReadData",
             "isAbstract": false,
             "is_composite": false,
             "name": "ReadData",
@@ -180,7 +180,7 @@
               "nodes": []
             },
             "id_task": "variant-1-PrepareData",
-            "implementationRef": "IDEKO-experiment1.IDEKO_DataPreprocessing",
+            "implementationRef": "IDEKO_DataPreprocessing",
             "isAbstract": false,
             "is_composite": false,
             "name": "PrepareData",
@@ -215,7 +215,7 @@
               "nodes": []
             },
             "id_task": "TrainModelNN-TrainModel",
-            "implementationRef": "IDEKO-task-library.TrainModelNN",
+            "implementationRef": "TrainModelNN",
             "isAbstract": false,
             "is_composite": false,
             "name": "TrainModel",
@@ -229,7 +229,7 @@
               "nodes": []
             },
             "id_task": "TrainModelRNN-TrainModel",
-            "implementationRef": "IDEKO-task-library.TrainModelRNN",
+            "implementationRef": "TrainModelRNN",
             "isAbstract": false,
             "is_composite": false,
             "name": "TrainModel",
@@ -264,7 +264,7 @@
               "nodes": []
             },
             "id_task": "variant-1-EvaluateModel",
-            "implementationRef": "IDEKO-task-library.EvaluateModel",
+            "implementationRef": "EvaluateModel",
             "isAbstract": false,
             "is_composite": false,
             "name": "EvaluateModel",

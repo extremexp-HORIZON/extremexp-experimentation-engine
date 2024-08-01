@@ -12,7 +12,6 @@ def dsl_to_json(dsl):
     data_def_re = re.compile(r'define input data (\w+);')
     data_config_re = re.compile(r'configure data (\w+)\s*\{\s*path\s*"([^"]+)"\s*\};')
     connection_re = re.compile(r'START -> (.+?) -> END;')
-
     variant_re = re.compile(r'workflow (\w+) from (\w+) \{\s*configure task (\w+) \{\s*implementation\s+"([^"]+)";\s*\}\s*\}')
 
     task_names = task_def_re.findall(dsl)
@@ -46,13 +45,20 @@ def dsl_to_json(dsl):
     }
     json_data["nodes"].append(start_node)
 
-    # Add tasks
-    y_pos = 100
-    y_increment = 150
-    task_implementation_map = {name: impl for name, impl in task_configs}
+    # Map task implementations
+    task_implementation_map = {}
+    for name, impl in task_configs:
+        impl_parts = impl.split('.')
+        if len(impl_parts) > 1:
+            task_implementation_map[name] = impl_parts[1]
+        else:
+            task_implementation_map[name] = impl
 
+    # Add task variants
     task_variant_map = {}
     for variant_name, main_workflow, task, implementation in variants:
+        impl_parts = implementation.split('.')
+        implementation_ref = impl_parts[1] if len(impl_parts) > 1 else ""
         if task not in task_variant_map:
             task_variant_map[task] = []
         task_variant_map[task].append({
@@ -62,13 +68,17 @@ def dsl_to_json(dsl):
                 "nodes": []
             },
             "id_task": f"{variant_name}-{task}",
-            "implementationRef": implementation,
+            "implementationRef": implementation_ref,
             "isAbstract": False,
             "is_composite": False,
             "name": task,
             "parameters": [],
             "variant": variant_name
         })
+
+    # Add tasks
+    y_pos = 100
+    y_increment = 150
 
     for task in connection_sequence:
         implementation = task_implementation_map.get(task, "")
@@ -211,7 +221,6 @@ def dsl_to_json(dsl):
 
     return json.dumps(json_data, indent=2)
 
-
 def export_json_to_file(json_data, file_path):
     try:
         with open(file_path, 'w') as file:
@@ -219,6 +228,7 @@ def export_json_to_file(json_data, file_path):
         print(f"JSON data successfully exported to '{file_path}'.")
     except Exception as e:
         print(f"Error occurred while exporting JSON data to '{file_path}': {e}")
+
 
 
 with open('IDEKO_main.xxp', 'r') as file:
