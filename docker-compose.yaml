@@ -1,0 +1,15 @@
+services:
+
+  exp-eng-service:
+    build: ./exp-engine-service
+    container_name: exp-eng-service
+    ports:
+      - '5556:5556'
+    networks:
+      - my_net
+
+
+networks:
+  my_net:
+    external:
+      name: extremexp_network
