@@ -1,4 +1,3 @@
-import textx
 import exp_engine_functions as functions
 
 EXPERIMENTS_FOLDER = 'IDEKO-experiment1/'
