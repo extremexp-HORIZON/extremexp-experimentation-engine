@@ -1,0 +1,81 @@
+package IDEKO;
+
+workflow IDEKO_main {
+  define task ReadData;
+  define task TrainModel;
+  define task EvaluateModel;
+  define task PrepareData;
+
+  // Task CONNECTIONS
+  START -> ReadData -> PrepareData -> TrainModel -> EvaluateModel -> END;
+
+  configure task ReadData {
+    implementation "IDEKO-task-library.ReadData";
+    dependency "tasks/IDEKO/Binary_v1/src/**";
+  }
+
+  configure task EvaluateModel {
+    implementation "IDEKO-task-library.EvaluateModel";
+    dependency "tasks/IDEKO/Binary_v1/src/**";
+  }
+
+  configure task PrepareData {
+    implementation "IDEKO-experiment1.IDEKO_DataPreprocessing";
+  }
+
+
+  // DATA
+  define input data ExternalDataFile;
+
+  // DATA CONNECTIONS
+  ExternalDataFile --> ReadData.ExternalDataFile;
+
+  configure data ExternalDataFile {
+    path "IDEKO1";
+  }
+}
+
+workflow TrainModelNN from IDEKO_main {
+  configure task TrainModel {
+    implementation "IDEKO-task-library.TrainModelNN";
+  }
+}
+
+workflow TrainModelRNN from IDEKO_main {
+  configure task TrainModel {
+    implementation "IDEKO-task-library.TrainModelRNN";
+  }
+}
+
+experiment EXP {
+  intent FindBestClassifier;
+  control {
+    //Automated
+    S1 -> E1;
+  }
+
+  space S1 of TrainModelNN {
+    strategy gridsearch;
+    param epochs_vp = range(2, 4);
+    param batch_size_vp = enum(64);
+    configure task TrainModel {
+      param epochs = epochs_vp;
+      param batch_size = batch_size_vp;
+    }
+  }
+
+  space S2 of TrainModelRNN {
+    strategy gridsearch;
+    param epochs_vp = enum(2);
+    param batch_size_vp = enum(32);
+    configure task TrainModel {
+      param epochs = epochs_vp;
+      param batch_size = batch_size_vp;
+    }
+  }
+   event E1 {
+            type automated;
+            condition "the accuracy of the 5 lastly trained ML models is > 50%";
+            task check_accuracy_over_workflows_of_last_space;
+   }
+}

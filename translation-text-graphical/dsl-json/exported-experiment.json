@@ -1,0 +1,329 @@
+{
+  "edges": [
+    {
+      "data": {},
+      "id": "edge-start-node-task-ReadData",
+      "markerEnd": {
+        "color": "#000",
+        "height": 20,
+        "type": "arrow",
+        "width": 20
+      },
+      "source": "start-node",
+      "sourceHandle": null,
+      "style": {
+        "stroke": "#000",
+        "strokeWidth": 1.5
+      },
+      "target": "task-ReadData",
+      "targetHandle": "t-top",
+      "type": "regular"
+    },
+    {
+      "data": {},
+      "id": "edge-task-ReadData-task-PrepareData",
+      "markerEnd": {
+        "color": "#000",
+        "height": 20,
+        "type": "arrow",
+        "width": 20
+      },
+      "source": "task-ReadData",
+      "sourceHandle": null,
+      "style": {
+        "stroke": "#000",
+        "strokeWidth": 1.5
+      },
+      "target": "task-PrepareData",
+      "targetHandle": "t-top",
+      "type": "regular"
+    },
+    {
+      "data": {},
+      "id": "edge-task-PrepareData-task-TrainModel",
+      "markerEnd": {
+        "color": "#000",
+        "height": 20,
+        "type": "arrow",
+        "width": 20
+      },
+      "source": "task-PrepareData",
+      "sourceHandle": null,
+      "style": {
+        "stroke": "#000",
+        "strokeWidth": 1.5
+      },
+      "target": "task-TrainModel",
+      "targetHandle": "t-top",
+      "type": "regular"
+    },
+    {
+      "data": {},
+      "id": "edge-task-TrainModel-task-EvaluateModel",
+      "markerEnd": {
+        "color": "#000",
+        "height": 20,
+        "type": "arrow",
+        "width": 20
+      },
+      "source": "task-TrainModel",
+      "sourceHandle": null,
+      "style": {
+        "stroke": "#000",
+        "strokeWidth": 1.5
+      },
+      "target": "task-EvaluateModel",
+      "targetHandle": "t-top",
+      "type": "regular"
+    },
+    {
+      "data": {},
+      "id": "edge-task-EvaluateModel-end-node",
+      "markerEnd": {
+        "color": "#000",
+        "height": 20,
+        "type": "arrow",
+        "width": 20
+      },
+      "source": "task-EvaluateModel",
+      "sourceHandle": null,
+      "style": {
+        "stroke": "#000",
+        "strokeWidth": 1.5
+      },
+      "target": "end-node",
+      "targetHandle": null,
+      "type": "regular"
+    },
+    {
+      "animated": true,
+      "data": {},
+      "id": "edge-ExternalDataFile-task-ReadData-ExternalDataFile",
+      "markerEnd": {
+        "color": "#000",
+        "height": 20,
+        "type": "arrow",
+        "width": 20
+      },
+      "source": "data-ExternalDataFile",
+      "sourceHandle": null,
+      "style": {
+        "stroke": "#000",
+        "strokeWidth": 1.5
+      },
+      "target": "task-ReadData",
+      "targetHandle": null,
+      "type": "dataflow"
+    }
+  ],
+  "nodes": [
+    {
+      "data": {},
+      "dragging": false,
+      "height": 36,
+      "id": "start-node",
+      "position": {
+        "x": 135,
+        "y": 0
+      },
+      "positionAbsolute": {
+        "x": 100,
+        "y": 0
+      },
+      "selected": false,
+      "type": "start",
+      "width": 31
+    },
+    {
+      "data": {
+        "currentVariant": "variant-1-ReadData",
+        "variants": [
+          {
+            "description": "no description",
+            "graphical_model": {
+              "edges": [],
+              "nodes": []
+            },
+            "id_task": "variant-1-ReadData",
+            "implementationRef": "ReadData",
+            "isAbstract": false,
+            "is_composite": false,
+            "name": "ReadData",
+            "parameters": [],
+            "variant": 1
+          }
+        ]
+      },
+      "dragging": false,
+      "height": 44,
+      "id": "task-ReadData",
+      "position": {
+        "x": 100,
+        "y": 100
+      },
+      "positionAbsolute": {
+        "x": 100,
+        "y": 100
+      },
+      "selected": false,
+      "type": "task",
+      "width": 102
+    },
+    {
+      "data": {
+        "currentVariant": "variant-1-PrepareData",
+        "variants": [
+          {
+            "description": "no description",
+            "graphical_model": {
+              "edges": [],
+              "nodes": []
+            },
+            "id_task": "variant-1-PrepareData",
+            "implementationRef": "IDEKO_DataPreprocessing",
+            "isAbstract": false,
+            "is_composite": false,
+            "name": "PrepareData",
+            "parameters": [],
+            "variant": 1
+          }
+        ]
+      },
+      "dragging": false,
+      "height": 44,
+      "id": "task-PrepareData",
+      "position": {
+        "x": 100,
+        "y": 250
+      },
+      "positionAbsolute": {
+        "x": 100,
+        "y": 250
+      },
+      "selected": false,
+      "type": "task",
+      "width": 102
+    },
+    {
+      "data": {
+        "currentVariant": "TrainModelNN-TrainModel",
+        "variants": [
+          {
+            "description": "no description",
+            "graphical_model": {
+              "edges": [],
+              "nodes": []
+            },
+            "id_task": "TrainModelNN-TrainModel",
+            "implementationRef": "TrainModelNN",
+            "isAbstract": false,
+            "is_composite": false,
+            "name": "TrainModel",
+            "parameters": [],
+            "variant": "TrainModelNN"
+          },
+          {
+            "description": "no description",
+            "graphical_model": {
+              "edges": [],
+              "nodes": []
+            },
+            "id_task": "TrainModelRNN-TrainModel",
+            "implementationRef": "TrainModelRNN",
+            "isAbstract": false,
+            "is_composite": false,
+            "name": "TrainModel",
+            "parameters": [],
+            "variant": "TrainModelRNN"
+          }
+        ]
+      },
+      "dragging": false,
+      "height": 44,
+      "id": "task-TrainModel",
+      "position": {
+        "x": 100,
+        "y": 400
+      },
+      "positionAbsolute": {
+        "x": 100,
+        "y": 400
+      },
+      "selected": false,
+      "type": "task",
+      "width": 102
+    },
+    {
+      "data": {
+        "currentVariant": "variant-1-EvaluateModel",
+        "variants": [
+          {
+            "description": "no description",
+            "graphical_model": {
+              "edges": [],
+              "nodes": []
+            },
+            "id_task": "variant-1-EvaluateModel",
+            "implementationRef": "EvaluateModel",
+            "isAbstract": false,
+            "is_composite": false,
+            "name": "EvaluateModel",
+            "parameters": [],
+            "variant": 1
+          }
+        ]
+      },
+      "dragging": false,
+      "height": 44,
+      "id": "task-EvaluateModel",
+      "position": {
+        "x": 100,
+        "y": 550
+      },
+      "positionAbsolute": {
+        "x": 100,
+        "y": 550
+      },
+      "selected": false,
+      "type": "task",
+      "width": 102
+    },
+    {
+      "data": {},
+      "dragging": false,
+      "height": 37,
+      "id": "end-node",
+      "position": {
+        "x": 135,
+        "y": 700
+      },
+      "positionAbsolute": {
+        "x": 120,
+        "y": 700
+      },
+      "selected": false,
+      "type": "end",
+      "width": 32
+    },
+    {
+      "data": {
+        "name": "ExternalDataFile",
+        "path": ""
+      },
+      "dragging": false,
+      "height": 57,
+      "id": "data-ExternalDataFile",
+      "position": {
+        "x": -200,
+        "y": 100
+      },
+      "positionAbsolute": {
+        "x": -200,
+        "y": 100
+      },
+      "selected": false,
+      "type": "data",
+      "width": 122
+    }
+  ]
+}

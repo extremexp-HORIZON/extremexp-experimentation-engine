@@ -144,6 +144,18 @@ def export_json_to_file(json_data, file_path):
     except Exception as e:
         print(f"Error occurred while exporting JSON data to '{file_path}': {e}")
 
+
+
+with open('example.dsl', 'r') as file:
+    dsl = file.read()
+
+json_output = dsl_to_json(dsl)
+print(json_output)
+
+output_file_path = "complex-json.json"
+export_json_to_file(json_output, output_file_path)
+
+
 # dsl = """
 # workflow simple {
 #     define task ReadData;
@@ -159,13 +171,3 @@ def export_json_to_file(json_data, file_path):
 #     START -> ReadData -> AddPadding -> SplitData -> TrainModel -> END;
 # }
 # """
-
-
-with open('example.dsl', 'r') as file:
-    dsl = file.read()
-
-json_output = dsl_to_json(dsl)
-print(json_output)
-
-output_file_path = "complex-json.json"
-export_json_to_file(json_output, output_file_path)
