@@ -1,7 +1,6 @@
 import re
 import json
 
-
 def dsl_to_json(dsl):
     json_data = {
         "edges": [],
@@ -10,11 +9,18 @@ def dsl_to_json(dsl):
 
     task_def_re = re.compile(r'define task (\w+);')
     task_config_re = re.compile(r'configure task (\w+)\s*\{(?:[^}]*implementation\s+"([^"]+)";)?[^}]*\}')
-    connection_re = re.compile(r'START -> (.+) -> END;')
+    data_def_re = re.compile(r'define input data (\w+);')
+    data_config_re = re.compile(r'configure data (\w+)\s*\{\s*path\s*"([^"]+)"\s*\};')
+    connection_re = re.compile(r'START -> (.+?) -> END;')
+
+    variant_re = re.compile(r'workflow (\w+) from (\w+) \{\s*configure task (\w+) \{\s*implementation\s+"([^"]+)";\s*\}\s*\}')
 
     task_names = task_def_re.findall(dsl)
     task_configs = task_config_re.findall(dsl)
+    data_names = data_def_re.findall(dsl)
+    data_configs = data_config_re.findall(dsl)
     connections = connection_re.search(dsl)
+    variants = variant_re.findall(dsl)
 
     if not connections:
         raise ValueError("Invalid DSL format: Missing connections")
@@ -26,6 +32,7 @@ def dsl_to_json(dsl):
     if set(connection_sequence) != set(task_names):
         raise ValueError("Invalid DSL format: Task connections mismatch with task names")
 
+    # Add start node
     start_node = {
         "data": {},
         "dragging": False,
@@ -33,40 +40,60 @@ def dsl_to_json(dsl):
         "id": "start-node",
         "position": {"x": 135, "y": 0},
         "positionAbsolute": {"x": 100, "y": 0},
-        "selected": True,
+        "selected": False,
         "type": "start",
         "width": 31
     }
     json_data["nodes"].append(start_node)
 
-    x_pos = 100
+    # Add tasks
     y_pos = 100
     y_increment = 150
-
     task_implementation_map = {name: impl for name, impl in task_configs}
+
+    task_variant_map = {}
+    for variant_name, main_workflow, task, implementation in variants:
+        if task not in task_variant_map:
+            task_variant_map[task] = []
+        task_variant_map[task].append({
+            "description": "no description",
+            "graphical_model": {
+                "edges": [],
+                "nodes": []
+            },
+            "id_task": f"{variant_name}-{task}",
+            "implementationRef": implementation,
+            "isAbstract": False,
+            "is_composite": False,
+            "name": task,
+            "parameters": [],
+            "variant": variant_name
+        })
 
     for task in connection_sequence:
         implementation = task_implementation_map.get(task, "")
         is_abstract = not bool(implementation)
+        variants_list = task_variant_map.get(task, [])
+        if not variants_list:
+            variants_list.append({
+                "description": "no description",
+                "graphical_model": {
+                    "edges": [],
+                    "nodes": []
+                },
+                "id_task": f"variant-1-{task}",
+                "implementationRef": implementation,
+                "isAbstract": is_abstract,
+                "is_composite": False,
+                "name": task,
+                "parameters": [],
+                "variant": 1
+            })
+
         node = {
             "data": {
-                "currentVariant": f"variant-1-{task}",
-                "variants": [
-                    {
-                        "description": "no description",
-                        "graphical_model": {
-                            "edges": [],
-                            "nodes": []
-                        },
-                        "id_task": f"variant-1-{task}",
-                        "implementationRef": implementation,
-                        "isAbstract": is_abstract,
-                        "is_composite": False,
-                        "name": task,
-                        "parameters": [],
-                        "variant": 1
-                    }
-                ]
+                "currentVariant": variants_list[0]["id_task"],
+                "variants": variants_list
             },
             "dragging": False,
             "height": 44,
@@ -80,6 +107,7 @@ def dsl_to_json(dsl):
         json_data["nodes"].append(node)
         y_pos += y_increment
 
+    # Add end node
     end_node = {
         "data": {},
         "dragging": False,
@@ -93,6 +121,7 @@ def dsl_to_json(dsl):
     }
     json_data["nodes"].append(end_node)
 
+    # Add edges for tasks
     prev_node_id = "start-node"
     for task in connection_sequence:
         task_node_id = f"task-{task}"
@@ -115,7 +144,7 @@ def dsl_to_json(dsl):
         json_data["edges"].append(edge)
         prev_node_id = task_node_id
 
-    edge_to_end = {
+    end_edge = {
         "data": {},
         "id": f"edge-{prev_node_id}-end-node",
         "markerEnd": {
@@ -131,7 +160,54 @@ def dsl_to_json(dsl):
         "targetHandle": None,
         "type": "regular"
     }
-    json_data["edges"].append(edge_to_end)
+    json_data["edges"].append(end_edge)
+
+    # Add data nodes
+    data_path_map = {name: path for name, path in data_configs}
+    x_pos_data = -200
+    y_pos_data = 100
+
+    for data in data_names:
+        path = data_path_map.get(data, "")
+        node = {
+            "data": {
+                "name": data,
+                "path": path
+            },
+            "dragging": False,
+            "height": 57,
+            "id": f"data-{data}",
+            "position": {"x": x_pos_data, "y": y_pos_data},
+            "positionAbsolute": {"x": x_pos_data, "y": y_pos_data},
+            "selected": False,
+            "type": "data",
+            "width": 122
+        }
+        json_data["nodes"].append(node)
+
+    # Add edges for data connections
+    data_connection_re = re.compile(r'(\w+) --> (\w+)\.(\w+);')
+    data_connections = data_connection_re.findall(dsl)
+
+    for data_src, task, data_tgt in data_connections:
+        edge = {
+            "animated": True,
+            "data": {},
+            "id": f"edge-{data_src}-task-{task}-{data_tgt}",
+            "markerEnd": {
+                "color": "#000",
+                "height": 20,
+                "type": "arrow",
+                "width": 20
+            },
+            "source": f"data-{data_src}",
+            "sourceHandle": None,
+            "style": {"stroke": "#000", "strokeWidth": 1.5},
+            "target": f"task-{task}",
+            "targetHandle": None,
+            "type": "dataflow"
+        }
+        json_data["edges"].append(edge)
 
     return json.dumps(json_data, indent=2)
 
@@ -145,29 +221,13 @@ def export_json_to_file(json_data, file_path):
         print(f"Error occurred while exporting JSON data to '{file_path}': {e}")
 
 
-
-with open('example.dsl', 'r') as file:
+with open('IDEKO_main.xxp', 'r') as file:
     dsl = file.read()
+
+print(dsl)
 
 json_output = dsl_to_json(dsl)
 print(json_output)
 
-output_file_path = "complex-json.json"
+output_file_path = "exported-experiment.json"
 export_json_to_file(json_output, output_file_path)
-
-
-# dsl = """
-# workflow simple {
-#     define task ReadData;
-#     define task AddPadding;
-#     define task SplitData;
-#     define task TrainModel;
-#
-#     configure task ReadData{}
-#     configure task AddPadding{}
-#     configure task SplitData{}
-#     configure task TrainModel{}
-#
-#     START -> ReadData -> AddPadding -> SplitData -> TrainModel -> END;
-# }
-# """
