@@ -737,15 +737,18 @@ def execute_node(node):
         return execute_manual_event(node)
 
 
-def find_start_node(nodes):
-    values = nodes.values()
-    for n in nodes:
+def find_start_node(nodes, automated_dict):
+    values = automated_dict.values()
+    if len(values) == 0:
+        # if the control is trivial, just pick the first node
+        return list(nodes)[0]
+    for n in automated_dict:
         if n not in values:
             return n
 
 
 def run_workflow(nodes, automated_dict):
-    start_node = find_start_node(automated_dict)
+    start_node = find_start_node(nodes, automated_dict)
     print("Nodes: ", nodes)
     print("Start Node: ", start_node)
 
