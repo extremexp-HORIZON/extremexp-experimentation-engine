@@ -11,5 +11,5 @@ services:
 
 networks:
   my_net:
-    external:
-      name: extremexp_network
+    name: extremexp_network
+    external: true
