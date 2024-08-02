@@ -31,7 +31,6 @@ workflow IDEKO_main {
   ExternalDataFile --> ReadData.ExternalDataFile;
 
   configure data ExternalDataFile {
-    //path "IDEKO1";
     path "datasets/v1/ideko-subset/**";
   }
 }
@@ -54,12 +53,13 @@ experiment EXP {
   intent FindBestClassifier;
   control {
     //Automated
-    S1 -> E1;
+    S1;
   }
 
   space S1 of TrainModelNN {
     strategy gridsearch;
-    param epochs_vp = range(2, 4);
+    // param epochs_vp = range(2, 4);
+    param epochs_vp = enum(2);
     param batch_size_vp = enum(64);
     configure task TrainModel {
       param epochs = epochs_vp;
@@ -67,18 +67,4 @@ experiment EXP {
     }
   }
 
-  space S2 of TrainModelRNN {
-    strategy gridsearch;
-    param epochs_vp = enum(2);
-    param batch_size_vp = enum(32);
-    configure task TrainModel {
-      param epochs = epochs_vp;
-      param batch_size = batch_size_vp;
-    }
-  }
-   event E1 {
-            type automated;
-            condition "the accuracy of the 5 lastly trained ML models is > 50%";
-            task check_accuracy_over_workflows_of_last_space; 
-   } 
 }
