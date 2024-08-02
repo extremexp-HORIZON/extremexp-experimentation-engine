@@ -1,7 +1,7 @@
 services:
 
-  exp-eng-service:
-    build: ./exp-engine-service
+  exp_engine:
+    build: ./exp_engine
     container_name: exp-eng-service
     ports:
       - '5556:5556'
