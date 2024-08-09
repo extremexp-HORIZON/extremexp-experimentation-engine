@@ -5,3 +5,5 @@ __pycache__
 exp_engine/datasets/ideko-full-dataset
 intents/untracked
 streamlit
+exp_engine/IDEKO1
+exp_engine/data_abstraction_layer/data_abstraction_config.py
