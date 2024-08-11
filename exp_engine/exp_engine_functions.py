@@ -699,10 +699,6 @@ def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
                 input_datasets.append(input_file)
                 input_file["name"] = f.name
                 input_file["uri"] = f.path
-    print("printing task_specifications...")
-    import pprint
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(task_specifications)
     body = {
         "name": f"{exp_id}--w{run_count}",
         "executedTasks": task_specifications
