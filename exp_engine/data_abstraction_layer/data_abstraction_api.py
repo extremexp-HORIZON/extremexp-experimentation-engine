@@ -1,5 +1,8 @@
 import requests
-import data_abstraction_config as config
+import data_abstraction_layer.data_abstraction_config as config
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def get_all_experiments():
@@ -12,10 +15,13 @@ def get_all_experiments():
 def create_experiment(body):
     url = f"{config.BASE_URL}/executed-experiments"
     r = requests.put(url, json=body, headers=config.HEADERS)
-    print(f"PUT request to {url} return status code: {r.status_code}")
-    exp_id = r.json()['message']['experimentId']
-    print(f"New experiment created with id {exp_id}")
-    return exp_id
+    logger.info(f"PUT request to {url} return status code: {r.status_code}")
+    if r.status_code == 201:
+        exp_id = r.json()['message']['experimentId']
+        print(f"New experiment created with id {exp_id}")
+        return exp_id
+    else:
+        return "something went wrong when creating experiment"
 
 
 def get_experiment(exp_id):
