@@ -43,9 +43,13 @@ def create_workflow(exp_id, body):
     body["experimentId"] = exp_id
     r = requests.put(url, json=body, headers=config.HEADERS)
     print(f"PUT request to {url} return status code: {r.status_code}")
-    wf_id = r.json()['workflowId']
-    print(f"New workflow created with id {wf_id}")
-    return wf_id
+    if r.status_code == 201:
+        wf_id = r.json()['workflowId']
+        print(f"New workflow created with id {wf_id}")
+        return wf_id
+    else:
+        print(r.json())
+        return "something went wrong when creating experiment"
 
 
 def get_workflow(wf_id):

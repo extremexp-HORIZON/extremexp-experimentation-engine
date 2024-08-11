@@ -657,6 +657,60 @@ def run_scheduled_workflows(space_results, exp_id):
             run_count += 1
 
 
+def get_workflow_to_run(space_config, c):
+    c_dict = dict(c)
+    w = next(w for w in assembled_flat_wfs if w.name == space_config["assembled_workflow"])
+    for t in w.tasks:
+        if t.name in space_config["tasks"].keys():
+            task_config = space_config["tasks"][t.name]
+            for param_name, param_vp in task_config.items():
+                alias = param_vp
+                print(f"Setting param '{param_name}' of task '{t.name}' to '{c_dict[alias]}'")
+                t.set_param(param_name, c_dict[alias])
+    return w
+
+
+def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
+    task_specifications = []
+    for t in sorted(workflow_to_run.tasks, key=lambda t: t.order):
+        t_spec = {}
+        task_specifications.append(t_spec)
+        t_spec["id"] = t.name
+        t_spec["name"] = t.name
+        t_spec["source_code"] = t.impl_file
+        if len(t.params) > 0:
+            params = []
+            t_spec["parameters"] = params
+            for name in t.params:
+                param = {}
+                params.append(param)
+                value = t.params[name]
+                param["name"] = name
+                param["value"] = str(value)
+                if type(value) is int:
+                    param["type"] = "integer"
+                else:
+                    param["type"] = "string"
+        if len(t.input_files) > 0:
+            input_datasets = []
+            t_spec["input_datasets"] = input_datasets
+            for f in t.input_files:
+                input_file = {}
+                input_datasets.append(input_file)
+                input_file["name"] = f.name
+                input_file["uri"] = f.path
+    print("printing task_specifications...")
+    import pprint
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(task_specifications)
+    body = {
+        "name": f"{exp_id}--w{run_count}",
+        "executedTasks": task_specifications
+    }
+    wf_id = create_workflow(exp_id, body)
+    return wf_id
+
+
 def run_grid_search(space_config, exp_id):
     grid_search_combinations = []
     VPs = space_config["VPs"]
@@ -688,10 +742,7 @@ def run_grid_search(space_config, exp_id):
     for c in combinations:
         print(f"Run {run_count}")
         workflow_to_run = get_workflow_to_run(space_config, c)
-        body = {
-            "name": f"{exp_id}--w{run_count}",
-        }
-        wf_id = create_workflow(exp_id, body)
+        wf_id = create_executed_workflow_in_db(exp_id, run_count, workflow_to_run)
         workflows_to_run[wf_id] = workflow_to_run
         workflow_combinations_to_run[wf_id] = c
         run_count += 1
@@ -700,18 +751,6 @@ def run_grid_search(space_config, exp_id):
     results[space_config['name']] = space_results
     run_scheduled_workflows(space_results, exp_id)
 
-
-def get_workflow_to_run(space_config, c):
-    c_dict = dict(c)
-    w = next(w for w in assembled_flat_wfs if w.name == space_config["assembled_workflow"])
-    for t in w.tasks:
-        if t.name in space_config["tasks"].keys():
-            task_config = space_config["tasks"][t.name]
-            for param_name, param_vp in task_config.items():
-                alias = param_vp
-                print(f"Setting param '{param_name}' of task '{t.name}' to '{c_dict[alias]}'")
-                t.set_param(param_name, c_dict[alias])
-    return w
 
 def  run_random_search(space_config, exp_id):
     random_combinations = []
