@@ -1,4 +1,5 @@
 import exp_engine_classes as classes
+from data_abstraction_layer.data_abstraction_api import *
 import proactive_executionware.proactive_runner as proactive_runner
 import exp_engine_exceptions
 import os
@@ -22,6 +23,8 @@ automated_dict = {}
 manual_dict = {}
 parsed_manual_events = []
 parsed_automated_events = []
+workflows_to_run = {}
+workflow_combinations_to_run = {}
 
 results = {}
 
@@ -648,7 +651,7 @@ def execute_manual_event(node):
     return ret
 
 
-def execute_space(node):
+def execute_space(node, exp_id):
     print("executing space")
 
     space_config = next((s for s in space_configs if s['name'] == node), None)
@@ -659,10 +662,10 @@ def execute_space(node):
     method_type = space_config["strategy"]
 
     if method_type == "gridsearch":
-        run_grid_search(space_config)
+        run_grid_search(space_config, exp_id)
 
     if method_type == "randomsearch":
-        run_random_search(space_config)
+        run_random_search(space_config, exp_id)
 
     print("node executed")
     print("Results so far")
@@ -671,46 +674,26 @@ def execute_space(node):
 
     return 'True'
 
-def run_grid_search(space_config):
-     grid_search_combinations = []
-     VPs = space_config["VPs"]
-     vp_combinations = []
 
-     for vp_data in VPs:
-         if vp_data["type"] == "enum":
-             vp_name = vp_data["name"]
-             vp_values = vp_data["values"]
-             vp_combinations.append([(vp_name, value) for value in vp_values])
+def run_scheduled_workflows(space_results, exp_id):
+    exp = get_experiment(exp_id)
+    workflows_count = len(exp["workflowIds"])
 
-         elif vp_data["type"] == "range":
-             vp_name = vp_data["name"]
-             min_value = vp_data["min"]
-             max_value = vp_data["max"]
-             step_value = vp_data.get("step", 1) if vp_data["step"] != 0 else 1
-             vp_values = list(range(min_value, max_value + 1, step_value))
-             vp_combinations.append([(vp_name, value) for value in vp_values])
-
-         # Generate combinations
-     combinations = list(itertools.product(*vp_combinations))
-     grid_search_combinations.extend(combinations)
-
-     print(f"\nGrid search generated {len(combinations)} configurations to run.\n")
-     for combination in combinations:
-         print(combination)
-
-     space_results = {}
-     results[space_config['name']] = space_results
-     run_count = 1
-     for c in combinations:
-         print(f"Run {run_count}")
-         workflow_to_run = get_workflow_to_run(space_config, c)
-         result = execute_wf(workflow_to_run, EXECUTIONWARE)
-         workflow_results = {}
-         workflow_results["configuration"] = c
-         workflow_results["result"] = result
-         space_results[run_count] = workflow_results
-         print("..........")
-         run_count += 1
+    for attempts in range(workflows_count):
+        wf_ids = get_experiment(exp_id)["workflowIds"]
+        run_count = 1
+        for wf_id in wf_ids:
+            workflow_to_run = workflows_to_run[wf_id]
+            if get_workflow(wf_id)["status"] != "completed":
+                update_workflow(wf_id, {"status": "running"})
+                result = execute_wf(workflow_to_run, EXECUTIONWARE)
+                update_workflow(wf_id, {"status": "completed"})
+                workflow_results = {}
+                workflow_results["configuration"] = workflow_combinations_to_run[wf_id]
+                workflow_results["result"] = result
+                space_results[run_count] = workflow_results
+            # TODO fix this count in case of reordering
+            run_count += 1
 
 
 def get_workflow_to_run(space_config, c):
@@ -725,7 +708,86 @@ def get_workflow_to_run(space_config, c):
                 t.set_param(param_name, c_dict[alias])
     return w
 
-def  run_random_search(space_config):
+
+def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
+    task_specifications = []
+    for t in sorted(workflow_to_run.tasks, key=lambda t: t.order):
+        t_spec = {}
+        task_specifications.append(t_spec)
+        t_spec["id"] = t.name
+        t_spec["name"] = t.name
+        t_spec["source_code"] = t.impl_file
+        if len(t.params) > 0:
+            params = []
+            t_spec["parameters"] = params
+            for name in t.params:
+                param = {}
+                params.append(param)
+                value = t.params[name]
+                param["name"] = name
+                param["value"] = str(value)
+                if type(value) is int:
+                    param["type"] = "integer"
+                else:
+                    param["type"] = "string"
+        if len(t.input_files) > 0:
+            input_datasets = []
+            t_spec["input_datasets"] = input_datasets
+            for f in t.input_files:
+                input_file = {}
+                input_datasets.append(input_file)
+                input_file["name"] = f.name
+                input_file["uri"] = f.path
+    body = {
+        "name": f"{exp_id}--w{run_count}",
+        "executedTasks": task_specifications
+    }
+    wf_id = create_workflow(exp_id, body)
+    return wf_id
+
+
+def run_grid_search(space_config, exp_id):
+    grid_search_combinations = []
+    VPs = space_config["VPs"]
+    vp_combinations = []
+
+    for vp_data in VPs:
+        if vp_data["type"] == "enum":
+            vp_name = vp_data["name"]
+            vp_values = vp_data["values"]
+            vp_combinations.append([(vp_name, value) for value in vp_values])
+
+        elif vp_data["type"] == "range":
+            vp_name = vp_data["name"]
+            min_value = vp_data["min"]
+            max_value = vp_data["max"]
+            step_value = vp_data.get("step", 1) if vp_data["step"] != 0 else 1
+            vp_values = list(range(min_value, max_value + 1, step_value))
+            vp_combinations.append([(vp_name, value) for value in vp_values])
+
+    # Generate combinations
+    combinations = list(itertools.product(*vp_combinations))
+    grid_search_combinations.extend(combinations)
+
+    print(f"\nGrid search generated {len(combinations)} configurations to run.\n")
+    for combination in combinations:
+        print(combination)
+
+    run_count = 1
+    for c in combinations:
+        print(f"Run {run_count}")
+        workflow_to_run = get_workflow_to_run(space_config, c)
+        wf_id = create_executed_workflow_in_db(exp_id, run_count, workflow_to_run)
+        workflows_to_run[wf_id] = workflow_to_run
+        workflow_combinations_to_run[wf_id] = c
+        run_count += 1
+
+    space_results = {}
+    results[space_config['name']] = space_results
+    run_scheduled_workflows(space_results, exp_id)
+
+
+def  run_random_search(space_config, exp_id):
     random_combinations = []
 
     vps = space_config['VPs']
@@ -748,7 +810,6 @@ def  run_random_search(space_config):
     for c in random_combinations:
         print(c)
 
-
     run_count = 1
     space_results = {}
     results[space_config['name']] = space_results
@@ -763,11 +824,11 @@ def  run_random_search(space_config):
         print("..........")
         run_count += 1
 
-def execute_node(node):
+def execute_node(node, exp_id):
     print(node)
 
     if node in spaces:
-        return execute_space(node)
+        return execute_space(node, exp_id)
 
     elif node in automated_events:
         return  execute_automated_event(node)
@@ -786,19 +847,20 @@ def find_start_node(nodes, automated_dict):
             return n
 
 
-def run_workflow(nodes, automated_dict):
+def run_workflow(nodes, automated_dict, exp_id):
     start_node = find_start_node(nodes, automated_dict)
     print("Nodes: ", nodes)
     print("Start Node: ", start_node)
 
     node = start_node
-    result = execute_node(node)
+    result = execute_node(node, exp_id)
     while node in automated_dict:
         next_action = automated_dict[node]
         node = next_action[result]
-        result = execute_node(node)
+        result = execute_node(node, exp_id)
 
-def run_experiment(experiment_specification):
+
+def run_experiment(experiment_specification, exp_id):
 
     print("*********************************************************")
     print("***************** PARSE WORKFLOWS ***********************")
@@ -830,7 +892,7 @@ def run_experiment(experiment_specification):
     print("\n*********************************************************")
     print("***************** RUNNING WORKFLOWS ***********************")
     print("*********************************************************")
-    run_workflow(nodes, automated_dict)
+    run_workflow(nodes, automated_dict, exp_id)
 
 
 
