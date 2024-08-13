@@ -1,0 +1,14 @@
+package IDEKO;
+
+workflow IDEKO_main {
+  define task MulticlassPredictor;
+  define task BinaryclassPredictor;
+
+
+configure task MulticlassPredictor {
+  implementation "IDEKO-experiment1.IDEKO_main"; //should be renamed as IDEKO_multi_main;
+}
+
+configure task BinaryclassPredictor {
+  implementation "IDEKO-experiment1.IDEKO_binary_main";
+}}

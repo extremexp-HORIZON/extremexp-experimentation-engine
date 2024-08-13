@@ -281,6 +281,45 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 
     return wf, parsed_workflows, task_dependencies
 
+
+def get_experiment_specification(workflow_specification):
+    experiment_specifications = []
+    experiments_metamodel = textx.metamodel_from_file('IDEKO-experiment1/workflow_grammar_new_v2.tx')
+    workflow_model = experiments_metamodel.model_from_str(workflow_specification)
+
+
+    for component in workflow_model.component:
+        if component.__class__.__name__ == 'Workflow':
+            for e in component.elements:
+                if e.__class__.__name__ == "ConfigureTask":
+                    if e.filename:
+                        implementation = e.filename
+                        # print(implementation)
+                        parts = implementation.split('.')
+
+                        if parts[0] == 'IDEKO-experiment1':
+                            task_file_path = os.path.join('IDEKO-experiment1', parts[1] + '.xxp')
+                        else:
+                            task_file_path = None
+
+                        if not os.path.exists(task_file_path):
+                            raise exp_engine_exceptions.ImplementationFileNotFound(
+                                f"{task_file_path} in task {e.alias.name}")
+                        else:
+                            with open(task_file_path, 'r') as file:
+                                experiment_specification = file.read()
+                                # print(experiment_specification)
+                                experiment_specifications.append(experiment_specification)
+
+    return experiment_specifications
+
+
+
+
+
+
+
+
 def parse_workflows(experiment_specification):
     parsed_workflows = []
     task_dependencies = {}
