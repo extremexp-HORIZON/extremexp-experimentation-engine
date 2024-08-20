@@ -142,7 +142,7 @@ ParameterConfiguration: 'param' param_name=ID '=' vp=ID ';';
 Control:
         'control' '{'
                (expNode=[ExperimentNode]';')?
-               explink*=ExpLink
+               explink*=ExpLink | explink=STRING
         '}';
 
 ExpLink:  RegularExpLink | ConditionalExpLink;

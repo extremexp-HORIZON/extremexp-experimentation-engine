@@ -12,5 +12,6 @@ with open(EXPERIMENTS_FOLDER + dsl_file + '.xxp', 'r') as file:
 experiment_specifications = functions.get_experiment_specification(workflow_specification)
 
 for ep in experiment_specifications:
-    functions.run_experiment(ep)
+    print(ep)
+    # functions.run_experiment(ep)
 

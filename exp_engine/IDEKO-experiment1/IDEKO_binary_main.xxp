@@ -49,12 +49,6 @@ workflow TrainModelRNN from IDEKO_binary_main {
 }
 
 experiment EXP {
-  intent FindBestClassifier;
-  control {
-    //Automated
-    S1 -> E1;
-  }
-
   space S1 of TrainModelNN {
     strategy gridsearch;
     param epochs_vp = range(2, 4);
@@ -74,9 +68,4 @@ experiment EXP {
       param batch_size = batch_size_vp;
     }
   }
-   event E1 {
-            type automated;
-            condition "the accuracy of the 5 lastly trained ML models is > 50%";
-            task check_accuracy_over_workflows_of_last_space; 
-   } 
 }
