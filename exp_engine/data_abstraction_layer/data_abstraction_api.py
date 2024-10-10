@@ -13,7 +13,7 @@ def get_all_experiments():
 
 
 def create_experiment(body):
-    url = f"{config.BASE_URL}/executed-experiments"
+    url = f"{config.BASE_URL}/experiments"
     r = requests.put(url, json=body, headers=config.HEADERS)
     logger.info(f"PUT request to {url} return status code: {r.status_code}")
     if r.status_code == 201:
@@ -25,26 +25,26 @@ def create_experiment(body):
 
 
 def get_experiment(exp_id):
-    url = f"{config.BASE_URL}/executed-experiments/{exp_id}"
+    url = f"{config.BASE_URL}/experiments/{exp_id}"
     r = requests.get(url, headers=config.HEADERS)
     print(f"GET request to {url} return status code: {r.status_code}")
     return r.json()['experiment']
 
 
 def update_experiment(exp_id, body):
-    url = f"{config.BASE_URL}/executed-experiments/{exp_id}"
+    url = f"{config.BASE_URL}/experiments/{exp_id}"
     r = requests.post(url, json=body, headers=config.HEADERS)
     print(f"POST request to {url} return status code: {r.status_code}")
     return r.json()
 
 
 def create_workflow(exp_id, body):
-    url = f"{config.BASE_URL}/executed-workflows"
+    url = f"{config.BASE_URL}/workflows"
     body["experimentId"] = exp_id
     r = requests.put(url, json=body, headers=config.HEADERS)
     print(f"PUT request to {url} return status code: {r.status_code}")
     if r.status_code == 201:
-        wf_id = r.json()['workflowId']
+        wf_id = r.json()['workflow_id']
         print(f"New workflow created with id {wf_id}")
         return wf_id
     else:
@@ -53,14 +53,14 @@ def create_workflow(exp_id, body):
 
 
 def get_workflow(wf_id):
-    url = f"{config.BASE_URL}/executed-workflows/{wf_id}"
+    url = f"{config.BASE_URL}/workflows/{wf_id}"
     r = requests.get(url, headers=config.HEADERS)
     print(f"GET request to {url} return status code: {r.status_code}")
     return r.json()['workflow']
 
 
 def update_workflow(wf_id, body):
-    url = f"{config.BASE_URL}/executed-workflows/{wf_id}"
+    url = f"{config.BASE_URL}/workflows/{wf_id}"
     r = requests.post(url, json=body, headers=config.HEADERS)
     print(f"POST request to {url} return status code: {r.status_code}")
     return r.json()
