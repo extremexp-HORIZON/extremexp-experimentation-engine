@@ -53,8 +53,8 @@ espace NNExpSpace of IDEKO_V1_RNN {
 
     configure self {
         method gridsearch as g;
-        g.epochs_vp = enum(1,2);
-        g.batch_size_vp = enum(64,80);
+        g.epochs_vp = enum(1,3);
+        g.batch_size_vp = enum(1,2);
     }
 
     task TrainModel{
@@ -63,3 +63,4 @@ espace NNExpSpace of IDEKO_V1_RNN {
     }
 
 }
+

@@ -230,7 +230,6 @@ def export_json_to_file(json_data, file_path):
         print(f"Error occurred while exporting JSON data to '{file_path}': {e}")
 
 
-
 with open('IDEKO_main.xxp', 'r') as file:
     dsl = file.read()
 

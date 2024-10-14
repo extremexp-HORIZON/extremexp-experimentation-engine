@@ -48,6 +48,8 @@ workflow IDEKO_V1 {
       //dependency "tasks/IDEKO/src/**";
   //}
 
+  ReadData -> "" ? AddPadding : SayHello -> SplitData;
+
 
 
   // DATA

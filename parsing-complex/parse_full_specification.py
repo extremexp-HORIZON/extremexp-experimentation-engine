@@ -8,7 +8,7 @@ mltask_library_path = 'extremexp-mltask-library'
 
 def get_task_implementation_path(implementation):
     parts = implementation.split('.')
-    if parts[0] == 'IDEKO-task-library':
+    if parts[0] == 'IDEKO-testcase_task_library':
         return os.path.join(task_library_path, parts[1], 'task.xxp')
     elif parts[0] == 'IDEKO-experiment1':
         return os.path.join(experiment1_path, parts[1] + '.xxp')
