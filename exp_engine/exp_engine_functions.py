@@ -8,7 +8,7 @@ import itertools
 import random
 import pprint
 
-
+GRAMMAR_PATH = "grammar/workflow_grammar_new_v2.tx"
 EXECUTIONWARE = "PROACTIVE"
 
 assembled_flat_wfs = []
@@ -302,7 +302,7 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 
 def get_experiment_specification(workflow_specification):
     experiment_specifications = []
-    experiments_metamodel = textx.metamodel_from_file('testcase_translation/workflow_grammar_new_v2.tx')
+    experiments_metamodel = textx.metamodel_from_file(GRAMMAR_PATH)
     workflow_model = experiments_metamodel.model_from_str(workflow_specification)
 
     for component in workflow_model.component:
@@ -334,7 +334,7 @@ def parse_workflows(experiment_specification):
     parsed_workflows = []
     task_dependencies = {}
 
-    experiments_metamodel = textx.metamodel_from_file('testcase_translation/workflow_grammar_new_v2.tx')
+    experiments_metamodel = textx.metamodel_from_file(GRAMMAR_PATH)
     experiment_model = experiments_metamodel.model_from_str(experiment_specification)
 
     _, parsed_workflows, task_dependencies = get_workflow_components(experiments_metamodel, experiment_model, parsed_workflows, task_dependencies)
@@ -351,7 +351,7 @@ def parse_workflows(experiment_specification):
 
 
 def parse_assembled_workflow_data(experiment_specification):
-    experiments_metamodel = textx.metamodel_from_file('testcase_translation/workflow_grammar_new_v2.tx')
+    experiments_metamodel = textx.metamodel_from_file(GRAMMAR_PATH)
     experiment_model = experiments_metamodel.model_from_str(experiment_specification)
 
     assembled_workflows_data = []
@@ -394,7 +394,7 @@ def parse_assembled_workflow_data(experiment_specification):
 
 
 def generate_experiment_specification(experiment_specification):
-    experiments_metamodel = textx.metamodel_from_file('testcase_translation/workflow_grammar_new_v2.tx')
+    experiments_metamodel = textx.metamodel_from_file(GRAMMAR_PATH)
     experiment_model = experiments_metamodel.model_from_str(experiment_specification)
 
     for component in experiment_model.component:
