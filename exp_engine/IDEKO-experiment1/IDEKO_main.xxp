@@ -67,13 +67,4 @@ experiment EXP {
     }
   }
 
-  space S2 of TrainModelRNN {
-    strategy gridsearch;
-    param epochs_vp = enum(2);
-    param batch_size_vp = enum(32);
-    configure task TrainModel {
-      param epochs = epochs_vp;
-      param batch_size = batch_size_vp;
-    }
-  }
 }
