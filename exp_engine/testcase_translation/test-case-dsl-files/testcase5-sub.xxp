@@ -1,0 +1,18 @@
+workflow task2_main{
+  define task Task4;
+  define task Task5;
+
+  // Task CONNECTIONS
+  START -> Task4 -> Task5 -> END;
+
+  configure task Task4 {
+    implementation "task-library.Testcase_task4";
+    dependency "tasks/src/**";
+  }
+
+  configure task Task5 {
+    implementation "task-library.Testcase_task5";
+    dependency "tasks/src/**";
+  }
+
+}

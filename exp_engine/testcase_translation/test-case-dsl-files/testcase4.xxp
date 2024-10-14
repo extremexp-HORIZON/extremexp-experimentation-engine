@@ -1,0 +1,61 @@
+package TESTCASE;
+
+workflow test_case_main {
+  define task Task1;
+  define task Task3;
+  define task Task2;
+
+  // Task CONNECTIONS
+  START -> Task1 -> Task2 -> Task3 -> END;
+
+  configure task Task1 {
+    implementation "testcase_task_library.Testcase_task1";
+    dependency "tasks/src/**";
+  }
+
+  configure task Task3 {
+    implementation "testcase_task_library.Testcase_task3";
+    dependency "tasks/src/**";
+  }
+
+
+  // DATA
+  define input data InputData;
+
+  // DATA CONNECTIONS
+  InputData --> Task1.InputData;
+
+  configure data InputData {
+    path "InputData";
+  }
+}
+
+workflow Testcase_task2_v1 from test_case_main {
+  configure task Task2 {
+    implementation "testcase_task_library.Testcase_task2_v1";
+  }
+}
+
+workflow Testcase_task2_v2 from test_case_main {
+  configure task Task2 {
+    implementation "testcase_task_library.Testcase_task2_v2";
+  }
+}
+
+experiment EXP {
+  control {
+    S1;
+  }
+
+  space S1 of Testcase_task2_v1 {
+    strategy gridsearch;
+    configure task Task2 {
+    }
+  }
+
+  space S2 of Testcase_task2_v2 {
+    strategy gridsearch;
+    configure task Task2 {
+    }
+  }
+}
