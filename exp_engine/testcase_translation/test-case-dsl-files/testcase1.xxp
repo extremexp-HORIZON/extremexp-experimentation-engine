@@ -1,0 +1,40 @@
+package TESTCASE;
+
+workflow test_case_main {
+  define task Task1;
+  define task Task2;
+  define task Task3;
+
+  // Task CONNECTIONS
+  START -> Task1 -> Task2 -> Task3 -> END;
+
+  configure task Task1 {
+    implementation "testcase_task_library.Testcase_task1";
+    dependency "tasks/src/**";
+  }
+
+  configure task Task2 {
+    implementation "testcase_task_library.Testcase_task2";
+    dependency "tasks/src/**";
+  }
+
+  configure task Task3 {
+    implementation "testcase_task_library.Testcase_task3";
+    dependency "tasks/src/**";
+  }
+
+
+
+
+}
+
+
+experiment EXP {
+  control {
+    S1;
+  }
+   
+   space S1 of test_case_main {
+       strategy singlerun;
+   } 
+}
