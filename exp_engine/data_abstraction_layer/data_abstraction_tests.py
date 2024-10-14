@@ -1,9 +1,9 @@
 from data_abstraction_api import *
 
-# r = get_all_experiments()
-# import pprint as pp
-# pp.pprint(r)
-# print(f"There are {len(r)} executed experiments so far.")
+r = get_all_experiments()
+import pprint as pp
+pp.pprint(r)
+print(f"There are {len(r)} executed experiments so far.")
 
 
 new_exp = {
@@ -16,7 +16,6 @@ exp_id = create_experiment(new_exp)
 r = get_experiment(exp_id)
 print(r)
 
-exit()
 
 data = {
     "status": "running"

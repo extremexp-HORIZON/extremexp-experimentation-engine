@@ -9,6 +9,7 @@ import random
 import pprint
 
 
+EXPERIMENTS_FOLDER = 'IDEKO-experiment1/'
 EXECUTIONWARE = "PROACTIVE"
 
 assembled_flat_wfs = []
@@ -180,11 +181,13 @@ def execute_wf(w, executionware):
     if executionware == "PROACTIVE":
         return proactive_runner.execute_wf(w)
 
+
 def get_task_implementation_path(implementation):
     task_library_path = 'IDEKO-task-library'
     experiment1_path = 'IDEKO-experiment1'
     mltask_library_path = 'extremexp-mltask-library'
     parts = implementation.split('.')
+    # print(implementation)
     if parts[0] == 'IDEKO-experiment1':
         return os.path.join(experiment1_path, parts[1] + '.xxp'), "composite"
     if parts[0] == 'IDEKO-task-library':
@@ -195,24 +198,8 @@ def get_task_implementation_path(implementation):
         return parse_task(folder_path), "simple"
     else:
         return None, None
-def get_testcase_task_implementation_path(implementation):
-    task_library_path = 'testcase_task_library'
-    experiment1_path = 'experiment'
-    mltask_library_path = 'extremexp-mltask-library'
-    parts = implementation.split('.')
-    if parts[0] == 'experiment1':
-        return os.path.join(experiment1_path, parts[1] + '.xxp'), "composite"
-    if parts[0] == 'testcase_task_library':
-        folder_path = os.path.join(task_library_path, parts[1])
-        return parse_task(folder_path),"simple"
-    if parts[0] == 'extremexp-mltask-library':
-        folder_path = os.path.join(mltask_library_path, parts[1])
-        return parse_task(folder_path), "simple"
-    else:
-        return None, None
 
 def parse_task(folder_path):
-    # print(folder_path)
     file_path = os.path.join(folder_path, 'task.xxp')
     with open(file_path, 'r') as task_file:
         task_dsl= task_file.read()
@@ -250,7 +237,6 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                     if e.filename:
                         implementation = e.filename
                         task_file_path, task_type = get_task_implementation_path(implementation)
-                        print(task_file_path)
                         if not os.path.exists(task_file_path):
                             raise exp_engine_exceptions.ImplementationFileNotFound(
                                 f"{task_file_path} in task {e.alias.name}")
@@ -301,12 +287,12 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 
 def get_experiment_specification(workflow_specification):
     experiment_specifications = []
-    experiments_metamodel = textx.metamodel_from_file('testcase_translation/workflow_grammar_new_v2.tx')
+    experiments_metamodel = textx.metamodel_from_file('IDEKO-experiment1/workflow_grammar_new_v2.tx')
     workflow_model = experiments_metamodel.model_from_str(workflow_specification)
 
 
     for component in workflow_model.component:
-        if component.__class__.__name__ == 'AssembledWorkflow':
+        if component.__class__.__name__ == 'Workflow':
             for e in component.elements:
                 if e.__class__.__name__ == "ConfigureTask":
                     if e.filename:
@@ -331,11 +317,17 @@ def get_experiment_specification(workflow_specification):
     return experiment_specifications
 
 
+
+
+
+
+
+
 def parse_workflows(experiment_specification):
     parsed_workflows = []
     task_dependencies = {}
 
-    experiments_metamodel = textx.metamodel_from_file('testcase_translation/workflow_grammar_new_v2.tx')
+    experiments_metamodel = textx.metamodel_from_file('IDEKO-experiment1/workflow_grammar_new_v2.tx')
     experiment_model = experiments_metamodel.model_from_str(experiment_specification)
 
     _, parsed_workflows, task_dependencies = get_workflow_components(experiments_metamodel, experiment_model, parsed_workflows, task_dependencies)
@@ -352,7 +344,7 @@ def parse_workflows(experiment_specification):
 
 
 def parse_assembled_workflow_data(experiment_specification):
-    experiments_metamodel = textx.metamodel_from_file('testcase_translation/workflow_grammar_new_v2.tx')
+    experiments_metamodel = textx.metamodel_from_file('IDEKO-experiment1/workflow_grammar_new_v2.tx')
     experiment_model = experiments_metamodel.model_from_str(experiment_specification)
 
     assembled_workflows_data = []
@@ -395,7 +387,7 @@ def parse_assembled_workflow_data(experiment_specification):
 
 
 def generate_experiment_specification(experiment_specification):
-    experiments_metamodel = textx.metamodel_from_file('testcase_translation/workflow_grammar_new_v2.tx')
+    experiments_metamodel = textx.metamodel_from_file('IDEKO-experiment1/workflow_grammar_new_v2.tx')
     experiment_model = experiments_metamodel.model_from_str(experiment_specification)
 
     for component in experiment_model.component:
@@ -427,8 +419,8 @@ def generate_experiment_specification(experiment_specification):
 
                 elif node.__class__.__name__ == 'SpaceConfig':
                     print(f"  Space: {node.name}")
-                    print(f"    Workflow: {node.assembled_workflow.name}")
-                    print(f"    Strategy : {node.strategy_name}")
+                    print(f"    Assembled Workflow: {node.assembled_workflow.name}")
+                    print(f"    Vairbality : {node.strategy_name}")
 
                     spaces.add(node.name)
 
@@ -524,7 +516,6 @@ def generate_experiment_specification(experiment_specification):
                                             nodes.remove(space.name)
 
 
-
                         elif explink.__class__.__name__ == 'ConditionalExpLink':
                             if explink.fromspace and explink.tospace:
                                 if any(event in explink.fromspace.name or event in explink.tospace.name for event in
@@ -555,8 +546,6 @@ def generate_experiment_specification(experiment_specification):
                         #             automated_queue.append(explink.initial_space.name)
                         #             for space in explink.spaces:
                         #                 automated_queue.append(space.name)
-
-
 
                 print('------------------------------------------')
                 print("Manual Events")
@@ -678,9 +667,6 @@ def execute_space(node, exp_id):
     if method_type == "randomsearch":
         run_random_search(space_config, exp_id)
 
-    if method_type =="singlerun":
-        run_singlerun(space_config, exp_id)
-
     print("node executed")
     print("Results so far")
     pp = pprint.PrettyPrinter(indent=4)
@@ -691,10 +677,10 @@ def execute_space(node, exp_id):
 
 def run_scheduled_workflows(space_results, exp_id):
     exp = get_experiment(exp_id)
-    workflows_count = len(exp["workflow_ids"])
+    workflows_count = len(exp["workflowIds"])
 
     for attempts in range(workflows_count):
-        wf_ids = get_experiment(exp_id)["workflow_ids"]
+        wf_ids = get_experiment(exp_id)["workflowIds"]
         run_count = 1
         for wf_id in wf_ids:
             workflow_to_run = workflows_to_run[wf_id]
@@ -754,7 +740,7 @@ def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
                 input_file["uri"] = f.path
     body = {
         "name": f"{exp_id}--w{run_count}",
-        "tasks": task_specifications
+        "executedTasks": task_specifications
     }
     wf_id = create_workflow(exp_id, body)
     return wf_id
@@ -776,7 +762,7 @@ def run_grid_search(space_config, exp_id):
             min_value = vp_data["min"]
             max_value = vp_data["max"]
             step_value = vp_data.get("step", 1) if vp_data["step"] != 0 else 1
-            vp_values = list(range(min_value, max_value, step_value))
+            vp_values = list(range(min_value, max_value + 1, step_value))
             vp_combinations.append([(vp_name, value) for value in vp_values])
 
     # Generate combinations
@@ -792,7 +778,6 @@ def run_grid_search(space_config, exp_id):
         print(f"Run {run_count}")
         workflow_to_run = get_workflow_to_run(space_config, c)
         wf_id = create_executed_workflow_in_db(exp_id, run_count, workflow_to_run)
-        print(wf_id)
         workflows_to_run[wf_id] = workflow_to_run
         workflow_combinations_to_run[wf_id] = c
         run_count += 1
@@ -838,20 +823,6 @@ def  run_random_search(space_config, exp_id):
         space_results[run_count] = workflow_results
         print("..........")
         run_count += 1
-
-
-def run_singlerun(space_config, exp_id):
-    print(f"Single Run")
-    # w = next(w for w in assembled_flat_wfs if w.name == space_config["assembled_workflow"])
-    print(space_config)
-    result = execute_wf(space_config,EXECUTIONWARE)
-    workflow_results = []
-    workflow_results = result
-    print(workflow_results)
-
-
-
-
 
 def execute_node(node, exp_id):
     print(node)
@@ -901,19 +872,17 @@ def run_experiment(experiment_specification, exp_id):
     print("*********************************************************")
     assembled_workflows_data = parse_assembled_workflow_data(experiment_specification)
 
+    print("*********************************************************")
+    print("************ GENERATE ASSEMBLED WORKFLOWS ***************")
+    print("*********************************************************")
+    assembled_wfs = generate_final_assembled_workflows(parsed_workflows, assembled_workflows_data)
+    for wf in assembled_wfs:
+        wf.print()
 
-    if assembled_workflows_data:
-        print("*********************************************************")
-        print("************ GENERATE ASSEMBLED WORKFLOWS ***************")
-        print("*********************************************************")
-        assembled_wfs = generate_final_assembled_workflows(parsed_workflows, assembled_workflows_data)
-        for wf in assembled_wfs:
-            wf.print()
-
-        print("*********************************************************")
-        print("********** GENERATE ASSEMBLED FLAT WORKFLOWS ************")
-        print("*********************************************************")
-        generate_assembled_flast_workflows(assembled_wfs)
+    print("*********************************************************")
+    print("********** GENERATE ASSEMBLED FLAT WORKFLOWS ************")
+    print("*********************************************************")
+    generate_assembled_flast_workflows(assembled_wfs)
 
     print("*********************************************************")
     print("************** EXPERIMENT SPECIFICATION *****************")
