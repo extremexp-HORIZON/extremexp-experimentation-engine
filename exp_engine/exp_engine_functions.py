@@ -190,8 +190,8 @@ def get_task_implementation_path(implementation):
     # print(implementation)
     if parts[0] == 'IDEKO-experiment1':
         return os.path.join(experiment1_path, parts[1] + '.xxp'), "composite"
-    if parts[0] == 'IDEKO-task-library':
-        folder_path = os.path.join(task_library_path, parts[1])
+    if parts[0] == 'IDEKO-task-library' or parts[0] == 'MOBY-task-library':
+        folder_path = os.path.join(parts[0], parts[1])
         return parse_task(folder_path),"simple"
     if parts[0] == 'extremexp-mltask-library':
         folder_path = os.path.join(mltask_library_path, parts[1])
@@ -285,11 +285,10 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
     return wf, parsed_workflows, task_dependencies
 
 
-def get_experiment_specification(workflow_specification):
+def get_experiment_specification(workflow_specification, metamodel):
     experiment_specifications = []
-    experiments_metamodel = textx.metamodel_from_file('IDEKO-experiment1/workflow_grammar_new_v2.tx')
+    experiments_metamodel = textx.metamodel_from_file(metamodel)
     workflow_model = experiments_metamodel.model_from_str(workflow_specification)
-
 
     for component in workflow_model.component:
         if component.__class__.__name__ == 'Workflow':
@@ -677,10 +676,10 @@ def execute_space(node, exp_id):
 
 def run_scheduled_workflows(space_results, exp_id):
     exp = get_experiment(exp_id)
-    workflows_count = len(exp["workflowIds"])
+    workflows_count = len(exp["workflow_ids"])
 
     for attempts in range(workflows_count):
-        wf_ids = get_experiment(exp_id)["workflowIds"]
+        wf_ids = get_experiment(exp_id)["workflow_ids"]
         run_count = 1
         for wf_id in wf_ids:
             workflow_to_run = workflows_to_run[wf_id]
@@ -740,7 +739,7 @@ def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
                 input_file["uri"] = f.path
     body = {
         "name": f"{exp_id}--w{run_count}",
-        "executedTasks": task_specifications
+        "tasks": task_specifications
     }
     wf_id = create_workflow(exp_id, body)
     return wf_id
