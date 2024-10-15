@@ -1,0 +1,26 @@
+Root:
+        component*=Component
+;
+
+Component:  Task;
+
+Task:
+    'task' name=ID '{'
+        elements*=Element
+    '}'
+;
+
+Element:  Data | Implementation | Parameter | Comment;
+
+Data: 'define input data' name=ID ';' | 'define output data' name=ID ';' ;
+
+Implementation: 'implementation' filename=STRING';' ;
+
+Parameter:
+    'param' name=ID '{'
+        'type' type=ID ';'
+        'default' default=INT ';'
+        'range' '[' range_min=INT ',' range_max=INT ']' ';'
+    '}';
+
+Comment: /\/\/.*$/;
