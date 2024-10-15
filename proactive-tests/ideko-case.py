@@ -7,8 +7,8 @@ job = create_job(gateway, "IDEKO")
 
 fork_env = create_fork_env(gateway, job)
 
-# input_data_folder = "datasets/ideko"
-input_data_folder = "datasets/ideko-subset"
+# input_data_folder = "library-datasets/ideko"
+input_data_folder = "library-datasets/ideko-subset"
 tasks_folder = "tasks/IDEKO/"
 tasks_folder_src_all = tasks_folder + "src/**"
 

@@ -8,9 +8,9 @@ mltask_library_path = 'extremexp-mltask-library'
 
 def get_task_implementation_path(implementation):
     parts = implementation.split('.')
-    if parts[0] == 'IDEKO-task-library':
+    if parts[0] == 'library-tasks':
         return os.path.join(task_library_path, parts[1], 'task.xxp')
-    elif parts[0] == 'IDEKO-experiment1':
+    elif parts[0] == 'library-experiments':
         return os.path.join(experiment1_path, parts[1] + '.xxp')
     elif parts[0] == 'extremexp-mltask-library':
         return os.path.join(mltask_library_path, parts[1], 'task.xxp')
@@ -47,7 +47,7 @@ def parse_implementation(main_dsl):
             if task_content:
                 task_dsl = task_content
                 print(task_dsl)
-                if 'IDEKO-experiment1' in implementation:
+                if 'library-experiments' in implementation:
                     workflow_model = parse_workflow(task_dsl)
                 else:
                     workflow_model = parse_task(task_dsl)
