@@ -67,8 +67,8 @@ for t in unique_implementations:
 for ct in concrete_tasks:
     output += f"\tconfigure task {ct} "
     output += "{\n"
-    output += f"\t\timplementation {concrete_tasks[ct]} "
-    output += "}\n\n"
+    output += f"\t\timplementation '{concrete_tasks[ct]}';\n"
+    output += "\t}\n\n"
 
 output += "}\n\n"
 
@@ -82,7 +82,7 @@ for w in workflows:
         if t not in concrete_tasks_keys:
             output += f"\tconfigure task {t}"
             output += "{\n"
-            output += f"\t\timplementation {task_implementations[t]};\n"
+            output += f"\t\timplementation '{task_implementations[t]}';\n"
             output += "\t}\n\n"
     output += "}\n\n"
 

@@ -85,12 +85,12 @@ AssembledWorkflow:
 
 Experiment:
     'experiment' name=ID '{'
-        (intent='intent' intent_name=ID ';')*
+        (intent='intent' intent_name=ID ';')?
         (control=Control)*
         experimentNode*=ExperimentNode
     '}';
 
-ExperimentNode: SpaceConfig | Event;
+ExperimentNode: SpaceConfig | Event ;
 
 Event:
         'event' name=ID '{'
@@ -108,9 +108,12 @@ SpaceConfig:
         (vps=VP)*
         ('runs' '=' runs=INT ';')?
         (tasks=ESpaceTaskConfiguration)*
+    '}'|
+    'space' name=ID 'of' assembled_workflow=[Workflow] '{'
+        'strategy' strategy_name=Strategy ';'
     '}';
 
-Strategy: 'gridsearch' |  'randomsearch';
+Strategy: 'gridsearch' |  'randomsearch' | 'singlerun';
 
 
 VP:
@@ -142,8 +145,7 @@ ParameterConfiguration: 'param' param_name=ID '=' vp=ID ';';
 Control:
         'control' '{'
                (expNode=[ExperimentNode]';')?
-               (explink*=ExpLink | explink=STRING)?
-
+               explink*=ExpLink
         '}';
 
 ExpLink:  RegularExpLink | ConditionalExpLink;

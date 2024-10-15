@@ -53,14 +53,25 @@ experiment EXP {
   intent FindBestClassifier;
   control {
     //Automated
-    S1;
+    S1 -> S2;
   }
 
   space S1 of TrainModelNN {
     strategy gridsearch;
-    // param epochs_vp = range(2, 4);
-    param epochs_vp = enum(2);
+    param epochs_vp = range(2, 4);
+    // param epochs_vp = enum(2);
     param batch_size_vp = enum(64);
+    configure task TrainModel {
+      param epochs = epochs_vp;
+      param batch_size = batch_size_vp;
+    }
+  }
+
+
+  space S2 of TrainModelRNN {
+    strategy gridsearch;
+    param epochs_vp = enum(2);
+    param batch_size_vp = enum(32);
     configure task TrainModel {
       param epochs = epochs_vp;
       param batch_size = batch_size_vp;
