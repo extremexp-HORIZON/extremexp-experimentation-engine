@@ -47,11 +47,15 @@ def _create_python_task(gateway, task_name, fork_environment, task_impl, input_f
     task = gateway.createPythonTask()
     task.setTaskName(task_name)
     task.setTaskImplementationFromFile(task_impl)
+
     task.setForkEnvironment(fork_environment)
     # TODO Remove the next three lines after adding output files to the DSL
     if task_name == "TrainModel":
         print("inside TrainModel, adding output file")
         task.addOutputFile('datasets/**')
+    # task.setDefaultPython("/opt/miniconda3/py39/bin/python3")
+    # task.setVirtualEnvFromFile("MOBY-experiment1/requirements.txt")
+
     for input_file in input_files:
         task.addInputFile(input_file.path)
         input_file_path = os.path.dirname(input_file.path) if "**" in input_file.path else input_file.path

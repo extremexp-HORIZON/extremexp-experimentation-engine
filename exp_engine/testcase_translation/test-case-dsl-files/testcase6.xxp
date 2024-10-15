@@ -1,0 +1,69 @@
+package TESTCASE;
+
+workflow test_case_main {
+  define task Task1;
+  define task Task3;
+  define task Task2;
+
+  // Task CONNECTIONS
+  START -> Task1 -> Task2 -> Task3 -> END;
+
+  configure task Task1 {
+    implementation "testcase_task_library.Testcase_task1";
+    dependency "tasks/src/**";
+  }
+
+  configure task Task3 {
+    implementation "testcase_task_library.Testcase_task3";
+    dependency "tasks/src/**";
+  }
+
+
+  // DATA
+  define input data InputData;
+
+  // DATA CONNECTIONS
+  InputData --> Task1.InputData;
+
+  configure data InputData {
+    path "InputData";
+  }
+}
+
+workflow Testcase_task2_v1 from test_case_main {
+  configure task Task2 {
+    implementation "testcase_task_library.Testcase_task2_v1";
+  }
+}
+
+workflow Testcase_task2_v2 from test_case_main {
+  configure task Task2 {
+    implementation "testcase_task_library.Testcase_task2_v2";
+  }
+}
+
+experiment EXP {
+  control {
+    S1;
+  }
+
+  space S1 of Testcase_task2_v1 {
+    strategy gridsearch;
+    param param1_vp = range(2, 4);
+    param param2_vp = range(200, 202);
+    configure task Task2 {
+      param param1 = param1_vp;
+      param param2 = param2_vp;
+    }
+  }
+
+  space S2 of Testcase_task2_v2 {
+    strategy gridsearch;
+    param param3_vp = range(5, 7);
+    param param4_vp = range(100, 102);
+    configure task Task2 {
+      param param3 = param3_vp;
+      param param4 = param4_vp;
+    }
+  }
+}
