@@ -9,8 +9,8 @@ import proactive_helper as ph
 LoggerHelper.init_logger()
 logger = logging.getLogger(__name__)
 
-# input_data_folder = "datasets/ideko"
-input_data_folder = "datasets/ideko-subset"
+# input_data_folder = "library-datasets/ideko"
+input_data_folder = "library-datasets/ideko-subset"
 
 indicator_list = ["f3"]
 X, Y = preprocessing_functions.read_data(input_data_folder, indicator_list)
