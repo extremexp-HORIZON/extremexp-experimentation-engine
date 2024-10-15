@@ -1,0 +1,71 @@
+package IDEKO;
+
+workflow IDEKO_binary_main {
+  define task ReadData;
+  define task TrainModel;
+  define task EvaluateModel;
+  define task PrepareData;
+
+  // Task CONNECTIONS
+  START -> ReadData -> PrepareData -> TrainModel -> EvaluateModel -> END;
+
+  configure task ReadData {
+    implementation "IDEKO-task-library.ReadData";
+    dependency "tasks/IDEKO/Binary_v1/src/**";
+  }
+
+  configure task EvaluateModel {
+    implementation "IDEKO-task-library.EvaluateModel";
+    dependency "tasks/IDEKO/Binary_v1/src/**";
+  }
+
+  configure task PrepareData {
+    implementation "IDEKO-experiment1.IDEKO_DataPreprocessing";
+  }
+
+
+  // DATA
+  define input data ExternalDataFile;
+
+  // DATA CONNECTIONS
+  ExternalDataFile --> ReadData.ExternalDataFile;
+
+  configure data ExternalDataFile {
+    //path "IDEKO1";
+    path "datasets/v1/ideko-subset/**";
+  }
+}
+
+workflow TrainModelNN from IDEKO_binary_main {
+  configure task TrainModel {
+    implementation "IDEKO-task-library.TrainModelNN";
+  }
+}
+
+workflow TrainModelRNN from IDEKO_binary_main {
+  configure task TrainModel {
+    implementation "IDEKO-task-library.TrainModelRNN";
+  }
+}
+
+experiment EXP {
+  space S1 of TrainModelNN {
+    strategy gridsearch;
+    param epochs_vp = range(2, 4);
+    param batch_size_vp = enum(64);
+    configure task TrainModel {
+      param epochs = epochs_vp;
+      param batch_size = batch_size_vp;
+    }
+  }
+
+  space S2 of TrainModelRNN {
+    strategy gridsearch;
+    param epochs_vp = enum(2);
+    param batch_size_vp = enum(32);
+    configure task TrainModel {
+      param epochs = epochs_vp;
+      param batch_size = batch_size_vp;
+    }
+  }
+}

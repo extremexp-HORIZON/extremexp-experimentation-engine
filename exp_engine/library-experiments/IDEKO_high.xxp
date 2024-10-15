@@ -1,0 +1,34 @@
+package IDEKO;
+
+workflow IDEKO_high {
+  define task Predictor;
+
+  START -> Predictor -> END;
+
+}
+
+workflow Binary from IDEKO_high {
+  configure task Predictor {
+     implementation "IDEKO-experiment1.IDEKO_binary_main";
+  }
+}
+
+workflow Multi from IDEKO_high {
+  configure task Predictor {
+     implementation "IDEKO-experiment1.IDEKO_multi_main";
+  }
+}
+
+experiment EXP {
+  intent FindBestClassifier;
+  control {
+    //Automated
+    S1 -> E1;
+  }
+
+   event E1 {
+            type automated;
+            condition "the accuracy of the 5 lastly trained ML models is > 50%";
+            task check_accuracy_over_workflows_of_last_space;
+   }
+}
