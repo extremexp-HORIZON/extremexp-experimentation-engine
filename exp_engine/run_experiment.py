@@ -1,7 +1,7 @@
 import exp_engine_functions as functions
 from data_abstraction_layer.data_abstraction_api import create_experiment
 
-EXPERIMENTS_FOLDER = 'IDEKO-experiment1/'
+EXPERIMENTS_FOLDER = 'library-experiments/'
 # EXPERIMENTS_FOLDER = 'MOBY-experiment1/'
 
 dsl_file="IDEKO_high"
