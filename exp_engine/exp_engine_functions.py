@@ -10,6 +10,8 @@ import pprint
 
 GRAMMAR_PATH = "grammar/workflow_grammar_new_v2.tx"
 EXECUTIONWARE = "PROACTIVE"
+TASK_LIBRARY_PATH = 'library-tasks'
+EXPERIMENT_PATH = 'library-experiments'
 
 assembled_flat_wfs = []
 printexperiments = []
@@ -182,43 +184,22 @@ def execute_wf(w, executionware):
 
 
 def get_task_implementation_path(implementation):
-    task_library_path = 'IDEKO-task-library'
-    experiment1_path = 'IDEKO-experiment1'
-    mltask_library_path = 'extremexp-mltask-library'
     parts = implementation.split('.')
-    # print(implementation)
-    if parts[0] == 'IDEKO-experiment1':
-        return os.path.join(experiment1_path, parts[1] + '.xxp'), "composite"
-    if parts[0] == 'IDEKO-task-library' or parts[0] == 'MOBY-task-library':
-        folder_path = os.path.join(parts[0], parts[1])
-        return parse_task(folder_path),"simple"
-    if parts[0] == 'extremexp-mltask-library':
-        folder_path = os.path.join(mltask_library_path, parts[1])
+    path_type = parts[0]
+    path_name = parts[1]
+    if path_type == EXPERIMENT_PATH:
+        return os.path.join(EXPERIMENT_PATH, path_name + '.xxp'), "composite"
+    if path_type == TASK_LIBRARY_PATH:
+        folder_path = os.path.join(TASK_LIBRARY_PATH, path_name)
         return parse_task(folder_path), "simple"
-    else:
-        return None, None
+    raise exp_engine_exceptions.ImplementationFileNotFound
 
-def get_testcase_task_implementation_path(implementation):
-    task_library_path = 'testcase_task_library'
-    experiment1_path = 'experiment'
-    mltask_library_path = 'extremexp-mltask-library'
-    parts = implementation.split('.')
-    if parts[0] == 'experiment1':
-        return os.path.join(experiment1_path, parts[1] + '.xxp'), "composite"
-    if parts[0] == 'testcase_task_library':
-        folder_path = os.path.join(task_library_path, parts[1])
-        return parse_task(folder_path),"simple"
-    if parts[0] == 'extremexp-mltask-library':
-        folder_path = os.path.join(mltask_library_path, parts[1])
-        return parse_task(folder_path), "simple"
-    else:
-        return None, None
 
 def parse_task(folder_path):
     file_path = os.path.join(folder_path, 'task.xxp')
     with open(file_path, 'r') as task_file:
         task_dsl= task_file.read()
-    workflow_metamodel = textx.metamodel_from_file('IDEKO-experiment1/task_grammar.tx')
+    workflow_metamodel = textx.metamodel_from_file('library-experiments/task_grammar.tx')
     workflow_model = workflow_metamodel.model_from_str(task_dsl)
     for component in workflow_model.component:
         for e in component.elements:
@@ -318,8 +299,8 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 #                         # print(implementation)
 #                         parts = implementation.split('.')
 #
-#                         if parts[0] == 'IDEKO-experiment1':
-#                             task_file_path = os.path.join('IDEKO-experiment1', parts[1] + '.xxp')
+#                         if parts[0] == 'library-experiments':
+#                             task_file_path = os.path.join('library-experiments', parts[1] + '.xxp')
 #                         else:
 #                             task_file_path = None
 #

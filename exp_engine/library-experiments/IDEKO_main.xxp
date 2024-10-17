@@ -10,17 +10,17 @@ workflow IDEKO_multi_main {
   START -> ReadData -> PrepareData -> TrainModel -> EvaluateModel -> END;
 
   configure task ReadData {
-    implementation "IDEKO-task-library.ReadData";
+    implementation "library-tasks.ReadData";
     dependency "tasks/IDEKO/Binary_v1/src/**";
   }
 
   configure task EvaluateModel {
-    implementation "IDEKO-task-library.EvaluateModel";
+    implementation "library-tasks.EvaluateModel";
     dependency "tasks/IDEKO/Binary_v1/src/**";
   }
 
   configure task PrepareData {
-    implementation "IDEKO-experiment1.IDEKO_DataPreprocessing";
+    implementation "library-experiments.IDEKO_DataPreprocessing";
   }
 
   // DATA
