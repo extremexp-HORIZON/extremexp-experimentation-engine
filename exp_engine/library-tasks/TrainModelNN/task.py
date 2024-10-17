@@ -33,6 +33,7 @@ os.makedirs(output_path_nn, exist_ok = True)
 
 # TODO note: creating directory to save the trained model
 model_path = ph.create_dir(variables, 'trained_model')
+output_path = "library-datasets/test"
 # Parameters defining the architecture of the model
 
 # Activation function
@@ -80,6 +81,7 @@ history_nn = model_nn.model_fitting(model_nn.model, X_train, y_train, X_test, y_
 model = model_nn.model
 model_path = os.path.join(model_path, model_name)
 model.save(model_path)
+model.save(output_path)
 
 # TODO note: added following lines to save intermediate data for the next task
 ph.save_datasets(variables, ("model_path", model_path))

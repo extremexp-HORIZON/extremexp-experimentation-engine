@@ -24,6 +24,9 @@ output_path = os.path.join(working_dir, "output")
 output_path_rnn = os.path.join(output_path, folder_name)
 os.makedirs(output_path_rnn, exist_ok = True)
 
+# creating directory to save the trained model
+model_path = ph.create_dir(variables, 'trained_model')
+output_path = "library-datasets/test"
 # Parameters defining the architecture of the model
 
 # Activation function
@@ -66,5 +69,19 @@ history_rnn = model_rnn.model_fitting(model_rnn.model, X_train, y_train, X_test,
 # preprocessing_functions.plot_model_history(history_rnn, output_path_rnn)
 
 # Model evaluation
-Y_pad = np.asarray(Y_pad)
-resultMap = model_rnn.model_evaluation(model_rnn.model, X_pad, Y_pad, X_test, y_test, variables, resultMap)
+# Y_pad = np.asarray(Y_pad)
+# resultMap = model_rnn.model_evaluation(model_rnn.model, X_pad, Y_pad, X_test, y_test, variables, resultMap)
+
+# added following lines to save trained model
+model = model_rnn.model
+model_path = os.path.join(model_path, model_name)
+model.save(model_path)
+model.save(output_path)
+
+# added following lines to save intermediate data for the next task
+ph.save_datasets(variables, ("model_path", model_path))
+ph.save_datasets(variables, ("X_test", X_test))
+ph.save_datasets(variables, ("y_test", y_test))
+ph.save_datasets(variables, ("X_pad", X_pad), ("Y_pad", Y_pad))
+
+ph.save_datasets(variables, ("n_timestamps", n_timestamps), ("n_features", n_features))
