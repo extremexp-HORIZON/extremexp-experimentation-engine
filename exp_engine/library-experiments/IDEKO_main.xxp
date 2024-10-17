@@ -30,7 +30,7 @@ workflow IDEKO_multi_main {
   ExternalDataFile --> ReadData.ExternalDataFile;
 
   configure data ExternalDataFile {
-    path "datasets/v1/ideko-subset/**";
+    path "library-datasets/v1/ideko-subset/**";
   }
 
   // METRICS
@@ -42,14 +42,14 @@ workflow IDEKO_multi_main {
 
 workflow TrainModelNN from IDEKO_multi_main {
   configure task TrainModel {
-    implementation "IDEKO-task-library.TrainModelNN";
+    implementation "library-tasks.TrainModelNN";
     dependency "tasks/IDEKO/Binary_v1/src/**";
   }
 }
 
 workflow TrainModelRNN from IDEKO_multi_main {
   configure task TrainModel {
-    implementation "IDEKO-task-library.TrainModelRNN";
+    implementation "library-tasks.TrainModelRNN";
     dependency "tasks/IDEKO/Binary_v1/src/**";
   }
 }

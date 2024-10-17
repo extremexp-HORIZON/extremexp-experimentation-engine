@@ -3,5 +3,5 @@ task ReadData {
     define output data X;
     define output data Y;
     define output data IndicatorList;
-    implementation "IDEKO-task-library/ReadData/task.py";
+    implementation "library-tasks/ReadData/task.py";
 }

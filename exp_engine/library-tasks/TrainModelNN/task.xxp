@@ -8,7 +8,7 @@ task TrainModelNN {
     define input data FeaturesTest;
     define output data TrainedModel;
 
-    implementation "IDEKO-task-library/TrainModelNN/task.py";
+    implementation "library-tasks/TrainModelNN/task.py";
 
     param epochs {
         type Integer;

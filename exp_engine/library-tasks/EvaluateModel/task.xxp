@@ -4,5 +4,5 @@ task ReadIDEKOData {
     define input data Features;
     define input data Labels;
 
-    implementation "IDEKO-task-library/EvaluateModel/task.py";
+    implementation "library-tasks/EvaluateModel/task.py";
 }

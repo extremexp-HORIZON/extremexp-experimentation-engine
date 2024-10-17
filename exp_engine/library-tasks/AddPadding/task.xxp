@@ -6,5 +6,5 @@ task AddPadding {
     define output data XPad;
     define output data YPad;
 
-    implementation "IDEKO-task-library/AddPadding/task.py";
+    implementation "library-tasks/AddPadding/task.py";
 }
