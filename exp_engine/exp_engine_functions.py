@@ -22,8 +22,6 @@ automated_dict = {}
 manual_dict = {}
 parsed_manual_events = []
 parsed_automated_events = []
-workflows_to_run = {}
-workflow_combinations_to_run = {}
 
 results = {}
 
@@ -124,6 +122,8 @@ def flatten_workflows(assembled_wf):
                 new_wf.add_task(t)
         else:
             new_wf.add_task(t)
+    for m in assembled_wf.metrics:
+        new_wf.add_metric(m)
     re_order_tasks_in_workflow(new_wf)
     new_wf.set_is_main(True)
     return new_wf
@@ -296,6 +296,10 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 
                     conditional_task = wf.get_task(e.from_node.name)
                     conditional_task.set_conditional_tasks(ifNode.name, elseNode.name, contNode.name, condition)
+
+                if e.__class__.__name__ == "Metric":
+                    metric = classes.Metric(e.name)
+                    wf.add_metric(metric)
 
     return wf, parsed_workflows, task_dependencies
 
@@ -686,22 +690,23 @@ def execute_space(node, exp_id):
     return 'True'
 
 
-def run_scheduled_workflows(space_results, exp_id):
+def run_scheduled_workflows(space_results, exp_id, configured_workflows_of_space, configurations_of_space):
     exp = get_experiment(exp_id)
     workflows_count = len(exp["workflow_ids"])
 
     for attempts in range(workflows_count):
         wf_ids = get_experiment(exp_id)["workflow_ids"]
+        wf_ids_of_this_space = [w for w in wf_ids if w in configured_workflows_of_space.keys()]
         run_count = 1
-        for wf_id in wf_ids:
-            workflow_to_run = workflows_to_run[wf_id]
+        for wf_id in wf_ids_of_this_space:
+            workflow_to_run = configured_workflows_of_space[wf_id]
             if get_workflow(wf_id)["status"] != "completed":
                 update_workflow(wf_id, {"status": "running"})
                 result = execute_wf(workflow_to_run, EXECUTIONWARE)
                 update_workflow(wf_id, {"status": "completed"})
                 update_metrics_of_workflow(wf_id, result)
                 workflow_results = {}
-                workflow_results["configuration"] = workflow_combinations_to_run[wf_id]
+                workflow_results["configuration"] = configurations_of_space[wf_id]
                 workflow_results["result"] = result
                 space_results[run_count] = workflow_results
             # TODO fix this count in case of reordering
@@ -710,15 +715,17 @@ def run_scheduled_workflows(space_results, exp_id):
 
 def get_workflow_to_run(space_config, c):
     c_dict = dict(c)
-    w = next(w for w in assembled_flat_wfs if w.name == space_config["assembled_workflow"])
-    for t in w.tasks:
+    assembled_workflow = next(w for w in assembled_flat_wfs if w.name == space_config["assembled_workflow"])
+    # TODO subclass the Workflow to capture different types (assembled, configured, etc.)
+    configured_workflow = assembled_workflow.clone()
+    for t in configured_workflow.tasks:
+        t.params = {}
         if t.name in space_config["tasks"].keys():
             task_config = space_config["tasks"][t.name]
             for param_name, param_vp in task_config.items():
-                alias = param_vp
-                print(f"Setting param '{param_name}' of task '{t.name}' to '{c_dict[alias]}'")
-                t.set_param(param_name, c_dict[alias])
-    return w
+                print(f"Setting param '{param_name}' of task '{t.name}' to '{c_dict[param_vp]}'")
+                t.set_param(param_name, c_dict[param_vp])
+    return configured_workflow
 
 
 def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
@@ -755,14 +762,14 @@ def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
         "tasks": task_specifications
     }
     wf_id = create_workflow(exp_id, body)
-    create_scalar_metric(wf_id, "accuracy")
-    create_scalar_metric(wf_id, "loss")
-    create_scalar_metric(wf_id, "recall")
+
+    for m in workflow_to_run.metrics:
+        create_scalar_metric(wf_id, m.name)
+
     return wf_id
 
 
 def run_grid_search(space_config, exp_id):
-    grid_search_combinations = []
     VPs = space_config["VPs"]
     vp_combinations = []
 
@@ -782,25 +789,26 @@ def run_grid_search(space_config, exp_id):
 
     # Generate combinations
     combinations = list(itertools.product(*vp_combinations))
-    grid_search_combinations.extend(combinations)
 
     print(f"\nGrid search generated {len(combinations)} configurations to run.\n")
     for combination in combinations:
         print(combination)
 
+    configured_workflows_of_space = {}
+    configurations_of_space = {}
+
     run_count = 1
     for c in combinations:
         print(f"Run {run_count}")
-        workflow_to_run = get_workflow_to_run(space_config, c)
-        wf_id = create_executed_workflow_in_db(exp_id, run_count, workflow_to_run)
-        print(wf_id)
-        workflows_to_run[wf_id] = workflow_to_run
-        workflow_combinations_to_run[wf_id] = c
+        print(f"Combination {c}")
+        configured_workflow = get_workflow_to_run(space_config, c)
+        wf_id = create_executed_workflow_in_db(exp_id, run_count, configured_workflow)
+        configured_workflows_of_space[wf_id] = configured_workflow
+        configurations_of_space[wf_id] = c
         run_count += 1
-
     space_results = {}
     results[space_config['name']] = space_results
-    run_scheduled_workflows(space_results, exp_id)
+    run_scheduled_workflows(space_results, exp_id, configured_workflows_of_space, configurations_of_space)
 
 
 def  run_random_search(space_config, exp_id):
