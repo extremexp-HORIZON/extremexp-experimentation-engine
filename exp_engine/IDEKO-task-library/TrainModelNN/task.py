@@ -87,3 +87,5 @@ ph.save_datasets(variables, ("X_test", X_test))
 ph.save_datasets(variables, ("y_test", y_test))
 ph.save_datasets(variables, ("X_pad", X_pad), ("Y_pad", Y_pad))
 
+ph.save_datasets(variables, ("n_timestamps", n_timestamps), ("n_features", n_features))
+
