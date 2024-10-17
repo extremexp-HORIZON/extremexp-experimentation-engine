@@ -104,11 +104,12 @@ def update_metric(m_id, body):
 
 def update_metrics_of_workflow(wf_id, result):
     wf = get_workflow(wf_id)
-    for m in wf["metrics"]:
-        m_id = next(iter(m))
-        name = m[m_id]["name"]
-        value = result[name]
-        add_value_to_metric(m_id, value)
+    if "metrics" in wf:
+        for m in wf["metrics"]:
+            m_id = next(iter(m))
+            name = m[m_id]["name"]
+            value = result[name]
+            add_value_to_metric(m_id, value)
 
 
 def add_value_to_metric(m_id, value):
