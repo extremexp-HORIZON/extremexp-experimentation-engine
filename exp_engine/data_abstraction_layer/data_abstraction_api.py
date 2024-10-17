@@ -22,7 +22,9 @@ def create_experiment(body):
         print(f"New experiment created with id {exp_id}")
         return exp_id
     else:
-        return "something went wrong when creating experiment"
+        print(r.json())
+        print("something went wrong when creating experiment")
+        return None
 
 
 def get_experiment(exp_id):
@@ -50,7 +52,8 @@ def create_workflow(exp_id, body):
         return wf_id
     else:
         print(r.json())
-        return "something went wrong when creating workflow"
+        print("something went wrong when creating workflow")
+        return None
 
 
 def get_workflow(wf_id):
@@ -80,18 +83,17 @@ def create_metric(wf_id, name, metric_type):
     if r.status_code == 201:
         m_id = r.json()['metric_id']
         print(f"New metric created with id {m_id}")
-        return m_id
     else:
         print(r.json())
-        return "something went wrong when creating metric"
+        print(f"New metric was NOT created successfully")
 
 
 def create_scalar_metric(wf_id, name):
-    return create_metric(wf_id, name, "scalar")
+    create_metric(wf_id, name, "scalar")
 
 
 def create_series_metric(wf_id, name):
-    return create_metric(wf_id, name, "series")
+    create_metric(wf_id, name, "series")
 
 
 def update_metric(m_id, body):
