@@ -52,7 +52,7 @@ def _create_python_task(gateway, task_name, fork_environment, task_impl, input_f
     # TODO Remove the next three lines after adding output files to the DSL
     if task_name == "TrainModel":
         print("inside TrainModel, adding output file")
-        task.addOutputFile('datasets/**')
+        task.addOutputFile('library-datasets/**')
     # task.setDefaultPython("/opt/miniconda3/py39/bin/python3")
     # task.setVirtualEnvFromFile("MOBY-experiment1/requirements.txt")
 
