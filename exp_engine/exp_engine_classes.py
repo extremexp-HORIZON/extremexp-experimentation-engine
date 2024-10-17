@@ -167,7 +167,7 @@ class Workflow:
         print(f"{tab}Workflow with name: {self.name}")
         print(f"{tab}Workflow is main?: {self.is_main}")
         print(f"{tab}Workflow is flat?: {self.is_flat()}")
-        for t in self.tasks:
+        for t in sorted(self.tasks, key=lambda t: t.order):
             t.print(tab+"\t")
             if t.sub_workflow:
                 t.sub_workflow.print(tab+"\t\t")
