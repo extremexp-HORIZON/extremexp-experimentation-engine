@@ -23,7 +23,6 @@ workflow IDEKO_multi_main {
     implementation "IDEKO-experiment1.IDEKO_DataPreprocessing";
   }
 
-
   // DATA
   define input data ExternalDataFile;
 
@@ -33,6 +32,12 @@ workflow IDEKO_multi_main {
   configure data ExternalDataFile {
     path "datasets/v1/ideko-subset/**";
   }
+
+  // METRICS
+  define metric accuracy;
+  define metric loss;
+  define metric recall;
+
 }
 
 workflow TrainModelNN from IDEKO_multi_main {
