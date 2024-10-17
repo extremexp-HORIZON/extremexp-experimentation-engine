@@ -8,7 +8,7 @@ task SplitData {
     define output data LabelsTrain;
     define output data LabelsTest;
 
-    implementation "IDEKO-task-library/SplitData/task.py";
+    implementation "library-tasks/SplitData/task.py";
     
     param split_percentage {
         type Integer;
