@@ -36,3 +36,8 @@ python ideko-case.py
 
 ## Notes
 The `scripts` folder is copied over for convenience from the `proactive-python-client` project. 
+
+## Python module 
+1. Build via 
+```python -m build```
+2. Deploy via ```python -m twine upload dist/*``` 

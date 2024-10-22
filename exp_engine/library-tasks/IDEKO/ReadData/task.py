@@ -1,5 +1,10 @@
 import os, sys
 import pandas as pd
+
+dependent_modules_folders = variables.get("dependent_modules_folders")
+print('dependent_modules_folders')
+print(dependent_modules_folders)
+
 [sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
 from classes import preprocessing_functions
 from helpers.logger import LoggerHelper, logging

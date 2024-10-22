@@ -1,17 +1,18 @@
-import exp_engine_classes as classes
-from data_abstraction_layer.data_abstraction_api import *
-import proactive_executionware.proactive_runner as proactive_runner
-import exp_engine_exceptions
+from . import exp_engine_classes as classes
+from .data_abstraction_layer.data_abstraction_api import *
+from .proactive_executionware import proactive_runner as proactive_runner
+from . import exp_engine_exceptions
 import os
 import textx
 import itertools
 import random
 import pprint
+from pathlib import Path
 
-GRAMMAR_PATH = "grammar/workflow_grammar_new_v2.tx"
+packagedir = os.path.dirname(os.path.abspath(__file__))
+GRAMMAR_PATH = os.path.join(packagedir, "grammar/workflow_grammar.tx")
+TASK_GRAMMAR_PATH = os.path.join(packagedir, "grammar/task_grammar.tx")
 EXECUTIONWARE = "PROACTIVE"
-TASK_LIBRARY_PATH = 'library-tasks'
-EXPERIMENT_PATH = 'library-experiments'
 
 assembled_flat_wfs = []
 printexperiments = []
@@ -162,7 +163,7 @@ def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
                     task.add_implementation_file(task_data["implementation"])
                 if "dependency" in task_data:
                     print(f"Changing dependency of task '{task.name}' to '{task_data['dependency']}'")
-                    task.add_dependent_module(task_data["dependency"])
+                    task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, task_data["dependency"])
             else:
                 print(f"Do not need to configure task '{task.name}'")
             if task.sub_workflow:
@@ -180,34 +181,44 @@ def generate_assembled_flast_workflows(assembled_wfs):
 
 def execute_wf(w, executionware):
     if executionware == "PROACTIVE":
-        return proactive_runner.execute_wf(w)
+        return proactive_runner.execute_wf(w, RUNNER_FOLDER, CONFIG)
 
 
 def get_task_implementation_path(implementation):
-    parts = implementation.split('.')
-    path_type = parts[0]
-    path_name = parts[1]
-    if path_type == EXPERIMENT_PATH:
-        return os.path.join(EXPERIMENT_PATH, path_name + '.xxp'), "composite"
-    if path_type == TASK_LIBRARY_PATH:
-        folder_path = os.path.join(TASK_LIBRARY_PATH, path_name)
-        return parse_task(folder_path), "simple"
-    raise exp_engine_exceptions.ImplementationFileNotFound
+    folder_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, implementation)
+    return parse_task(folder_path)
+
+def get_task_subworkflow_path(implementation):
+    return os.path.join(CONFIG.EXPERIMENT_LIBRARY_PATH, implementation + '.xxp')
+
+# def get_task_implementation_path(implementation):
+#     parts = implementation.split('.')
+#     path_type = parts[0]
+#     path_name = parts[1]
+#     experiments_library_name = Path(CONFIG.EXPERIMENT_LIBRARY_PATH).name
+#     tasks_library_name = Path(CONFIG.TASK_LIBRARY_PATH).name
+#     if path_type == experiments_library_name:
+#         return os.path.join(CONFIG.EXPERIMENT_LIBRARY_PATH, path_name + '.xxp')
+#     if path_type == tasks_library_name:
+#         folder_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, path_name)
+#         return parse_task(folder_path)
+#     raise exp_engine_exceptions.ImplementationFileNotFound
 
 
 def parse_task(folder_path):
     file_path = os.path.join(folder_path, 'task.xxp')
     with open(file_path, 'r') as task_file:
         task_dsl= task_file.read()
-    workflow_metamodel = textx.metamodel_from_file('library-experiments/task_grammar.tx')
+    workflow_metamodel = textx.metamodel_from_file(TASK_GRAMMAR_PATH)
     workflow_model = workflow_metamodel.model_from_str(task_dsl)
     for component in workflow_model.component:
         for e in component.elements:
             if e.__class__.__name__ == "Implementation":
                 if e.filename:
-                    if not os.path.exists(e.filename):
-                        raise exp_engine_exceptions.ImplementationFileNotFound(f"{e.filename}")
-                return e.filename
+                    file_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.filename)
+                    if not os.path.exists(file_path):
+                        raise exp_engine_exceptions.ImplementationFileNotFound(f"{file_path}")
+                return file_path
 
 
 def get_workflow_components(experiments_metamodel, experiment_model, parsed_workflows, task_dependencies):
@@ -228,30 +239,27 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 
                 if e.__class__.__name__ == "ConfigureTask":
                     task = wf.get_task(e.alias.name)
-                    # if e.workflow:
-                    #     task.add_sub_workflow_name(e.workflow.name)
                     if e.filename:
-                        implementation = e.filename
-                        task_file_path, task_type = get_task_implementation_path(implementation)
+                        task_file_path = get_task_implementation_path(e.filename)
                         if not os.path.exists(task_file_path):
                             raise exp_engine_exceptions.ImplementationFileNotFound(
                                 f"{task_file_path} in task {e.alias.name}")
-                        if task_type == "composite":
-                            with open(task_file_path) as file:
-                                workflow_specification = file.read()
-                                # print(workflow_specification)
-                                subworkflow_model = experiments_metamodel.model_from_str(workflow_specification)
-                                sub_wf, parsed_workflows, task_dependencies = get_workflow_components(experiments_metamodel,subworkflow_model,parsed_workflows,task_dependencies)
-                                task.add_sub_workflow(sub_wf)
-                                task.add_sub_workflow_name(sub_wf.name)
-                        else:
-                            task.add_implementation_file(task_file_path)
+                        task.add_implementation_file(task_file_path)
+                    if e.subworkflow:
+                        task_subworkflow_path = get_task_subworkflow_path(e.subworkflow)
+                        with open(task_subworkflow_path) as file:
+                            workflow_specification = file.read()
+                            subworkflow_model = experiments_metamodel.model_from_str(workflow_specification)
+                            sub_wf, parsed_workflows, task_dependencies = get_workflow_components(experiments_metamodel,subworkflow_model,parsed_workflows,task_dependencies)
+                            task.add_sub_workflow(sub_wf)
+                            task.add_sub_workflow_name(sub_wf.name)
                     if e.dependency:
-                        task.add_dependent_module(e.dependency)
+                        task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, e.dependency)
 
                 if e.__class__.__name__ == "ConfigureData":
                     ds = wf.get_dataset(e.alias.name)
-                    ds.add_path(e.path)
+                    dataset_relative_path = os.path.join(CONFIG.DATASET_LIBRARY_RELATIVE_PATH, e.path)
+                    ds.add_path(dataset_relative_path)
 
                 if e.__class__.__name__ == "StartAndEndEvent":
                     process_dependencies(task_dependencies, e.nodes, "StartAndEndEvent")
@@ -358,8 +366,7 @@ def parse_assembled_workflow_data(experiment_specification):
                         assembled_workflow_task["workflow"] = config.workflow
                         assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
                     elif config.filename:
-                        implementation = config.filename
-                        task_file_path, _ = get_task_implementation_path(implementation)
+                        task_file_path = get_task_implementation_path(config.filename)
                         if not os.path.exists(task_file_path):
                             raise exp_engine_exceptions.ImplementationFileNotFound(
                                 f"{task_file_path} in task {config.alias.name}")
@@ -833,7 +840,7 @@ def run_singlerun(space_config, exp_id):
     print(f"Single Run")
     # w = next(w for w in assembled_flat_wfs if w.name == space_config["assembled_workflow"])
     print(space_config)
-    result = execute_wf(space_config,EXECUTIONWARE)
+    result = execute_wf(space_config, EXECUTIONWARE)
     workflow_results = []
     workflow_results = result
     print(workflow_results)
@@ -875,7 +882,10 @@ def run_workflow(nodes, automated_dict, exp_id):
         result = execute_node(node, exp_id)
 
 
-def run_experiment(experiment_specification, exp_id):
+def run_experiment(experiment_specification, exp_id, runner_folder, config):
+    global RUNNER_FOLDER, CONFIG
+    RUNNER_FOLDER = runner_folder
+    CONFIG = config
 
     print("*********************************************************")
     print("***************** PARSE WORKFLOWS ***********************")
