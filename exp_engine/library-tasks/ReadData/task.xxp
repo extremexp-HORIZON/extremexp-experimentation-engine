@@ -1,7 +1,0 @@
-task ReadData {
-    define input data ExternalDataFile;
-    define output data X;
-    define output data Y;
-    define output data IndicatorList;
-    implementation "library-tasks/ReadData/task.py";
-}

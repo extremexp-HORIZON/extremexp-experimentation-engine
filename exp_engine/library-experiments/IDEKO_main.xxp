@@ -10,17 +10,17 @@ workflow IDEKO_multi_main {
   START -> ReadData -> PrepareData -> TrainModel -> EvaluateModel -> END;
 
   configure task ReadData {
-    implementation "library-tasks.ReadData";
-    dependency "tasks/IDEKO/Binary_v1/src/**";
+    implementation "IDEKO/ReadData";
+    dependency "IDEKO/Binary_v1/src/**";
   }
 
   configure task EvaluateModel {
-    implementation "library-tasks.EvaluateModel";
-    dependency "tasks/IDEKO/Binary_v1/src/**";
+    implementation "IDEKO/EvaluateModel";
+    dependency "IDEKO/Binary_v1/src/**";
   }
 
   configure task PrepareData {
-    implementation "library-experiments.IDEKO_DataPreprocessing";
+    subworkflow "IDEKO_DataPreprocessing";
   }
 
   // DATA
@@ -30,7 +30,7 @@ workflow IDEKO_multi_main {
   ExternalDataFile --> ReadData.ExternalDataFile;
 
   configure data ExternalDataFile {
-    path "library-datasets/v1/ideko-subset/**";
+    path "v1/ideko-subset/**";
   }
 
   // METRICS
@@ -42,41 +42,28 @@ workflow IDEKO_multi_main {
 
 workflow TrainModelNN from IDEKO_multi_main {
   configure task TrainModel {
-    implementation "library-tasks.TrainModelNN";
-    dependency "tasks/IDEKO/Binary_v1/src/**";
+    implementation "IDEKO/TrainModelNN";
+    dependency "IDEKO/Binary_v1/src/**";
   }
 }
 
 workflow TrainModelRNN from IDEKO_multi_main {
   configure task TrainModel {
-    implementation "library-tasks.TrainModelRNN";
-    dependency "tasks/IDEKO/Binary_v1/src/**";
+    implementation "IDEKO/TrainModelRNN";
+    dependency "IDEKO/Binary_v1/src/**";
   }
 }
 
 experiment EXP {
   intent FindBestClassifier;
   control {
-    //Automated
-    S1 -> S2;
+    S1;
   }
 
   space S1 of TrainModelNN {
     strategy gridsearch;
-    param epochs_vp = range(2, 4);
-    // param epochs_vp = enum(2);
-    param batch_size_vp = enum(64);
-    configure task TrainModel {
-      param epochs = epochs_vp;
-      param batch_size = batch_size_vp;
-    }
-  }
-
-
-  space S2 of TrainModelRNN {
-    strategy gridsearch;
     param epochs_vp = enum(2);
-    param batch_size_vp = enum(32);
+    param batch_size_vp = enum(64);
     configure task TrainModel {
       param epochs = epochs_vp;
       param batch_size = batch_size_vp;

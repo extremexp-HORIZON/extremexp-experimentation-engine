@@ -1,8 +1,10 @@
-from . import credentials
 import proactive
 import os
 
-PROACTIVE_HELPER = "proactive_executionware/proactive_helper.py"
+packagedir = os.path.dirname(os.path.abspath(__file__))
+PROACTIVE_HELPER_FULL_PATH = os.path.join(packagedir, "proactive_helper.py")
+PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
+RUNNER_FOLDER = ""
 
 
 def _create_gateway_and_connect_to_it(username, password):
@@ -32,7 +34,9 @@ def _create_job(gateway, workflow_name):
 def _create_fork_env(gateway, proactive_job):
     print("Adding a fork environment to the import task...")
     proactive_fork_env = gateway.createForkEnvironment(language="groovy")
-    proactive_fork_env.setImplementationFromFile("./proactive_executionware/scripts/fork_env.groovy")
+
+    groovy_env_path = os.path.join(PROACTIVE_FORK_SCRIPTS_PATH, "fork_env.groovy")
+    proactive_fork_env.setImplementationFromFile(groovy_env_path)
     proactive_job.addVariable("CONTAINER_PLATFORM", "docker")
     proactive_job.addVariable("CONTAINER_IMAGE", "docker://activeeon/dlm3")
     proactive_job.addVariable("CONTAINER_GPU_ENABLED", "false")
@@ -65,8 +69,9 @@ def _create_python_task(gateway, task_name, fork_environment, task_impl, input_f
         task.addInputFile(dependent_module)
         dependent_modules_folders.append(os.path.dirname(dependent_module))
     # Adding the helper to all tasks as input:
-    task.addInputFile(PROACTIVE_HELPER)
-    proactive_helper_folder = os.path.dirname(PROACTIVE_HELPER)
+    PROACTIVE_HELPER_RELATIVE_PATH = os.path.relpath(PROACTIVE_HELPER_FULL_PATH, RUNNER_FOLDER)
+    task.addInputFile(PROACTIVE_HELPER_RELATIVE_PATH)
+    proactive_helper_folder = os.path.dirname(PROACTIVE_HELPER_RELATIVE_PATH)
     dependent_modules_folders.append(proactive_helper_folder)
     task.addVariable("dependent_modules_folders", ','.join(dependent_modules_folders))
     for dependency in dependencies:
@@ -157,14 +162,18 @@ def _teardown(gateway):
     print("Finished")
 
 
-def execute_wf(w):
+def execute_wf(w, runner_folder, config):
+    global RUNNER_FOLDER, CONFIG
+    RUNNER_FOLDER = runner_folder
+    CONFIG = config
+
     print("****************************")
     print(f"Executing workflow {w.name}")
     print("****************************")
     w.print()
     print("****************************")
 
-    gateway = _create_gateway_and_connect_to_it(credentials.proactive_username, credentials.proactive_password)
+    gateway = _create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
     job = _create_job(gateway, w.name)
     fork_env = _create_fork_env(gateway, job)
 

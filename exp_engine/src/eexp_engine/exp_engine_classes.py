@@ -1,3 +1,5 @@
+import os
+
 class WorkflowDataset:
 
     def __init__(self, name):
@@ -52,8 +54,9 @@ class WorkflowTask:
     def add_sub_workflow(self, workflow):
         self.sub_workflow = workflow
 
-    def add_dependent_module(self, module):
-        self.dependent_modules.append(module)
+    def add_dependent_module(self, folder, name):
+        dependent_module_path = os.path.join(folder, name)
+        self.dependent_modules.append(dependent_module_path)
 
     def add_dependencies(self, dependencies):
         self.dependencies += dependencies

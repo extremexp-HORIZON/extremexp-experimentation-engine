@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-data]
+"*" = ["*"]
+
+[project]
+name = "eexp_engine"
+version = "0.0.2"
+authors = [
+  { name="Ilias Gerostathopoulos", email="iliasger@gmail.com" },
+]
+description = "A command-line version of the experimentation engine of the ExtremeXP project"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "textX==4.0.1",
+    "requests==2.32.3",
+    "proactive==14.1.0.2409240902.dev0",
+]
+
+[project.urls]
+Homepage = "https://colab-repo.intracom-telecom.com/colab-projects/extremexp/experiment-execution/experimentation-engine/extremexp-experimentation-engine"
+Issues = "https://colab-repo.intracom-telecom.com/colab-projects/extremexp/experiment-execution/experimentation-engine/extremexp-experimentation-engine/-/issues"
