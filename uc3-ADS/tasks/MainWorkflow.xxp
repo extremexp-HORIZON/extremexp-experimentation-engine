@@ -1,0 +1,63 @@
+package uc3ADS;
+
+workflow MainWorkflow {
+  define task TaskFireDetection;
+  define task TaskSelectUsers;
+  define task TaskUserResponse;
+
+  // Task CONNECTIONS
+  START -> TaskFireDetection -> TaskSelectUsers -> TaskUserResponse -> END;
+
+  // Configuration for TaskFireDetection
+  configure task TaskFireDetection {
+    implementation "uc3ADS-task-library.TaskFireDetection";
+    dependency "tasks/uc3ADS/src/**";
+  }
+
+  // Configuration for TaskSelectUsers
+  configure task TaskSelectUsers {
+    implementation "uc3ADS-task-library.TaskSelectUsers";
+    dependency "tasks/uc3ADS/src/**";
+  }
+
+  // Configuration for TaskUserResponse
+  configure task TaskUserResponse {
+    implementation "uc3ADS-task-library.TaskUserResponse";
+    dependency "tasks/uc3ADS/src/**";
+  }
+
+  // Define input data needed for the workflow
+  define input data ImageBase64;
+  define input data AlertLocation;
+  define input data UserResponse;
+  define input data UserServiceURL;
+  define input data OSRMURL;
+
+  // DATA CONNECTIONS
+  ImageBase64 --> TaskFireDetection.ImageBase64;
+  AlertLocation --> TaskSelectUsers.AlertLocation;
+  UserServiceURL --> TaskSelectUsers.UserServiceURL;
+  OSRMURL --> TaskSelectUsers.OSRMURL;
+  UserResponse --> TaskUserResponse.UserResponse;
+
+  // Configure paths for each data input
+  configure data ImageBase64 {
+    path "uc3ADS_data/ImageBase64";
+  }
+
+  configure data AlertLocation {
+    path "uc3ADS_data/AlertLocation";
+  }
+
+  configure data UserServiceURL {
+    path "uc3ADS_data/UserServiceURL";
+  }
+
+  configure data OSRMURL {
+    path "uc3ADS_data/OSRMURL";
+  }
+
+  configure data UserResponse {
+    path "uc3ADS_data/UserResponse";
+  }
+}
