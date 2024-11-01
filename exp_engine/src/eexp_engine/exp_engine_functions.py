@@ -161,6 +161,12 @@ def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
                 if "implementation" in task_data:
                     print(f"Changing implementation of task '{task.name}' to '{task_data['implementation']}'")
                     task.add_implementation_file(task_data["implementation"])
+                if "requirements_file" in task_data:
+                    print(f"Changing requirements file of task '{task.name}' to '{task_data['requirements_file']}'")
+                    task.add_requirements_file(task_data["requirements_file"])
+                if "python_version" in task_data:
+                    print(f"Changing python version of task '{task.name}' to '{task_data['python_version']}'")
+                    task.add_python_version(task_data["python_version"])
                 if "dependency" in task_data:
                     print(f"Changing dependency of task '{task.name}' to '{task_data['dependency']}'")
                     task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, task_data["dependency"])
@@ -211,14 +217,23 @@ def parse_task(folder_path):
         task_dsl= task_file.read()
     workflow_metamodel = textx.metamodel_from_file(TASK_GRAMMAR_PATH)
     workflow_model = workflow_metamodel.model_from_str(task_dsl)
+    implementation_file_path = ""
+    requirements_file_path = ""
+    python_version = ""
     for component in workflow_model.component:
         for e in component.elements:
             if e.__class__.__name__ == "Implementation":
                 if e.filename:
-                    file_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.filename)
-                    if not os.path.exists(file_path):
-                        raise exp_engine_exceptions.ImplementationFileNotFound(f"{file_path}")
-                return file_path
+                    implementation_file_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.filename)
+                    if not os.path.exists(implementation_file_path):
+                        raise exp_engine_exceptions.ImplementationFileNotFound(f"{implementation_file_path}")
+            if e.__class__.__name__ == "VirtualEnv":
+                if e.requirements_file_path:
+                    requirements_file_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.requirements_file_path)
+            if e.__class__.__name__ == "PythonVersion":
+                if e.python_version:
+                    python_version = e.python_version
+    return implementation_file_path, requirements_file_path, python_version
 
 
 def get_workflow_components(experiments_metamodel, experiment_model, parsed_workflows, task_dependencies):
@@ -240,11 +255,13 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                 if e.__class__.__name__ == "ConfigureTask":
                     task = wf.get_task(e.alias.name)
                     if e.filename:
-                        task_file_path = get_task_implementation_path(e.filename)
+                        task_file_path, requirements_file_path, python_version = get_task_implementation_path(e.filename)
                         if not os.path.exists(task_file_path):
                             raise exp_engine_exceptions.ImplementationFileNotFound(
                                 f"{task_file_path} in task {e.alias.name}")
                         task.add_implementation_file(task_file_path)
+                        task.add_requirements_file(requirements_file_path)
+                        task.add_python_version(python_version)
                     if e.subworkflow:
                         task_subworkflow_path = get_task_subworkflow_path(e.subworkflow)
                         with open(task_subworkflow_path) as file:
@@ -366,11 +383,13 @@ def parse_assembled_workflow_data(experiment_specification):
                         assembled_workflow_task["workflow"] = config.workflow
                         assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
                     elif config.filename:
-                        task_file_path = get_task_implementation_path(config.filename)
+                        task_file_path, requirements_file_path, python_version = get_task_implementation_path(config.filename)
                         if not os.path.exists(task_file_path):
                             raise exp_engine_exceptions.ImplementationFileNotFound(
                                 f"{task_file_path} in task {config.alias.name}")
                         assembled_workflow_task["implementation"] = task_file_path
+                        assembled_workflow_task["requirements_file"] = requirements_file_path
+                        assembled_workflow_task["python_version"] = python_version
                         assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
                     if config.dependency:
                         assembled_workflow_task["dependency"] = config.dependency

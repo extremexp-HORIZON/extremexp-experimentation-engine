@@ -22,6 +22,8 @@ class WorkflowTask:
         self.sub_workflow_name = None
         self.sub_workflow = None
         self.impl_file = None
+        self.requirements_file = None
+        self.python_version = None
         self.input_files = []
         self.output_files = []
         self.dependent_modules = []
@@ -48,6 +50,12 @@ class WorkflowTask:
     def add_implementation_file(self, impl_file):
         self.impl_file = impl_file
 
+    def add_requirements_file(self, requirements_file):
+        self.requirements_file = requirements_file
+
+    def add_python_version(self, python_version):
+        self.python_version = python_version
+
     def add_sub_workflow_name(self, workflow_name):
         self.sub_workflow_name = workflow_name
 
@@ -73,6 +81,8 @@ class WorkflowTask:
     def clone(self, parsed_workflows=None):
         new_t = WorkflowTask(self.name)
         new_t.add_implementation_file(self.impl_file)
+        new_t.add_requirements_file(self.requirements_file)
+        new_t.add_python_version(self.python_version)
         new_t.add_sub_workflow_name(self.sub_workflow_name)
         if self.sub_workflow_name:
             new_t.add_sub_workflow(next(w for w in parsed_workflows if w.name == self.sub_workflow_name).clone(parsed_workflows))
@@ -91,6 +101,8 @@ class WorkflowTask:
     def print(self, tab=""):
         print(f"{tab}with task name : {self.name}")
         print(f"{tab}\twith task implementation: {self.impl_file}")
+        print(f"{tab}\twith requirements_file: {self.requirements_file}")
+        print(f"{tab}\twith python version: {self.python_version}")
         print(f"{tab}\twith sub_workflow_name: {self.sub_workflow_name}")
         print(f"{tab}\twith sub_workflow: {self.sub_workflow}")
         print(f"{tab}\twith dependencies: {self.dependencies}")
