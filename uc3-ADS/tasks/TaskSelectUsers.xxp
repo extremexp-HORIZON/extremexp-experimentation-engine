@@ -1,0 +1,18 @@
+package uc3ADS;
+
+task TaskSelectUsers {
+  define input data AlertLocation;
+  define input data UserServiceURL;
+  define input data OSRMURL;
+  define output data SelectedUsers;
+
+  implementation "uc3ADS-task-library.TaskSelectUsers";
+
+  // DATA CONNECTIONS
+  AlertLocation --> SelectedUsers;
+
+  // Configure path for SelectedUsers output data
+  configure data SelectedUsers {
+    path "uc3ADS_data/SelectedUsers";
+  }
+}

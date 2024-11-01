@@ -1,0 +1,16 @@
+package uc3ADS;
+
+task TaskUserResponse {
+  define input data UserResponse;
+  define output data AlertAccepted;
+
+  implementation "uc3ADS-task-library.TaskUserResponse";
+
+  // DATA CONNECTIONS
+  UserResponse --> AlertAccepted;
+
+  // Configure path for AlertAccepted output data
+  configure data AlertAccepted {
+    path "uc3ADS_data/AlertAccepted";
+  }
+}

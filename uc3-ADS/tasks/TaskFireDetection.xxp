@@ -1,0 +1,16 @@
+package uc3ADS;
+
+task TaskFireDetection {
+  define input data ImageBase64;
+  define output data FireDetected;
+
+  implementation "uc3ADS-task-library.TaskFireDetection";
+
+  // DATA CONNECTIONS
+  ImageBase64 --> FireDetected;
+
+  // Configure path for FireDetected output data
+  configure data FireDetected {
+    path "uc3ADS_data/FireDetected";
+  }
+}

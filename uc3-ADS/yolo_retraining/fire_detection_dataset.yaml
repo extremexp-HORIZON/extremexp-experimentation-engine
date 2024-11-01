@@ -1,0 +1,8 @@
+train: /mnt/data/full_training_data/images  # Path to training images
+val: /mnt/data/full_training_data/val  # Path to validation images
+
+# Number of classes
+nc: 1
+
+# Class names
+names: ['fire']
