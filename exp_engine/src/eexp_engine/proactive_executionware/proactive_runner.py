@@ -46,19 +46,33 @@ def _create_fork_env(gateway, proactive_job):
     return proactive_fork_env
 
 
-def _create_python_task(gateway, task_name, fork_environment, task_impl, input_files=[], dependent_modules=[], dependencies=[], is_precious_result=False):
+def _get_python_version(python_version, enforce_python_version=True):
+    if not python_version and enforce_python_version:
+        print("You need to set a Python version when configuring a virtual environment.")
+        exit(0)
+    if python_version == "3.9":
+        return "/opt/miniconda3/py39/bin/python3"
+
+
+def _create_python_task(gateway, task_name, fork_environment, task_impl, requirements_file, python_version, input_files=[], dependent_modules=[], dependencies=[], is_precious_result=False):
     print(f"Creating task {task_name}...")
     task = gateway.createPythonTask()
     task.setTaskName(task_name)
     task.setTaskImplementationFromFile(task_impl)
 
-    task.setForkEnvironment(fork_environment)
     # TODO Remove the next three lines after adding output files to the DSL
     if task_name == "TrainModel":
         print("inside TrainModel, adding output file")
         task.addOutputFile('library-datasets/**')
-    # task.setDefaultPython("/opt/miniconda3/py39/bin/python3")
-    # task.setVirtualEnvFromFile("MOBY-experiment1/requirements.txt")
+
+    if requirements_file:
+        python_version_path = _get_python_version(python_version)
+        print(f"setting python version to {python_version_path}")
+        task.setDefaultPython(python_version_path)
+        print(f"setting venv from file {requirements_file}")
+        task.setVirtualEnvFromFile(requirements_file)
+    else:
+        task.setForkEnvironment(fork_environment)
 
     for input_file in input_files:
         task.addInputFile(input_file.path)
@@ -180,7 +194,8 @@ def execute_wf(w, runner_folder, config):
     created_tasks = []
     for t in sorted(w.tasks, key=lambda t: t.order):
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
-        task_to_execute = _create_python_task(gateway, t.name, fork_env, t.impl_file, t.input_files, t.dependent_modules, dependent_tasks)
+        task_to_execute = _create_python_task(gateway, t.name, fork_env, t.impl_file, t.requirements_file,
+                                              t.python_version, t.input_files, t.dependent_modules, dependent_tasks)
         if len(t.params) > 0:
             _configure_task(task_to_execute, t.params)
         if t.is_condition_task():

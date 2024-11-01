@@ -10,11 +10,15 @@ Task:
     '}'
 ;
 
-Element:  Data | Implementation | Parameter | Comment;
+Element:  Data | Implementation | VirtualEnv |  PythonVersion | Parameter | Comment;
 
 Data: 'define input data' name=ID ';' | 'define output data' name=ID ';' ;
 
 Implementation: 'implementation' filename=STRING';' ;
+
+VirtualEnv: 'venv' requirements_file_path=STRING';' ;
+
+PythonVersion: 'python_version' python_version=STRING';' ;
 
 Parameter:
     'param' name=ID '{'
