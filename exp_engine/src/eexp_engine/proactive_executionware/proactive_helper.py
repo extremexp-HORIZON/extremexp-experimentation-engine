@@ -17,25 +17,6 @@ def load_datasets(variables, *keys):
 def save_dataset(variables, key, value):
     value_size = sys.getsizeof(value)
     print(f"Saving output data of size {value_size} with key {key}")
-    if value_size > 100:
-        print("Saving as large dataset")
-        save_large_dataset(variables, key, value)
-    else:
-        print("Saving using the 'variables' object (internal database)")
-        variables.put(key, value)
-
-
-def load_dataset(variables, key):
-    print(f"Loading input data with key {key}")
-    if key in variables:
-        print("Loading using the 'variables' object (internal database)")
-        return variables.get(key)
-    else:
-        print("Loading as large dataset")
-        return load_large_dataset(variables, key)
-
-
-def save_large_dataset(variables, key, value):
     job_id = variables.get("PA_JOB_ID")
     task_id = variables.get("PA_TASK_ID")
     task_folder = os.path.join("/shared", job_id, task_id)
@@ -46,7 +27,8 @@ def save_large_dataset(variables, key, value):
     variables.put("PREVIOUS_TASK_ID", str(task_id))
 
 
-def load_large_dataset(variables, key):
+def load_dataset(variables, key):
+    print(f"Loading input data with key {key}")
     job_id = variables.get("PA_JOB_ID")
     task_id = variables.get("PREVIOUS_TASK_ID")
     task_folder = os.path.join("/shared", job_id, task_id)
@@ -54,6 +36,7 @@ def load_large_dataset(variables, key):
     with open(input_filename, "rb") as f:
         file_contents = pickle.load(f)
     return file_contents
+
 
 def create_dir(variables, key):
     job_id = variables.get("PA_JOB_ID")
