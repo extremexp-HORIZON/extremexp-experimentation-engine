@@ -8,3 +8,5 @@ streamlit
 exp_engine/IDEKO1
 exp_engine/src/eexp_engine.egg-info
 eexp_config.py
+MOBY
+exp_engine/dist
