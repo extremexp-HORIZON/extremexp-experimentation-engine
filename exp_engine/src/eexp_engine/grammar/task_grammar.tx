@@ -10,9 +10,17 @@ Task:
     '}'
 ;
 
-Element:  Data | Implementation | VirtualEnv |  PythonVersion | Parameter | Comment;
+Element:  Data | Metric | Implementation | VirtualEnv |  PythonVersion | Parameter | Comment;
 
 Data: 'define input data' name=ID ';' | 'define output data' name=ID ';' ;
+
+Metric: 'define metric' name=ID '{'
+        'semanticType' semantic_type=ID ';'
+        'kind' kind=METRIC_KIND ';'
+        'type' data_type=ID ';'
+    '}';
+
+METRIC_KIND: 'single-value' | 'series';
 
 Implementation: 'implementation' filename=STRING';' ;
 

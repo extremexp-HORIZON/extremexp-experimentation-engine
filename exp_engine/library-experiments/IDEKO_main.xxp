@@ -33,11 +33,6 @@ workflow IDEKO_multi_main {
     path "v1/ideko-subset/**";
   }
 
-  // METRICS
-  define metric accuracy;
-  define metric loss;
-  define metric recall;
-
 }
 
 workflow TrainModelNN from IDEKO_multi_main {
