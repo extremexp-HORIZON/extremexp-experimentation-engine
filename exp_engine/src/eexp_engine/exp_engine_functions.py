@@ -125,8 +125,6 @@ def flatten_workflows(assembled_wf):
                 new_wf.add_task(t)
         else:
             new_wf.add_task(t)
-    for m in assembled_wf.metrics:
-        new_wf.add_metric(m)
     re_order_tasks_in_workflow(new_wf)
     new_wf.set_is_main(True)
     return new_wf
@@ -158,9 +156,14 @@ def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
             if task.name in assembled_wf_data["tasks"].keys():
                 print(f"Need to configure task '{task.name}'")
                 task_data = assembled_wf_data["tasks"][task.name]
-                if "implementation" in task_data:
-                    print(f"Changing implementation of task '{task.name}' to '{task_data['implementation']}'")
-                    task.add_implementation_file(task_data["implementation"])
+                print(f"Changing prototypical_name of task '{task.name}' to '{task_data['prototypical_name']}'")
+                task.prototypical_name = task_data["prototypical_name"]
+                print(f"Changing implementation of task '{task.name}' to '{task_data['implementation']}'")
+                task.add_implementation_file(task_data["implementation"])
+                if "metrics" in task_data:
+                    print(f"Changing metrics of task '{task.name}' to '{task_data['metrics']}'")
+                    for metric in task_data['metrics']:
+                        task.add_metric(metric)
                 if "requirements_file" in task_data:
                     print(f"Changing requirements file of task '{task.name}' to '{task_data['requirements_file']}'")
                     task.add_requirements_file(task_data["requirements_file"])
@@ -190,7 +193,7 @@ def execute_wf(w, executionware):
         return proactive_runner.execute_wf(w, RUNNER_FOLDER, CONFIG)
 
 
-def get_task_implementation_path(implementation):
+def get_task_metadata(implementation):
     folder_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, implementation)
     return parse_task(folder_path)
 
@@ -217,23 +220,30 @@ def parse_task(folder_path):
         task_dsl= task_file.read()
     workflow_metamodel = textx.metamodel_from_file(TASK_GRAMMAR_PATH)
     workflow_model = workflow_metamodel.model_from_str(task_dsl)
+    metrics = []
+    task_name = ""
     implementation_file_path = ""
     requirements_file_path = ""
     python_version = ""
     for component in workflow_model.component:
+        if component.__class__.__name__ == "Task":
+            task_name = component.name
         for e in component.elements:
             if e.__class__.__name__ == "Implementation":
                 if e.filename:
                     implementation_file_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.filename)
                     if not os.path.exists(implementation_file_path):
                         raise exp_engine_exceptions.ImplementationFileNotFound(f"{implementation_file_path}")
+            if e.__class__.__name__ == "Metric":
+                metric = classes.Metric(e.name, e.semantic_type, e.kind, e.data_type)
+                metrics.append(metric)
             if e.__class__.__name__ == "VirtualEnv":
                 if e.requirements_file_path:
                     requirements_file_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.requirements_file_path)
             if e.__class__.__name__ == "PythonVersion":
                 if e.python_version:
                     python_version = e.python_version
-    return implementation_file_path, requirements_file_path, python_version
+    return task_name, implementation_file_path, metrics, requirements_file_path, python_version
 
 
 def get_workflow_components(experiments_metamodel, experiment_model, parsed_workflows, task_dependencies):
@@ -255,10 +265,14 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                 if e.__class__.__name__ == "ConfigureTask":
                     task = wf.get_task(e.alias.name)
                     if e.filename:
-                        task_file_path, requirements_file_path, python_version = get_task_implementation_path(e.filename)
+                        task_name, task_file_path, metrics, requirements_file_path, python_version = \
+                            get_task_metadata(e.filename)
                         if not os.path.exists(task_file_path):
                             raise exp_engine_exceptions.ImplementationFileNotFound(
                                 f"{task_file_path} in task {e.alias.name}")
+                        for metric in metrics:
+                            task.add_metric(metric)
+                        task.prototypical_name = task_name
                         task.add_implementation_file(task_file_path)
                         task.add_requirements_file(requirements_file_path)
                         task.add_python_version(python_version)
@@ -302,10 +316,6 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 
                     conditional_task = wf.get_task(e.from_node.name)
                     conditional_task.set_conditional_tasks(ifNode.name, elseNode.name, contNode.name, condition)
-
-                if e.__class__.__name__ == "Metric":
-                    metric = classes.Metric(e.name)
-                    wf.add_metric(metric)
 
     return wf, parsed_workflows, task_dependencies
 
@@ -383,11 +393,14 @@ def parse_assembled_workflow_data(experiment_specification):
                         assembled_workflow_task["workflow"] = config.workflow
                         assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
                     elif config.filename:
-                        task_file_path, requirements_file_path, python_version = get_task_implementation_path(config.filename)
+                        task_name, task_file_path, metrics, requirements_file_path, python_version = \
+                            get_task_metadata(config.filename)
                         if not os.path.exists(task_file_path):
                             raise exp_engine_exceptions.ImplementationFileNotFound(
                                 f"{task_file_path} in task {config.alias.name}")
+                        assembled_workflow_task["prototypical_name"] = task_name
                         assembled_workflow_task["implementation"] = task_file_path
+                        assembled_workflow_task["metrics"] = metrics
                         assembled_workflow_task["requirements_file"] = requirements_file_path
                         assembled_workflow_task["python_version"] = python_version
                         assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
@@ -737,11 +750,15 @@ def get_workflow_to_run(space_config, c):
 
 def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
     task_specifications = []
+    wf_metrics = {}
     for t in sorted(workflow_to_run.tasks, key=lambda t: t.order):
         t_spec = {}
         task_specifications.append(t_spec)
         t_spec["id"] = t.name
         t_spec["name"] = t.name
+        metadata = {}
+        metadata["prototypical_name"] = t.prototypical_name
+        t_spec["metadata"] = metadata
         t_spec["source_code"] = t.impl_file
         if len(t.params) > 0:
             params = []
@@ -764,14 +781,20 @@ def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
                 input_datasets.append(input_file)
                 input_file["name"] = f.name
                 input_file["uri"] = f.path
+        for m in t.metrics:
+            if t.name in wf_metrics:
+                wf_metrics[t.name].append(m)
+            else:
+                wf_metrics[t.name] = [m]
     body = {
         "name": f"{exp_id}--w{run_count}",
         "tasks": task_specifications
     }
     wf_id = create_workflow(exp_id, body)
 
-    for m in workflow_to_run.metrics:
-        create_scalar_metric(wf_id, m.name)
+    for task in wf_metrics:
+        for m in wf_metrics[task]:
+            create_metric(wf_id, task, m.name, m.semantic_type, m.kind, m.data_type)
 
     return wf_id
 

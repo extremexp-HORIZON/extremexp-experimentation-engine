@@ -13,6 +13,13 @@ from helpers.logger import LoggerHelper, logging
 
 LoggerHelper.init_logger()
 logger = logging.getLogger(__name__)
+metrics_translation = {
+    "accuracy": "IDEKO_accuracy",
+    "recall": "IDEKO_recall",
+    "loss": "IDEKO_loss"
+}
+
+
 
 class ModelConfiguration():
 
@@ -127,7 +134,7 @@ class ModelConfiguration():
 
         model_metrics_test = model.evaluate(X_test, y_test, return_dict = True)
         for metric, value in model_metrics_test.items():
-            myresultMap.put(metric, value)
+            myresultMap.put(metrics_translation[metric], value)
             logger.info("model_evaluation(): %s of the test data: %s" %(metric, value))
 
         return myresultMap

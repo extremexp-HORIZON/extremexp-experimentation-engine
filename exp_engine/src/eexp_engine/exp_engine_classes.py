@@ -17,6 +17,7 @@ class WorkflowDataset:
 class WorkflowTask:
 
     def __init__(self, name):
+        self.name = name
         self.params = {}
         self.order = None
         self.sub_workflow_name = None
@@ -26,10 +27,11 @@ class WorkflowTask:
         self.python_version = None
         self.input_files = []
         self.output_files = []
+        self.metrics = []
         self.dependent_modules = []
         self.dependencies = []
         self.conditional_dependencies = []
-        self.name = name
+        self.prototypical_name = None
         self.if_task_name = None
         self.else_task_name = None
         self.continuation_task_name = None
@@ -78,8 +80,12 @@ class WorkflowTask:
     def set_param(self, key, value):
         self.params[key] = value
 
+    def add_metric(self, metric):
+        self.metrics.append(metric)
+
     def clone(self, parsed_workflows=None):
         new_t = WorkflowTask(self.name)
+        new_t.prototypical_name = self.prototypical_name
         new_t.add_implementation_file(self.impl_file)
         new_t.add_requirements_file(self.requirements_file)
         new_t.add_python_version(self.python_version)
@@ -89,6 +95,9 @@ class WorkflowTask:
         new_t.add_dependencies(self.dependencies)
         new_t.input_files = self.input_files
         new_t.output_files = self.output_files
+        for m in self.metrics:
+            new_m = m.clone()
+            new_t.add_metric(new_m)
         new_t.dependent_modules = self.dependent_modules
         new_t.set_order(self.order)
         new_t.params = self.params
@@ -100,6 +109,7 @@ class WorkflowTask:
 
     def print(self, tab=""):
         print(f"{tab}with task name : {self.name}")
+        print(f"{tab}with task prototypical_name : {self.prototypical_name}")
         print(f"{tab}\twith task implementation: {self.impl_file}")
         print(f"{tab}\twith requirements_file: {self.requirements_file}")
         print(f"{tab}\twith python version: {self.python_version}")
@@ -115,6 +125,9 @@ class WorkflowTask:
         print(f"{tab}\twith dependent modules: {self.dependent_modules}")
         print(f"{tab}\twith order: {self.order}")
         print(f"{tab}\twith params: {self.params}")
+        print(f"{tab}\twith metrics:")
+        for m in self.metrics:
+            m.print(tab+"\t")
         # print(f"{tab}\twith condition: {self.condition}")
         # print(f"{tab}\twith if_task_name: {self.if_task_name}")
         # print(f"{tab}\twith else_task_name: {self.else_task_name}")
@@ -123,14 +136,20 @@ class WorkflowTask:
 
 class Metric:
 
-    def __init__(self, name):
+    def __init__(self, name, semantic_type, kind, data_type):
         self.name = name
+        self.semantic_type = semantic_type
+        self.kind = kind
+        self.data_type = data_type
 
     def print(self, tab=""):
-        print(f"{tab}with metric name : {self.name}")
+        print(f"{tab}\twith metric name : {self.name}")
+        print(f"{tab}\twith metric semantic type : {self.semantic_type}")
+        print(f"{tab}\twith metric kind : {self.kind}")
+        print(f"{tab}\twith metric data_type : {self.data_type}")
 
     def clone(self):
-        new_m = Metric(self.name)
+        new_m = Metric(self.name, self.semantic_type, self.kind, self.data_type)
         return new_m
 
 
@@ -141,16 +160,12 @@ class Workflow:
         self.name = name
         self.tasks = []
         self.datasets = []
-        self.metrics = []
 
     def add_task(self, task):
         self.tasks.append(task)
 
     def add_dataset(self, dataset):
         self.datasets.append(dataset)
-
-    def add_metric(self, metric):
-        self.metrics.append(metric)
 
     def get_task(self, name):
         return next(t for t in self.tasks if t.name == name)
@@ -173,9 +188,6 @@ class Workflow:
         for t in self.tasks:
             new_t = t.clone(parsed_workflows)
             new_w.tasks.append(new_t)
-        for m in self.metrics:
-            new_m = m.clone()
-            new_w.metrics.append(new_m)
         return new_w
 
     def print(self, tab=""):
@@ -186,8 +198,6 @@ class Workflow:
             t.print(tab+"\t")
             if t.sub_workflow:
                 t.sub_workflow.print(tab+"\t\t")
-        for m in self.metrics:
-            m.print(tab+"\t")
 
 
 class AutomatedEvent:

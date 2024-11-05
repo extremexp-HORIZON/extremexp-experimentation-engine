@@ -1,8 +1,26 @@
-task ReadIDEKOData {
+task EvaluateModel {
 
     define input data TrainedModel;
     define input data Features;
     define input data Labels;
+
+    define metric IDEKO_accuracy {
+        semanticType accuracy;
+        kind single-value;
+        type double;
+    }
+
+    define metric IDEKO_loss {
+        semanticType loss;
+        kind single-value;
+        type double;
+    }
+
+    define metric IDEKO_recall {
+        semanticType recall;
+        kind single-value;
+        type double;
+    }
 
     implementation "IDEKO/EvaluateModel/task.py";
 }

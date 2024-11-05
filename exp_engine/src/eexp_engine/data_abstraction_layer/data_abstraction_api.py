@@ -74,10 +74,13 @@ def update_workflow(wf_id, body):
     return r.json()
 
 
-def create_metric(wf_id, name, metric_type):
+def create_metric(wf_id, task, name, semantic_type, kind, data_type):
     body = {
         "name": name,
-        "type": metric_type,
+        "producedByTask": task,
+        "type": data_type,
+        "kind": kind,
+        "semantic_type": semantic_type,
         "parent_id": wf_id,
         "parent_type": "workflow"
     }
@@ -90,14 +93,6 @@ def create_metric(wf_id, name, metric_type):
     else:
         print(r.json())
         print(f"New metric was NOT created successfully")
-
-
-def create_scalar_metric(wf_id, name):
-    create_metric(wf_id, name, "scalar")
-
-
-def create_series_metric(wf_id, name):
-    create_metric(wf_id, name, "series")
 
 
 def update_metric(m_id, body):
@@ -120,8 +115,7 @@ def update_metrics_of_workflow(wf_id, result):
 
 def add_value_to_metric(m_id, value):
     body = {
-        "value": str(value),
-        "type": "scalar"
+        "value": str(value)
     }
     return update_metric(m_id, body)
 
