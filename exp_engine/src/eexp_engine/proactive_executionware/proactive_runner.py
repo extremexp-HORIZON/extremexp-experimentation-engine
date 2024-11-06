@@ -1,5 +1,6 @@
 import proactive
 import os
+from ..data_abstraction_layer.data_abstraction_api import get_workflow, update_workflow, get_current_time
 
 packagedir = os.path.dirname(os.path.abspath(__file__))
 PROACTIVE_HELPER_FULL_PATH = os.path.join(packagedir, "proactive_helper.py")
@@ -123,7 +124,7 @@ else:
     return flow_script
 
 
-def _submit_job_and_retrieve_results_and_outputs(gateway, job):
+def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statuses):
     print("Submitting the job to the scheduler...")
 
     job_id = gateway.submitJobWithInputsAndOutputsPaths(job, debug=False)
@@ -133,17 +134,31 @@ def _submit_job_and_retrieve_results_and_outputs(gateway, job):
     is_finished = False
     seconds = 0
     while not is_finished:
-        # Get the current state of the job
         job_status = gateway.getJobStatus(job_id)
-        # task_status = gateway.getTaskStatus(job_id)
+        for ts in task_statuses:
+            previous_task_status = ts["status"].upper()
+            task_name = ts["name"]
+            current_task_status = gateway.getTaskStatus(job_id, task_name).upper()
+            ts["status"] = current_task_status
+            if (previous_task_status == "PENDING" or previous_task_status == "SUBMITTED") and current_task_status == "RUNNING":
+                wf = get_workflow(wf_id)
+                completed_task = next(t for t in wf["tasks"] if t["name"] == task_name)
+                current_time  = get_current_time()
+                completed_task["start"] = current_time
+                update_workflow(wf_id, {"tasks": wf["tasks"]})
+                print(f"Task {task_name} started at {current_time}")
+            if previous_task_status == "RUNNING" and current_task_status in ["FINISHED", "CANCELED", "FAILED"]:
+                wf = get_workflow(wf_id)
+                completed_task = next(t for t in wf["tasks"] if t["name"] == task_name)
+                current_time  = get_current_time()
+                completed_task["end"] = current_time
+                update_workflow(wf_id, {"tasks": wf["tasks"]})
+                print(f"Task {task_name} completed at {current_time}")
         
-        # Print the current job status
         print(f"Current job status: {job_status}: {seconds}")
-        # Check if the job has finished
         if job_status.upper() in ["FINISHED", "CANCELED", "FAILED"]:
             is_finished = True
         else:
-            # Wait for a few seconds before checking again
             seconds += 1
             time.sleep(1)
 
@@ -176,7 +191,7 @@ def _teardown(gateway):
     print("Finished")
 
 
-def execute_wf(w, runner_folder, config):
+def execute_wf(w, wf_id, runner_folder, config):
     global RUNNER_FOLDER, CONFIG
     RUNNER_FOLDER = runner_folder
     CONFIG = config
@@ -192,6 +207,7 @@ def execute_wf(w, runner_folder, config):
     fork_env = _create_fork_env(gateway, job)
 
     created_tasks = []
+    task_statuses = []
     for t in sorted(w.tasks, key=lambda t: t.order):
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
         task_to_execute = _create_python_task(gateway, t.name, fork_env, t.impl_file, t.requirements_file,
@@ -203,10 +219,11 @@ def execute_wf(w, runner_folder, config):
                 _create_flow_script(gateway, t.name, t.if_task_name, t.else_task_name, t.continuation_task_name, t.condition)
             )
         job.addTask(task_to_execute)
+        task_statuses.append({"name": t.name, "status": "Pending"})
         created_tasks.append(task_to_execute)
     print("Tasks added.")
 
-    job_id, job_result_map, job_outputs = _submit_job_and_retrieve_results_and_outputs(gateway, job)
+    job_id, job_result_map, job_outputs = _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statuses)
     _teardown(gateway)
 
     print("****************************")

@@ -188,9 +188,9 @@ def generate_assembled_flast_workflows(assembled_wfs):
         assembled_flat_wfs.append(flat_wf)
         flat_wf.print()
 
-def execute_wf(w, executionware):
+def execute_wf(w, wf_id, executionware):
     if executionware == "PROACTIVE":
-        return proactive_runner.execute_wf(w, RUNNER_FOLDER, CONFIG)
+        return proactive_runner.execute_wf(w, wf_id, RUNNER_FOLDER, CONFIG)
 
 
 def get_task_metadata(implementation):
@@ -722,7 +722,7 @@ def run_scheduled_workflows(space_results, exp_id, configured_workflows_of_space
             workflow_to_run = configured_workflows_of_space[wf_id]
             if get_workflow(wf_id)["status"] != "completed":
                 update_workflow(wf_id, {"status": "running", "start": get_current_time()})
-                result = execute_wf(workflow_to_run, EXECUTIONWARE)
+                result = execute_wf(workflow_to_run, wf_id, EXECUTIONWARE)
                 update_workflow(wf_id, {"status": "completed", "end": get_current_time()})
                 update_metrics_of_workflow(wf_id, result)
                 workflow_results = {}
@@ -964,8 +964,3 @@ def run_experiment(experiment_specification, exp_id, runner_folder, config):
     print("***************** RUNNING WORKFLOWS ***********************")
     print("*********************************************************")
     execute_experiment(nodes, automated_dict, exp_id)
-
-
-
-
-
