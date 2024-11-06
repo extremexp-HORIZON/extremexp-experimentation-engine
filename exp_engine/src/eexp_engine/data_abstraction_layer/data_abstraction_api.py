@@ -1,5 +1,6 @@
 import requests
 import logging
+import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ def get_all_experiments():
 
 
 def create_experiment(body):
+    body["status"] = "scheduled"
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/experiments"
     r = requests.put(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
     logger.info(f"PUT request to {url} return status code: {r.status_code}")
@@ -48,6 +50,7 @@ def update_experiment(exp_id, body):
 def create_workflow(exp_id, body):
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/workflows"
     body["experimentId"] = exp_id
+    body["status"] = "scheduled"
     r = requests.put(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
     print(f"PUT request to {url} return status code: {r.status_code}")
     if r.status_code == 201:
@@ -130,3 +133,7 @@ def add_data_to_metric(m_id, data):
     r = requests.put(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
     print(f"PUT request to {url} return status code: {r.status_code}")
     print(f"New data added to metric with id {m_id}")
+
+
+def get_current_time():
+    return datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')

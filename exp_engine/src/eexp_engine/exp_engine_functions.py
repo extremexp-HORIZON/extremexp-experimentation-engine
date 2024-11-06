@@ -721,9 +721,9 @@ def run_scheduled_workflows(space_results, exp_id, configured_workflows_of_space
         for wf_id in wf_ids_of_this_space:
             workflow_to_run = configured_workflows_of_space[wf_id]
             if get_workflow(wf_id)["status"] != "completed":
-                update_workflow(wf_id, {"status": "running"})
+                update_workflow(wf_id, {"status": "running", "start": get_current_time()})
                 result = execute_wf(workflow_to_run, EXECUTIONWARE)
-                update_workflow(wf_id, {"status": "completed"})
+                update_workflow(wf_id, {"status": "completed", "end": get_current_time()})
                 update_metrics_of_workflow(wf_id, result)
                 workflow_results = {}
                 workflow_results["configuration"] = configurations_of_space[wf_id]
@@ -911,17 +911,20 @@ def find_start_node(nodes, automated_dict):
             return n
 
 
-def run_workflow(nodes, automated_dict, exp_id):
+def execute_experiment(nodes, automated_dict, exp_id):
     start_node = find_start_node(nodes, automated_dict)
     print("Nodes: ", nodes)
     print("Start Node: ", start_node)
 
+    update_experiment(exp_id, {"status": "running", "start": get_current_time()})
     node = start_node
     result = execute_node(node, exp_id)
     while node in automated_dict:
         next_action = automated_dict[node]
         node = next_action[result]
         result = execute_node(node, exp_id)
+
+    update_experiment(exp_id, {"status": "completed", "end": get_current_time()})
 
 
 def run_experiment(experiment_specification, exp_id, runner_folder, config):
@@ -960,7 +963,7 @@ def run_experiment(experiment_specification, exp_id, runner_folder, config):
     print("\n*********************************************************")
     print("***************** RUNNING WORKFLOWS ***********************")
     print("*********************************************************")
-    run_workflow(nodes, automated_dict, exp_id)
+    execute_experiment(nodes, automated_dict, exp_id)
 
 
 
