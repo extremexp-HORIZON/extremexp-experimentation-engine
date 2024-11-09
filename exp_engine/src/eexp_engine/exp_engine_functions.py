@@ -234,15 +234,29 @@ def get_task_subworkflow_path(implementation):
     return os.path.join(CONFIG.EXPERIMENT_LIBRARY_PATH, implementation + '.xxp')
 
 
-def check_python_code_use_of_task_signature(task_name, implementation_file_path, inputs_outputs_params):
+def check_python_code_use_of_task_signature(task_name, implementation_file_path, inputs, outputs, params):
+    inputs_outputs_params = inputs + outputs + params
     with open(implementation_file_path, 'r') as source_code:
         for line in source_code:
-            if "variables.get(" in line:
+            if "variables.get" in line:
                 variable_name = line.split("variables.get(")[1].split(")")[0].strip()
                 variable_name = (variable_name [1:-1])
                 if variable_name not in KNOWN_TASK_INPUTS and variable_name not in inputs_outputs_params:
                     raise exp_engine_exceptions.SourceCodeAttemptsToReadVariableNotInTaskSignature(
                         f"Variable '{variable_name}' not found in the signature ('{inputs_outputs_params}') of task '{task_name}'")
+            if "load_datasets" in line:
+                dataset_names = [(name.strip() [1:-1]) for name in (line.split("load_datasets(")[1].strip() [:-1]).split(",") if name != "variables"]
+                for ds in dataset_names:
+                    if ds not in inputs:
+                        raise exp_engine_exceptions.SourceCodeAttemptsToLoadDatasetNotInTaskSignature(
+                            f"Dataset '{ds}' not found in the inputs ('{inputs}') of task '{task_name}'")
+            if "save_datasets" in line:
+                dataset_names = [name.strip() for name in (line.split("save_datasets(")[1].strip() [:-1]).split(",") if name != "variables"]
+                dataset_names = [((ds [1:]).strip() [1:-1]) for ds in dataset_names if ds.startswith("(")]
+                for ds in dataset_names:
+                    if ds not in outputs:
+                        raise exp_engine_exceptions.SourceCodeAttemptsToSaveDatasetNotInTaskSignature(
+                            f"Dataset '{ds}' not found in the outputs ('{outputs}') of task '{task_name}'")
 
 
 def parse_task(folder_path):
@@ -283,7 +297,7 @@ def parse_task(folder_path):
                 if e.python_version:
                     parsed_data["python_version"] = e.python_version
     check_python_code_use_of_task_signature(parsed_data["task_name"], parsed_data["implementation_file_path"],
-                                            parsed_data["inputs"] + parsed_data["outputs"] + parsed_data["params"])
+                                            parsed_data["inputs"], parsed_data["outputs"], parsed_data["params"])
     return parsed_data
 
 

@@ -22,14 +22,22 @@ workflow IDEKO_DataPreprocessing {
   Y --> AddPadding.Y;
   IndicatorList --> AddPadding.IndicatorList;
 
-  define output data FeaturesTrain;
-  define output data FeaturesTest;
-  define output data LabelsTrain;
-  define output data LabelsTest;
+  define output data Timestamps;
+  define output data Features;
+  define output data XTrain;
+  define output data XTest;
+  define output data YTrain;
+  define output data YTest;
+  define output data XPad;
+  define output data YPad;
 
-  SplitData.FeaturesTrain --> FeaturesTrain;
-  SplitData.FeaturesTest --> FeaturesTest;
-  SplitData.LabelsTrain --> LabelsTrain;
-  SplitData.LabelsTest --> LabelsTest;
+  SplitData.Timestamps --> Timestamps;
+  SplitData.Features --> Features;
+  SplitData.XTrain --> XTrain;
+  SplitData.XTest --> XTest;
+  SplitData.YTrain --> YTrain;
+  SplitData.YTest --> YTest;
+  SplitData.XPad --> XPad;
+  SplitData.YPad --> YPad;
 
 }
