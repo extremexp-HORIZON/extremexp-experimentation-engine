@@ -15,4 +15,21 @@ workflow IDEKO_DataPreprocessing {
     dependency "IDEKO/Binary_v1/src/**";
   }
 
+  define input data X;
+  define input data Y;
+  define input data IndicatorList;
+  X --> AddPadding.X;
+  Y --> AddPadding.Y;
+  IndicatorList --> AddPadding.IndicatorList;
+
+  define output data FeaturesTrain;
+  define output data FeaturesTest;
+  define output data LabelsTrain;
+  define output data LabelsTest;
+
+  SplitData.FeaturesTrain --> FeaturesTrain;
+  SplitData.FeaturesTest --> FeaturesTest;
+  SplitData.LabelsTrain --> LabelsTrain;
+  SplitData.LabelsTest --> LabelsTest;
+
 }

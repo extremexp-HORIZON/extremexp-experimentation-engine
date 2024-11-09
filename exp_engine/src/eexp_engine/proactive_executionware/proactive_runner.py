@@ -72,17 +72,19 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, task_impl, 
         task.setForkEnvironment(fork_environment)
 
     for input_file in input_files:
-        task.addInputFile(input_file.path)
-        input_file_path = os.path.dirname(input_file.path) if "**" in input_file.path else input_file.path
-        task.addVariable(input_file.prototypical_name, input_file_path)
+        if input_file.path:
+            task.addInputFile(input_file.path)
+            input_file_path = os.path.dirname(input_file.path) if "**" in input_file.path else input_file.path
+            task.addVariable(input_file.prototypical_name, input_file_path)
     for output_file in output_files:
-        # take out the '**' to reveal the actual path to the folder
-        output_file_path = os.path.dirname(output_file.path) if "**" in output_file.path else output_file.path
-        final_output_path = os.path.join(output_file_path, wf_id)
-        task.addVariable(output_file.prototypical_name, final_output_path)
-        # add back the '**' to ensure that proactive treats it as a folder
-        final_output_path_proactive = os.path.join(final_output_path, "**") if "**" in output_file.path else final_output_path
-        task.addOutputFile(final_output_path_proactive)
+        if output_file.path:
+            # take out the '**' to reveal the actual path to the folder
+            output_file_path = os.path.dirname(output_file.path) if "**" in output_file.path else output_file.path
+            final_output_path = os.path.join(output_file_path, wf_id)
+            task.addVariable(output_file.prototypical_name, final_output_path)
+            # add back the '**' to ensure that proactive treats it as a folder
+            final_output_path_proactive = os.path.join(final_output_path, "**") if "**" in output_file.path else final_output_path
+            task.addOutputFile(final_output_path_proactive)
 
     dependent_modules_folders = []
     for dependent_module in dependent_modules:
