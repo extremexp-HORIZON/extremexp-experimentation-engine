@@ -13,6 +13,7 @@ packagedir = os.path.dirname(os.path.abspath(__file__))
 GRAMMAR_PATH = os.path.join(packagedir, "grammar/workflow_grammar.tx")
 TASK_GRAMMAR_PATH = os.path.join(packagedir, "grammar/task_grammar.tx")
 EXECUTIONWARE = "PROACTIVE"
+KNOWN_TASK_INPUTS = ['dependent_modules_folders']
 
 assembled_flat_wfs = []
 printexperiments = []
@@ -61,7 +62,7 @@ def add_input_output_data(wf, firstNode, firstData, firstData2, firstData3, seco
         ds.set_prototypical_name(firstData3)
         task.output_files.append(ds)
     if task.impl_file:
-        check_interface_matching(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
+        check_whether_dataflow_respects_task_signatures(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
 
 
 
@@ -158,14 +159,14 @@ def configure_wf(workflow, assembled_wf_data):
             configure_wf(task.sub_workflow, assembled_wf_data)
 
 
-def check_interface_matching(name, prototypical_inputs, prototypical_outputs, input_files, output_files):
+def check_whether_dataflow_respects_task_signatures(name, prototypical_inputs, prototypical_outputs, input_files, output_files):
     for i in input_files:
         if i.prototypical_name not in prototypical_inputs:
-            raise exp_engine_exceptions.InterfaceDoesNotMatch(
+            raise exp_engine_exceptions.InputDataInWorkflowDoesNotMatchSignature(
                 f"Expected one of '{prototypical_inputs}' but found '{i.prototypical_name}' as input of task '{name}'")
     for o in output_files:
         if o.prototypical_name not in prototypical_outputs:
-            raise exp_engine_exceptions.InterfaceDoesNotMatch(
+            raise exp_engine_exceptions.OutputDataInWorkflowDoesNotMatchSignature(
                 f"Expected one of '{prototypical_outputs}' but found '{o.prototypical_name}' as output of task '{name}'")
 
 
@@ -207,7 +208,7 @@ def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
                 print(f"Do not need to configure task '{task.name}'")
             if task.sub_workflow:
                 configure_wf(task.sub_workflow, assembled_wf_data)
-            check_interface_matching(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
+            check_whether_dataflow_respects_task_signatures(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
         print("-------------------------------")
     return new_wfs
 
@@ -233,6 +234,17 @@ def get_task_subworkflow_path(implementation):
     return os.path.join(CONFIG.EXPERIMENT_LIBRARY_PATH, implementation + '.xxp')
 
 
+def check_python_code_use_of_task_signature(task_name, implementation_file_path, inputs_outputs_params):
+    with open(implementation_file_path, 'r') as source_code:
+        for line in source_code:
+            if "variables.get(" in line:
+                variable_name = line.split("variables.get(")[1].split(")")[0].strip()
+                variable_name = (variable_name [1:-1])
+                if variable_name not in KNOWN_TASK_INPUTS and variable_name not in inputs_outputs_params:
+                    raise exp_engine_exceptions.SourceCodeAttemptsToReadVariableNotInTaskSignature(
+                        f"Variable '{variable_name}' not found in the signature ('{inputs_outputs_params}') of task '{task_name}'")
+
+
 def parse_task(folder_path):
     file_path = os.path.join(folder_path, 'task.xxp')
     with open(file_path, 'r') as task_file:
@@ -240,8 +252,9 @@ def parse_task(folder_path):
     workflow_metamodel = textx.metamodel_from_file(TASK_GRAMMAR_PATH)
     workflow_model = workflow_metamodel.model_from_str(task_dsl)
     parsed_data = {}
-    metrics, inputs, outputs = [], [], []
+    metrics, params, inputs, outputs = [], [], [], []
     parsed_data["metrics"] = metrics
+    parsed_data["params"] = params
     parsed_data["inputs"] = inputs
     parsed_data["outputs"] = outputs
     for component in workflow_model.component:
@@ -261,12 +274,16 @@ def parse_task(folder_path):
             if e.__class__.__name__ == "Metric":
                 metric = classes.Metric(e.name, e.semantic_type, e.kind, e.data_type)
                 metrics.append(metric)
+            if e.__class__.__name__ == "Parameter":
+                params.append(e.name)
             if e.__class__.__name__ == "VirtualEnv":
                 if e.requirements_file_path:
                     parsed_data["requirements_file_path"] = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.requirements_file_path)
             if e.__class__.__name__ == "PythonVersion":
                 if e.python_version:
                     parsed_data["python_version"] = e.python_version
+    check_python_code_use_of_task_signature(parsed_data["task_name"], parsed_data["implementation_file_path"],
+                                            parsed_data["inputs"] + parsed_data["outputs"] + parsed_data["params"])
     return parsed_data
 
 

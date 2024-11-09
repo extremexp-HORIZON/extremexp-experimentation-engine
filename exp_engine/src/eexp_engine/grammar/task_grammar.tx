@@ -31,7 +31,7 @@ VirtualEnv: 'venv' requirements_file_path=STRING';' ;
 PythonVersion: 'python_version' python_version=STRING';' ;
 
 Parameter:
-    'param' name=ID '{'
+    'define param' name=ID '{'
         'type' type=ID ';'
         'default' default=INT ';'
         'range' '[' range_min=INT ',' range_max=INT ']' ';'
