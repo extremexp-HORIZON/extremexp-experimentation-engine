@@ -7,14 +7,14 @@ import numpy as np
 
 def save_datasets(variables, *data):
     for (key, value) in data:
-        save_dataset(variables, key, value)
+        _save_dataset(variables, key, value)
 
 
 def load_datasets(variables, *keys):
-    return [load_dataset(variables, key) for key in keys]
+    return [_load_dataset(variables, key) for key in keys]
 
 
-def save_dataset(variables, key, value):
+def _save_dataset(variables, key, value):
     value_size = sys.getsizeof(value)
     print(f"Saving output data of size {value_size} with key {key}")
     job_id = variables.get("PA_JOB_ID")
@@ -27,7 +27,7 @@ def save_dataset(variables, key, value):
     variables.put("PREVIOUS_TASK_ID", str(task_id))
 
 
-def load_dataset(variables, key):
+def _load_dataset(variables, key):
     print(f"Loading input data with key {key}")
     job_id = variables.get("PA_JOB_ID")
     task_id = variables.get("PREVIOUS_TASK_ID")

@@ -9,7 +9,7 @@ from helpers.logger import LoggerHelper, logging
 LoggerHelper.init_logger()
 logger = logging.getLogger(__name__)
 
-X, Y, indicator_list = ph.load_datasets(variables, "X", "Y", "indicator_list")
+X, Y, indicator_list = ph.load_datasets(variables, "X", "Y", "IndicatorList")
 
 X_pad = preprocessing_functions.add_padding(X, indicator_list)
 Y_pad = np.array(Y)
@@ -22,4 +22,4 @@ logger.info("Number of features %d" %np.shape(X_pad)[2])
 
 logger.info("SHAPE Y %s" %np.shape(Y_pad))
 
-ph.save_datasets(variables, ("X_pad", X_pad), ("Y_pad_json", json.dumps(Y_pad,cls=ph.NumpyEncoder)))
+ph.save_datasets(variables, ("XPad", X_pad), ("YPad", json.dumps(Y_pad,cls=ph.NumpyEncoder)))

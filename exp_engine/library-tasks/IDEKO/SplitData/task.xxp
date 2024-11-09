@@ -1,12 +1,16 @@
 task SplitData {
 
-    define input data Features;
-    define input data Labels;
+    define input data XPad;
+    define input data YPad;
 
-    define output data FeaturesTrain;
-    define output data FeaturesTest;
-    define output data LabelsTrain;
-    define output data LabelsTest;
+    define output data Timestamps;
+    define output data Features;
+    define output data XTrain;
+    define output data XTest;
+    define output data YTrain;
+    define output data YTest;
+    define output data XPad;
+    define output data YPad;
 
     implementation "IDEKO/SplitData/task.py";
     

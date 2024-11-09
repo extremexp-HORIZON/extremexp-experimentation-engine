@@ -15,11 +15,11 @@ model_name = "model_nn.keras"
 
 activation_function = "relu"
 units =[100, 100, 100]
-n_timestamps, n_features = ph.load_datasets(variables, "n_timestamps", "n_features")
 
-X_test, y_test = ph.load_datasets(variables, "X_test", "y_test")
-X_pad, Y_pad = ph.load_datasets(variables, "X_pad", "Y_pad")
-model_path = ph.load_datasets(variables, "model_path")
+n_timestamps, n_features = ph.load_datasets(variables, "Timestamps", "Features")
+X_test, y_test = ph.load_datasets(variables, "XTest", "YTest")
+X_pad, Y_pad = ph.load_datasets(variables, "XPad", "YPad")
+model_path = ph.load_datasets(variables, "OutputFolder")
 model_path = model_path[0]
 
 model_nn = NeuralNetwork(n_timestamps, n_features, activation_function, units)

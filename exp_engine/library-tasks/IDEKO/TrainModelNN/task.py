@@ -46,11 +46,10 @@ units =[100, 100, 100]
 epochs = int(variables.get("epochs"))
 batch_size = int(variables.get("batch_size"))
 
-n_timestamps, n_features = ph.load_datasets(variables, "n_timestamps", "n_features")
-X_train, y_train = ph.load_datasets(variables, "X_train", "y_train")
-X_test, y_test = ph.load_datasets(variables, "X_test", "y_test")
-X_pad, Y_pad = ph.load_datasets(variables, "X_pad", "Y_pad")
-
+n_timestamps, n_features = ph.load_datasets(variables, "Timestamps", "Features")
+X_train, y_train = ph.load_datasets(variables, "XTrain", "YTrain")
+X_test, y_test = ph.load_datasets(variables, "XTest", "YTest")
+X_pad, Y_pad = ph.load_datasets(variables, "XPad", "YPad")
 
 print(f"n_timestamps in train_nn task: {n_timestamps}")
 print(f"n_features in train_nn task: {n_features}")
@@ -84,10 +83,8 @@ model.save(model_path)
 model.save(output_data_folder)
 
 # TODO note: added following lines to save intermediate data for the next task
-ph.save_datasets(variables, ("model_path", model_path))
-ph.save_datasets(variables, ("X_test", X_test))
-ph.save_datasets(variables, ("y_test", y_test))
-ph.save_datasets(variables, ("X_pad", X_pad), ("Y_pad", Y_pad))
-
-ph.save_datasets(variables, ("n_timestamps", n_timestamps), ("n_features", n_features))
-
+ph.save_datasets(variables, ("OutputFolder", model_path))
+ph.save_datasets(variables, ("XTest", X_test))
+ph.save_datasets(variables, ("YTest", y_test))
+ph.save_datasets(variables, ("XPad", X_pad), ("YPad", Y_pad))
+ph.save_datasets(variables, ("Timestamps", n_timestamps), ("Features", n_features))

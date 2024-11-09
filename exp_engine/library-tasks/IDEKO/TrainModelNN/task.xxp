@@ -1,12 +1,21 @@
 task TrainModelNN {
 
+    define input data Timestamps;
+    define input data Features;
+    define input data XTrain;
+    define input data YTrain;
+    define input data XTest;
+    define input data YTest;
     define input data XPad;
     define input data YPad;
-    define input data FeaturesTrain;
-    define input data LabelsTrain;
-    define input data LabelsTest;
-    define input data FeaturesTest;
+
     define output data OutputFolder;
+    define output data XTest;
+    define output data YTest;
+    define output data XPad;
+    define output data YPad;
+    define output data Timestamps;
+    define output data Features;
 
     implementation "IDEKO/TrainModelNN/task.py";
 

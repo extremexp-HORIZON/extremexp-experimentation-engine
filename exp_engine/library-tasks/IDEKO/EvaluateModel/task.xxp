@@ -1,8 +1,12 @@
 task EvaluateModel {
 
-    define input data TrainedModel;
+    define input data Timestamps;
     define input data Features;
-    define input data Labels;
+    define input data XTest;
+    define input data YTest;
+    define input data XPad;
+    define input data YPad;
+    define input data OutputFolder;
 
     define metric IDEKO_accuracy {
         semanticType accuracy;
