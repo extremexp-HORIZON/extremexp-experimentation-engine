@@ -10,9 +10,11 @@ Task:
     '}'
 ;
 
-Element:  Data | Metric | Implementation | VirtualEnv |  PythonVersion | Parameter | Comment;
+Element:  InputData | OutputData | Metric | Implementation | VirtualEnv |  PythonVersion | Parameter | Comment;
 
-Data: 'define input data' name=ID ';' | 'define output data' name=ID ';' ;
+InputData: 'define input data' name=ID ';' ;
+
+OutputData: 'define output data' name=ID ';' ;
 
 Metric: 'define metric' name=ID '{'
         'semanticType' semantic_type=ID ';'
