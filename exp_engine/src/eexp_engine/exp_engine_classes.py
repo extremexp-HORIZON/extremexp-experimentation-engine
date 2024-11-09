@@ -5,7 +5,7 @@ class WorkflowDataset:
     def __init__(self, name):
         self.name = name
         self.prototypical_name = None
-        self.path = None
+        self.path = ""
 
     def add_path(self, path):
         self.path = path
