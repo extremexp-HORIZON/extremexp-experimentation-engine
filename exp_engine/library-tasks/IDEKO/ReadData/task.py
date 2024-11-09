@@ -1,14 +1,9 @@
-import os, sys
-import pandas as pd
-
-dependent_modules_folders = variables.get("dependent_modules_folders")
-print('dependent_modules_folders')
-print(dependent_modules_folders)
-
 [sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
+import proactive_helper as ph
+import pandas as pd
 from classes import preprocessing_functions
 from helpers.logger import LoggerHelper, logging
-import proactive_helper as ph
+
 
 LoggerHelper.init_logger()
 logger = logging.getLogger(__name__)
