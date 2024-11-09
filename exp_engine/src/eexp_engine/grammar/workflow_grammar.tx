@@ -66,10 +66,9 @@ Data: 'define data' name=ID '[''data=' data*=[Value][','] '];'  | 'define input 
 Value: STRING | INT | FLOAT | BOOL | "null";
 
 DataLink:
-    initial=[Node] ('-->' rest=[Node] '.' restData=[Data])* ';' |
-    initial=[Data] ('-->' rest=[Node] '.' restData=[Data])* ';' |
-    rest=[Node] '.' restData=[Data] ('-->' rest=[Node] '.' restData=[Data])* ';' |
-    rest=[Node] '.' restData=[Data] ('-->' restData=[Data])* ';'
+    firstData=[Data] '-->' secondNode=[Node] '.' secondData1=ID ';' |
+    firstNode=[Node] '.' firstData2=ID '-->' secondNode=[Node] '.' secondData2=ID ';' |
+    firstNode=[Node] '.' firstData3=ID '-->' secondData=[Data] ';'
 ;
 
 ConditionLink: from_node=[Node] '->' condition=STRING '?' if_node=[Node]  ':' else_node=[Node] '->' continuation_Node=[Node] ';';

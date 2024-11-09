@@ -6,7 +6,7 @@ task TrainModelRNN {
     define input data LabelsTrain;
     define input data LabelsTest;
     define input data FeaturesTest;
-    define output data TrainedModel;
+    define output data OutputFolder;
 
     implementation "IDEKO/TrainModelRNN/task.py";
 

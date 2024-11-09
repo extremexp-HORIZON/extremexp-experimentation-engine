@@ -55,16 +55,12 @@ def _get_python_version(python_version, enforce_python_version=True):
         return "/opt/miniconda3/py39/bin/python3"
 
 
-def _create_python_task(gateway, task_name, fork_environment, task_impl, requirements_file, python_version, input_files=[], dependent_modules=[], dependencies=[], is_precious_result=False):
+def _create_python_task(gateway, wf_id, task_name, fork_environment, task_impl, requirements_file, python_version,
+                        input_files=[], output_files=[], dependent_modules=[], dependencies=[], is_precious_result=False):
     print(f"Creating task {task_name}...")
     task = gateway.createPythonTask()
     task.setTaskName(task_name)
     task.setTaskImplementationFromFile(task_impl)
-
-    # TODO Remove the next three lines after adding output files to the DSL
-    if task_name == "TrainModel":
-        print("inside TrainModel, adding output file")
-        task.addOutputFile('library-datasets/**')
 
     if requirements_file:
         python_version_path = _get_python_version(python_version)
@@ -78,7 +74,16 @@ def _create_python_task(gateway, task_name, fork_environment, task_impl, require
     for input_file in input_files:
         task.addInputFile(input_file.path)
         input_file_path = os.path.dirname(input_file.path) if "**" in input_file.path else input_file.path
-        task.addVariable(input_file.name, input_file_path)
+        task.addVariable(input_file.prototypical_name, input_file_path)
+    for output_file in output_files:
+        # take out the '**' to reveal the actual path to the folder
+        output_file_path = os.path.dirname(output_file.path) if "**" in output_file.path else output_file.path
+        final_output_path = os.path.join(output_file_path, wf_id)
+        task.addVariable(output_file.prototypical_name, final_output_path)
+        # add back the '**' to ensure that proactive treats it as a folder
+        final_output_path_proactive = os.path.join(final_output_path, "**") if "**" in output_file.path else final_output_path
+        task.addOutputFile(final_output_path_proactive)
+
     dependent_modules_folders = []
     for dependent_module in dependent_modules:
         task.addInputFile(dependent_module)
@@ -210,8 +215,8 @@ def execute_wf(w, wf_id, runner_folder, config):
     task_statuses = []
     for t in sorted(w.tasks, key=lambda t: t.order):
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
-        task_to_execute = _create_python_task(gateway, t.name, fork_env, t.impl_file, t.requirements_file,
-                                              t.python_version, t.input_files, t.dependent_modules, dependent_tasks)
+        task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, t.impl_file, t.requirements_file,
+                                              t.python_version, t.input_files, t.output_files, t.dependent_modules, dependent_tasks)
         if len(t.params) > 0:
             _configure_task(task_to_execute, t.params)
         if t.is_condition_task():

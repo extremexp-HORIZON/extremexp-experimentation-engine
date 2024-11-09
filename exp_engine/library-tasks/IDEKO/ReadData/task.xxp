@@ -1,5 +1,5 @@
 task ReadData {
-    define input data ExternalDataFile;
+    define input data FileToRead;
     define output data X;
     define output data Y;
     define output data IndicatorList;

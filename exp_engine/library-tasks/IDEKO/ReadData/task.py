@@ -13,7 +13,7 @@ import proactive_helper as ph
 LoggerHelper.init_logger()
 logger = logging.getLogger(__name__)
 
-input_data_folder = variables.get("ExternalDataFile")
+input_data_folder = variables.get("FileToRead")
 
 indicator_list = ["f3"]
 X, Y = preprocessing_functions.read_data(input_data_folder, indicator_list)
