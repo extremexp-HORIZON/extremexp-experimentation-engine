@@ -45,19 +45,24 @@ def process_dependencies(task_dependencies, nodes, parsing_node_type, verbose_lo
 def add_input_output_data(wf, firstNode, firstData, firstData2, firstData3, secondNode, secondData, secondData1, secondData2):
     if secondNode:
         if firstNode:
-            # Grammar rule: firstNode=[Node] '.' firstData2=ID '-->' secondNode=[Node] '.' secondData2=ID ';'
+            '''  Grammar rule: firstNode=[Node] '.' firstData2=ID '-->' secondNode=[Node] '.' secondData2=ID ';' '''
             # TODO handle this type of data flows (perform checks? generate Python code?)
-            pass
+            return
         else:
-            # Grammar rule: firstData=[Data] '-->' secondNode=[Node] '.' secondData1=ID ';'
+            ''' Grammar rule: firstData=[Data] '-->' secondNode=[Node] '.' secondData1=ID ';' '''
+            task = wf.get_task(secondNode.name)
             ds = wf.get_dataset(firstData.name)
             ds.set_prototypical_name(secondData1)
-            wf.get_task(secondNode.name).input_files.append(ds)
+            task.input_files.append(ds)
     else:
-        # # Grammar rule: firstNode=[Node] '.' firstData3=ID '-->' secondData=[Data] ';'
+        ''' Grammar rule: firstNode=[Node] '.' firstData3=ID '-->' secondData=[Data] ';' '''
+        task = wf.get_task(firstNode.name)
         ds = wf.get_dataset(secondData.name)
         ds.set_prototypical_name(firstData3)
-        wf.get_task(firstNode.name).output_files.append(ds)
+        task.output_files.append(ds)
+    if task.impl_file:
+        check_interface_matching(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
+
 
 
 def apply_task_dependencies_and_set_order(wf, task_dependencies):
@@ -153,6 +158,17 @@ def configure_wf(workflow, assembled_wf_data):
             configure_wf(task.sub_workflow, assembled_wf_data)
 
 
+def check_interface_matching(name, prototypical_inputs, prototypical_outputs, input_files, output_files):
+    for i in input_files:
+        if i.prototypical_name not in prototypical_inputs:
+            raise exp_engine_exceptions.InterfaceDoesNotMatch(
+                f"Expected one of '{prototypical_inputs}' but found '{i.prototypical_name}' as input of task '{name}'")
+    for o in output_files:
+        if o.prototypical_name not in prototypical_outputs:
+            raise exp_engine_exceptions.InterfaceDoesNotMatch(
+                f"Expected one of '{prototypical_outputs}' but found '{o.prototypical_name}' as output of task '{name}'")
+
+
 def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
     new_wfs = []
     for assembled_wf_data in assembled_wfs_data:
@@ -191,6 +207,7 @@ def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
                 print(f"Do not need to configure task '{task.name}'")
             if task.sub_workflow:
                 configure_wf(task.sub_workflow, assembled_wf_data)
+            check_interface_matching(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
         print("-------------------------------")
     return new_wfs
 
