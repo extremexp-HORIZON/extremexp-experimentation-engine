@@ -9,7 +9,7 @@ from helpers.logger import LoggerHelper, logging
 LoggerHelper.init_logger()
 logger = logging.getLogger(__name__)
 
-X, Y, indicator_list = ph.load_datasets(variables, "X", "Y", "IndicatorList")
+X, Y, indicator_list = ph.load_datasets(variables, "X42", "Y", "IndicatorList")
 
 X_pad = preprocessing_functions.add_padding(X, indicator_list)
 Y_pad = np.array(Y)

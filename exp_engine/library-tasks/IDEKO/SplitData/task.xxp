@@ -3,7 +3,7 @@ task SplitData {
     define input data XPad;
     define input data YPad;
 
-    define output data Timestamps;
+    define output data Timestamps41;
     define output data Features;
     define output data XTrain;
     define output data XTest;

@@ -16,7 +16,7 @@ model_name = "model_nn.keras"
 activation_function = "relu"
 units =[100, 100, 100]
 
-n_timestamps, n_features = ph.load_datasets(variables, "Timestamps", "Features")
+n_timestamps, n_features = ph.load_datasets(variables, "Timestamps2", "Features")
 X_test, y_test = ph.load_datasets(variables, "XTest", "YTest")
 X_pad, Y_pad = ph.load_datasets(variables, "XPad", "YPad")
 model_path = ph.load_datasets(variables, "OutputFolder")

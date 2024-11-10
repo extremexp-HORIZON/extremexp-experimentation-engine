@@ -41,6 +41,27 @@ workflow IDEKO_multi_main {
     path "output/trained_model/**";
   }
 
+    ReadData.X41 --> PrepareData.X2;
+    ReadData.Y --> PrepareData.Y;
+    ReadData.IndicatorList --> PrepareData.IndicatorList;
+
+    PrepareData.Timestamps42 --> TrainModel.Timestamps;
+    PrepareData.Features --> TrainModel.Features;
+    PrepareData.XTrain --> TrainModel.XTrain;
+    PrepareData.XTest --> TrainModel.XTest;
+    PrepareData.YTrain --> TrainModel.YTrain;
+    PrepareData.YTest --> TrainModel.YTest;
+    PrepareData.XPad --> TrainModel.XPad;
+    PrepareData.YPad --> TrainModel.YPad;
+
+    TrainModel.OutputFolder --> EvaluateModel.OutputFolder;
+    TrainModel.XTest --> EvaluateModel.XTest;
+    TrainModel.YTest --> EvaluateModel.YTest;
+    TrainModel.XPad --> EvaluateModel.XPad;
+    TrainModel.YPad --> EvaluateModel.YPad;
+    TrainModel.Timestamps --> EvaluateModel.Timestamps2;
+    TrainModel.Features --> EvaluateModel.Features;
+
 }
 
 workflow TrainModelNN from IDEKO_multi_main {

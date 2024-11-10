@@ -14,7 +14,7 @@ X_train, X_test, y_train, y_test = preprocessing_functions.split_data(X_pad, Y_p
 n_timestamps = X_train.shape[1]
 n_features = X_train.shape[2]
 
-ph.save_datasets(variables, ("Timestamps", n_timestamps), ("Features", n_features))
+ph.save_datasets(variables, ("Timestamps41", n_timestamps), ("Features", n_features))
 ph.save_datasets(variables, ("XTrain", X_train), ("XTest", X_test))
 ph.save_datasets(variables, ("YTrain", y_train), ("YTest", y_test))
 ph.save_datasets(variables, ("XPad", X_pad), ("YPad", Y_pad))

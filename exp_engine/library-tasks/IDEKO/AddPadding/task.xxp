@@ -1,6 +1,6 @@
 task AddPadding {
 
-    define input data X;
+    define input data X42;
     define input data Y;
     define input data IndicatorList;
 

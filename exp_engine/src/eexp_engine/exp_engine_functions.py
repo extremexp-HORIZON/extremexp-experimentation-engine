@@ -47,22 +47,38 @@ def add_input_output_data(wf, firstNode, firstData, firstData2, firstData3, seco
     if secondNode:
         if firstNode:
             '''  Grammar rule: firstNode=[Node] '.' firstData2=ID '-->' secondNode=[Node] '.' secondData2=ID ';' '''
-            # TODO handle this type of data flows (perform checks? generate Python code?)
-            return
+            task1 = wf.get_task(firstNode.name)
+            output_dataset = classes.WorkflowDataset(firstData2)
+            output_dataset.set_name_in_task_signature(firstData2)
+            task1.output_files.append(output_dataset)
+
+            task2 = wf.get_task(secondNode.name)
+            input_dataset = classes.WorkflowDataset(secondData2)
+            input_dataset.set_name_in_task_signature(secondData2)
+            input_dataset.set_name_in_generating_task(firstData2)
+            task2.input_files.append(input_dataset)
+
+            if task1.impl_file:
+                check_whether_dataflow_respects_task_signatures(task1.name, task1.prototypical_inputs, task1.prototypical_outputs, task1.input_files, task1.output_files)
+            if task2.impl_file:
+                check_whether_dataflow_respects_task_signatures(task2.name, task2.prototypical_inputs, task2.prototypical_outputs, task2.input_files, task2.output_files)
+
         else:
             ''' Grammar rule: firstData=[Data] '-->' secondNode=[Node] '.' secondData1=ID ';' '''
             task = wf.get_task(secondNode.name)
             ds = wf.get_dataset(firstData.name)
-            ds.set_prototypical_name(secondData1)
+            ds.set_name_in_task_signature(secondData1)
             task.input_files.append(ds)
+            if task.impl_file:
+                check_whether_dataflow_respects_task_signatures(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
     else:
         ''' Grammar rule: firstNode=[Node] '.' firstData3=ID '-->' secondData=[Data] ';' '''
         task = wf.get_task(firstNode.name)
         ds = wf.get_dataset(secondData.name)
-        ds.set_prototypical_name(firstData3)
+        ds.set_name_in_task_signature(firstData3)
         task.output_files.append(ds)
-    if task.impl_file:
-        check_whether_dataflow_respects_task_signatures(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
+        if task.impl_file:
+            check_whether_dataflow_respects_task_signatures(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
 
 
 
@@ -108,17 +124,48 @@ def set_is_main_attribute(wfs):
         wf.set_is_main(not exists_parent_workflow(wfs, wf.name))
 
 
+def check_if_subworkflow_input_matches_use_in_parent_workflow(subworkflow, first_task):
+    expected_inputs = [ds.name for ds in first_task.input_files]
+    for ds in subworkflow.input_files:
+        if ds.name not in expected_inputs:
+            raise exp_engine_exceptions.InputDataInSubWorkflowDoesNotMatchOutputDataOfParentWorkflow(
+                f"Expected one of '{expected_inputs}' but found '{ds.name}' as input of subworkflow '{subworkflow.name}'")
+
+
+def check_if_subworkflow_output_matches_use_in_parent_workflow(subworkflow, last_task):
+    expected_outputs = [ds.name for ds in last_task.output_files]
+    for ds in subworkflow.output_files:
+        if ds.name not in expected_outputs:
+            raise exp_engine_exceptions.OutputDataInSubWorkflowDoesNotMatchInputDataOfParentWorkflow(
+                f"Expected one of '{expected_outputs}' but found '{ds.name}' as output of subworkflow '{subworkflow.name}'")
+
+
 def get_underlying_tasks(t, assembled_wf, tasks_to_add):
     i = 0
     for task in sorted(t.sub_workflow.tasks, key=lambda t: t.order):
         if not task.sub_workflow:
             if i==0:
+                check_if_subworkflow_input_matches_use_in_parent_workflow(t, task)
+                print(f"{t.dependencies} --> {t.name} -->  becomes {t.dependencies} --> {task.name}")
                 task.add_dependencies(t.dependencies)
+                ''' This is for correctly resolving data dependencies in subworkflows '''
+                for ds in task.input_files:
+                    dataset_with_name_in_generating_task = next((d for d in t.input_files if d.name==ds.name), None)
+                    if dataset_with_name_in_generating_task:
+                        ds.set_name_in_generating_task(dataset_with_name_in_generating_task.name_in_generating_task)
+                ''' ----------------------------------------------------------------- '''
             if i==len(t.sub_workflow.tasks)-1:
                 dependent_tasks = find_dependent_tasks(assembled_wf, t, [])
                 dep = [t.name for t in dependent_tasks]
+                check_if_subworkflow_output_matches_use_in_parent_workflow(t, task)
                 print(f"{t.name} --> {dep} becomes {task.name} --> {dep}")
                 for dependent_task in dependent_tasks:
+                    ''' This is for correctly resolving data dependencies in subworkflows '''
+                    for ds in dependent_task.input_files:
+                        dataset_with_name_in_generating_task = next((d for d in task.output_files if d.name==ds.name_in_generating_task), None)
+                        if dataset_with_name_in_generating_task:
+                            ds.set_name_in_generating_task(dataset_with_name_in_generating_task.name_in_task_signature)
+                    ''' ----------------------------------------------------------------- '''
                     dependent_task.remove_dependency(t.name)
                     dependent_task.add_dependencies([task.name])
             tasks_to_add.append(task)
@@ -133,7 +180,7 @@ def flatten_workflows(assembled_wf):
     new_wf = classes.Workflow(assembled_wf.name)
     for t in assembled_wf.tasks:
         if t.sub_workflow:
-            print (t.sub_workflow.name)
+            print(t.sub_workflow.name)
             tasks_to_add = get_underlying_tasks(t, assembled_wf, [])
             for t in tasks_to_add:
                 new_wf.add_task(t)
@@ -144,30 +191,15 @@ def flatten_workflows(assembled_wf):
     return new_wf
 
 
-def configure_wf(workflow, assembled_wf_data):
-    print(workflow.name)
-    for task in workflow.tasks:
-        if task.name in assembled_wf_data["tasks"].keys():
-            print(f"Need to configure task '{task.name}'")
-            task_data = assembled_wf_data["tasks"][task.name]
-            if "implementation" in task_data:
-                print(f"Changing implementation of task '{task.name}' to '{task_data['implementation']}'")
-                task.add_implementation_file(task_data["implementation"])
-        else:
-            print(f"Do not need to configure task '{task.name}'")
-        if task.sub_workflow:
-            configure_wf(task.sub_workflow, assembled_wf_data)
-
-
 def check_whether_dataflow_respects_task_signatures(name, prototypical_inputs, prototypical_outputs, input_files, output_files):
     for i in input_files:
-        if i.prototypical_name not in prototypical_inputs:
+        if i.name_in_task_signature not in prototypical_inputs:
             raise exp_engine_exceptions.InputDataInWorkflowDoesNotMatchSignature(
-                f"Expected one of '{prototypical_inputs}' but found '{i.prototypical_name}' as input of task '{name}'")
+                f"Expected one of '{prototypical_inputs}' but found '{i.name_in_task_signature}' as input of task '{name}'")
     for o in output_files:
-        if o.prototypical_name not in prototypical_outputs:
+        if o.name_in_task_signature not in prototypical_outputs:
             raise exp_engine_exceptions.OutputDataInWorkflowDoesNotMatchSignature(
-                f"Expected one of '{prototypical_outputs}' but found '{o.prototypical_name}' as output of task '{name}'")
+                f"Expected one of '{prototypical_outputs}' but found '{o.name_in_task_signature}' as output of task '{name}'")
 
 
 def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
@@ -204,16 +236,17 @@ def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
                 if "dependency" in task_data:
                     print(f"Changing dependency of task '{task.name}' to '{task_data['dependency']}'")
                     task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, task_data["dependency"])
+                check_whether_dataflow_respects_task_signatures(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
             else:
                 print(f"Do not need to configure task '{task.name}'")
             if task.sub_workflow:
-                configure_wf(task.sub_workflow, assembled_wf_data)
-            check_whether_dataflow_respects_task_signatures(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
+                # For now, we cannot configure a subworkflow TODO
+                pass
         print("-------------------------------")
     return new_wfs
 
 
-def generate_assembled_flast_workflows(assembled_wfs):
+def generate_assembled_flat_workflows(assembled_wfs):
 
     for wf in assembled_wfs:
         flat_wf = flatten_workflows(wf)
@@ -1021,7 +1054,7 @@ def run_experiment(experiment_specification, exp_id, runner_folder, config):
         print("*********************************************************")
         print("********** GENERATE ASSEMBLED FLAT WORKFLOWS ************")
         print("*********************************************************")
-        generate_assembled_flast_workflows(assembled_wfs)
+        generate_assembled_flat_workflows(assembled_wfs)
 
     print("*********************************************************")
     print("************** EXPERIMENT SPECIFICATION *****************")

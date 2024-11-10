@@ -1,6 +1,6 @@
 task EvaluateModel {
 
-    define input data Timestamps;
+    define input data Timestamps2;
     define input data Features;
     define input data XTest;
     define input data YTest;

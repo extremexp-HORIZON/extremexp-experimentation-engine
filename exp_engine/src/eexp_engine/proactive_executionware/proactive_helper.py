@@ -4,6 +4,11 @@ import pickle
 import json
 import numpy as np
 
+EXECUTION_ENGINE_MAPPING_FILE = "execution_engine_mapping.json"
+
+with open(EXECUTION_ENGINE_MAPPING_FILE, 'r') as file:
+    execution_engine_mapping = json.load(file)
+
 
 def save_datasets(variables, *data):
     for (key, value) in data:
@@ -32,6 +37,10 @@ def _load_dataset(variables, key):
     job_id = variables.get("PA_JOB_ID")
     task_id = variables.get("PREVIOUS_TASK_ID")
     task_folder = os.path.join("/shared", job_id, task_id)
+    task_name = variables.get("PA_TASK_NAME")
+    if task_name in execution_engine_mapping:
+        if key in execution_engine_mapping[task_name]:
+            key = execution_engine_mapping[task_name][key]
     input_filename = os.path.join(task_folder, key)
     with open(input_filename, "rb") as f:
         file_contents = pickle.load(f)

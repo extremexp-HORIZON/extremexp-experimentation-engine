@@ -1,6 +1,8 @@
 task ReadData {
+
     define input data FileToRead;
-    define output data X;
+
+    define output data X41;
     define output data Y;
     define output data IndicatorList;
 
