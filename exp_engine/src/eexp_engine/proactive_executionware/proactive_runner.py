@@ -1,11 +1,12 @@
 import proactive
 import os
+import json
 from ..data_abstraction_layer.data_abstraction_api import get_workflow, update_workflow, get_current_time
 
 packagedir = os.path.dirname(os.path.abspath(__file__))
 PROACTIVE_HELPER_FULL_PATH = os.path.join(packagedir, "proactive_helper.py")
+EXECUTION_ENGINE_MAPPING_FILE = "execution_engine_mapping.json"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
-RUNNER_FOLDER = ""
 
 
 def _create_gateway_and_connect_to_it(username, password):
@@ -47,6 +48,22 @@ def _create_fork_env(gateway, proactive_job):
     return proactive_fork_env
 
 
+def _create_execution_engine_mapping(tasks):
+    mapping = {}
+    for t in tasks:
+        map = {}
+        mapping[t.name] = map
+        for ds in t.input_files:
+            if ds.name_in_generating_task:
+                map[ds.name_in_task_signature] = ds.name_in_generating_task
+    print("EXECUTION ENGINE MAPPING")
+    print("*****************")
+    import pprint
+    pprint.pp(mapping)
+    print("*****************")
+    return mapping
+
+
 def _get_python_version(python_version, enforce_python_version=True):
     if not python_version and enforce_python_version:
         print("You need to set a Python version when configuring a virtual environment.")
@@ -55,7 +72,7 @@ def _get_python_version(python_version, enforce_python_version=True):
         return "/opt/miniconda3/py39/bin/python3"
 
 
-def _create_python_task(gateway, wf_id, task_name, fork_environment, task_impl, requirements_file, python_version,
+def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version,
                         input_files=[], output_files=[], dependent_modules=[], dependencies=[], is_precious_result=False):
     print(f"Creating task {task_name}...")
     task = gateway.createPythonTask()
@@ -75,13 +92,13 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, task_impl, 
         if input_file.path:
             task.addInputFile(input_file.path)
             input_file_path = os.path.dirname(input_file.path) if "**" in input_file.path else input_file.path
-            task.addVariable(input_file.prototypical_name, input_file_path)
+            task.addVariable(input_file.name_in_task_signature, input_file_path)
     for output_file in output_files:
         if output_file.path:
             # take out the '**' to reveal the actual path to the folder
             output_file_path = os.path.dirname(output_file.path) if "**" in output_file.path else output_file.path
             final_output_path = os.path.join(output_file_path, wf_id)
-            task.addVariable(output_file.prototypical_name, final_output_path)
+            task.addVariable(output_file.name_in_task_signature, final_output_path)
             # add back the '**' to ensure that proactive treats it as a folder
             final_output_path_proactive = os.path.join(final_output_path, "**") if "**" in output_file.path else final_output_path
             task.addOutputFile(final_output_path_proactive)
@@ -91,8 +108,13 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, task_impl, 
         task.addInputFile(dependent_module)
         dependent_modules_folders.append(os.path.dirname(dependent_module))
     # Adding the helper to all tasks as input:
-    PROACTIVE_HELPER_RELATIVE_PATH = os.path.relpath(PROACTIVE_HELPER_FULL_PATH, RUNNER_FOLDER)
+    PROACTIVE_HELPER_RELATIVE_PATH = os.path.relpath(PROACTIVE_HELPER_FULL_PATH)
     task.addInputFile(PROACTIVE_HELPER_RELATIVE_PATH)
+
+    with open(EXECUTION_ENGINE_MAPPING_FILE, 'w') as f:
+        json.dump(mapping, f)
+    task.addInputFile(EXECUTION_ENGINE_MAPPING_FILE)
+
     proactive_helper_folder = os.path.dirname(PROACTIVE_HELPER_RELATIVE_PATH)
     dependent_modules_folders.append(proactive_helper_folder)
     task.addVariable("dependent_modules_folders", ','.join(dependent_modules_folders))
@@ -137,6 +159,7 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
     job_id = gateway.submitJobWithInputsAndOutputsPaths(job, debug=False)
     print("job_id: " + str(job_id))
 
+    os.remove(EXECUTION_ENGINE_MAPPING_FILE)
     import time
     is_finished = False
     seconds = 0
@@ -208,17 +231,20 @@ def execute_wf(w, wf_id, runner_folder, config):
     print("****************************")
     w.print()
     print("****************************")
+    sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
 
     gateway = _create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
     job = _create_job(gateway, w.name)
     fork_env = _create_fork_env(gateway, job)
+    mapping = _create_execution_engine_mapping(sorted_tasks)
 
     created_tasks = []
     task_statuses = []
-    for t in sorted(w.tasks, key=lambda t: t.order):
+    for t in sorted_tasks:
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
-        task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, t.impl_file, t.requirements_file,
-                                              t.python_version, t.input_files, t.output_files, t.dependent_modules, dependent_tasks)
+        task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
+                                              t.python_version, t.input_files, t.output_files, t.dependent_modules,
+                                              dependent_tasks)
         if len(t.params) > 0:
             _configure_task(task_to_execute, t.params)
         if t.is_condition_task():

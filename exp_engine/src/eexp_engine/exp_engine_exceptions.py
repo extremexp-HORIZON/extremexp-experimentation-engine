@@ -21,3 +21,11 @@ class SourceCodeAttemptsToLoadDatasetNotInTaskSignature(Exception):
 class SourceCodeAttemptsToSaveDatasetNotInTaskSignature(Exception):
     "Raised when attempting to save a dataset as an output of a task, without this being part of its signature"
     pass
+
+class InputDataInSubWorkflowDoesNotMatchOutputDataOfParentWorkflow(Exception):
+    "Raised when a subworkflow's input does not much the output of its previous task in the parent workflow"
+    pass
+
+class OutputDataInSubWorkflowDoesNotMatchInputDataOfParentWorkflow(Exception):
+    "Raised when a subworkflow's output does not much the input of its next task in the parent workflow"
+    pass
