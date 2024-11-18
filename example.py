@@ -1,5 +1,5 @@
-from eexp_engine import runner
+from eexp_engine import client
 import eexp_config
 
 exp_name = 'IDEKO_main'
-runner.run(__file__, exp_name, eexp_config)
+client.run(__file__, exp_name, eexp_config)

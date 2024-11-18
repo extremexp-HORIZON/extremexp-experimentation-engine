@@ -9,7 +9,7 @@ EXECUTION_ENGINE_MAPPING_FILE = "execution_engine_mapping.json"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
 
 
-def _create_gateway_and_connect_to_it(username, password):
+def create_gateway_and_connect_to_it(username, password):
     print("Logging on proactive-server...")
     proactive_host = 'try.activeeon.com'
     proactive_port = '8443'
@@ -158,6 +158,7 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
 
     job_id = gateway.submitJobWithInputsAndOutputsPaths(job, debug=False)
     print("job_id: " + str(job_id))
+    update_workflow(wf_id, {"metadata": {"proactive_job_id": str(job_id)}})
 
     os.remove(EXECUTION_ENGINE_MAPPING_FILE)
     import time
@@ -186,7 +187,7 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
                 print(f"Task {task_name} completed at {current_time}")
         
         print(f"Current job status: {job_status}: {seconds}")
-        if job_status.upper() in ["FINISHED", "CANCELED", "FAILED"]:
+        if job_status.upper() in ["FINISHED", "CANCELED", "FAILED", "KILLED"]:
             is_finished = True
         else:
             seconds += 1
@@ -233,7 +234,7 @@ def execute_wf(w, wf_id, runner_folder, config):
     print("****************************")
     sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
 
-    gateway = _create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
+    gateway = create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
     job = _create_job(gateway, w.name)
     fork_env = _create_fork_env(gateway, job)
     mapping = _create_execution_engine_mapping(sorted_tasks)
