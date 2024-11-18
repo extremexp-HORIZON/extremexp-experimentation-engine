@@ -4,7 +4,7 @@ from apiHandler import apiHandler
 import logging
 logging.basicConfig(level=logging.INFO)
 from translation import json2dsl
-from data_abstraction_layer.data_abstraction_api import *
+from src.eexp_engine.data_abstraction_layer.data_abstraction_api import *
 import pprint
 import json
 
@@ -46,3 +46,25 @@ def run():
 
         apiHandler.run_experiment(exp_id)
         return {"message": "experiment started"}, 201
+
+
+
+@app.route("/exp/workflow/kill/<workflow_id>", methods=["GET"])
+@cross_origin()
+def kill_workflow(workflow_id):
+    apiHandler.kill_workflow(workflow_id)
+    return {"message": f"workflow with id {workflow_id} is killed"}, 201
+
+
+@app.route("/exp/workflow/pause/<workflow_id>", methods=["GET"])
+@cross_origin()
+def pause_workflow(workflow_id):
+    apiHandler.pause_workflow(workflow_id)
+    return {"message": f"workflow with id {workflow_id} is paused"}, 201
+
+
+@app.route("/exp/workflow/resume/<workflow_id>", methods=["GET"])
+@cross_origin()
+def resume_workflow(workflow_id):
+    apiHandler.resume_workflow(workflow_id)
+    return {"message": f"workflow with id {workflow_id} is resumed"}, 201
