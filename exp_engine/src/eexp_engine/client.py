@@ -14,7 +14,7 @@ def run(runner_file, exp_name, config):
     }
     set_data_abstraction_config(config)
     exp_id = create_experiment(new_exp)
-    functions.run_experiment(workflow_specification, exp_id, os.path.dirname(os.path.abspath(runner_file)), config)
+    functions.run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config)
 
 
 def kill_job(job_id, config):
