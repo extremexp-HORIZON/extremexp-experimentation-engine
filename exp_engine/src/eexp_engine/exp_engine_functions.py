@@ -6,7 +6,7 @@ from .classes.events import AutomatedEvent
 from .classes.events import ManualEvent
 from .data_abstraction_layer.data_abstraction_api import *
 from .proactive_executionware import proactive_runner as proactive_runner
-from . import exp_engine_exceptions
+from .classes import exceptions
 import os
 import textx
 import itertools
@@ -133,7 +133,7 @@ def check_if_subworkflow_input_matches_use_in_parent_workflow(subworkflow, first
     expected_inputs = [ds.name for ds in first_task.input_files]
     for ds in subworkflow.input_files:
         if ds.name not in expected_inputs:
-            raise exp_engine_exceptions.InputDataInSubWorkflowDoesNotMatchOutputDataOfParentWorkflow(
+            raise exceptions.InputDataInSubWorkflowDoesNotMatchOutputDataOfParentWorkflow(
                 f"Expected one of '{expected_inputs}' but found '{ds.name}' as input of subworkflow '{subworkflow.name}'")
 
 
@@ -141,7 +141,7 @@ def check_if_subworkflow_output_matches_use_in_parent_workflow(subworkflow, last
     expected_outputs = [ds.name for ds in last_task.output_files]
     for ds in subworkflow.output_files:
         if ds.name not in expected_outputs:
-            raise exp_engine_exceptions.OutputDataInSubWorkflowDoesNotMatchInputDataOfParentWorkflow(
+            raise exceptions.OutputDataInSubWorkflowDoesNotMatchInputDataOfParentWorkflow(
                 f"Expected one of '{expected_outputs}' but found '{ds.name}' as output of subworkflow '{subworkflow.name}'")
 
 
@@ -199,11 +199,11 @@ def flatten_workflows(assembled_wf):
 def check_whether_dataflow_respects_task_signatures(name, prototypical_inputs, prototypical_outputs, input_files, output_files):
     for i in input_files:
         if i.name_in_task_signature not in prototypical_inputs:
-            raise exp_engine_exceptions.InputDataInWorkflowDoesNotMatchSignature(
+            raise exceptions.InputDataInWorkflowDoesNotMatchSignature(
                 f"Expected one of '{prototypical_inputs}' but found '{i.name_in_task_signature}' as input of task '{name}'")
     for o in output_files:
         if o.name_in_task_signature not in prototypical_outputs:
-            raise exp_engine_exceptions.OutputDataInWorkflowDoesNotMatchSignature(
+            raise exceptions.OutputDataInWorkflowDoesNotMatchSignature(
                 f"Expected one of '{prototypical_outputs}' but found '{o.name_in_task_signature}' as output of task '{name}'")
 
 
@@ -280,20 +280,20 @@ def check_python_code_use_of_task_signature(task_name, implementation_file_path,
                 variable_name = line.split("variables.get(")[1].split(")")[0].strip()
                 variable_name = (variable_name [1:-1])
                 if variable_name not in KNOWN_TASK_INPUTS and variable_name not in inputs_outputs_params:
-                    raise exp_engine_exceptions.SourceCodeAttemptsToReadVariableNotInTaskSignature(
+                    raise exceptions.SourceCodeAttemptsToReadVariableNotInTaskSignature(
                         f"Variable '{variable_name}' not found in the signature ('{inputs_outputs_params}') of task '{task_name}'")
             if "load_datasets" in line:
                 dataset_names = [(name.strip() [1:-1]) for name in (line.split("load_datasets(")[1].strip() [:-1]).split(",") if name != "variables"]
                 for ds in dataset_names:
                     if ds not in inputs:
-                        raise exp_engine_exceptions.SourceCodeAttemptsToLoadDatasetNotInTaskSignature(
+                        raise exceptions.SourceCodeAttemptsToLoadDatasetNotInTaskSignature(
                             f"Dataset '{ds}' not found in the inputs ('{inputs}') of task '{task_name}'")
             if "save_datasets" in line:
                 dataset_names = [name.strip() for name in (line.split("save_datasets(")[1].strip() [:-1]).split(",") if name != "variables"]
                 dataset_names = [((ds [1:]).strip() [1:-1]) for ds in dataset_names if ds.startswith("(")]
                 for ds in dataset_names:
                     if ds not in outputs:
-                        raise exp_engine_exceptions.SourceCodeAttemptsToSaveDatasetNotInTaskSignature(
+                        raise exceptions.SourceCodeAttemptsToSaveDatasetNotInTaskSignature(
                             f"Dataset '{ds}' not found in the outputs ('{outputs}') of task '{task_name}'")
 
 
@@ -322,7 +322,7 @@ def parse_task(folder_path):
                     implementation_file_path = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.filename)
                     parsed_data["implementation_file_path"] = implementation_file_path
                     if not os.path.exists(implementation_file_path):
-                        raise exp_engine_exceptions.ImplementationFileNotFound(f"{implementation_file_path}")
+                        raise exceptions.ImplementationFileNotFound(f"{implementation_file_path}")
             if e.__class__.__name__ == "Metric":
                 metric = Metric(e.name, e.semantic_type, e.kind, e.data_type)
                 metrics.append(metric)
@@ -361,7 +361,7 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                         parsed_data = get_task_metadata(e.filename)
                         implementation_file_path = parsed_data["implementation_file_path"]
                         if not os.path.exists(implementation_file_path):
-                            raise exp_engine_exceptions.ImplementationFileNotFound(
+                            raise exceptions.ImplementationFileNotFound(
                                 f"{implementation_file_path} in task {e.alias.name}")
                         for metric in parsed_data["metrics"]:
                             task.add_metric(metric)
@@ -436,7 +436,7 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 #                             task_file_path = None
 #
 #                         if not os.path.exists(task_file_path):
-#                             raise exp_engine_exceptions.ImplementationFileNotFound(
+#                             raise exceptions.ImplementationFileNotFound(
 #                                 f"{task_file_path} in task {e.alias.name}")
 #                         else:
 #                             with open(task_file_path, 'r') as file:
@@ -492,7 +492,7 @@ def parse_assembled_workflow_data(experiment_specification):
                         parsed_data = get_task_metadata(config.filename)
                         task_file_path = parsed_data["implementation_file_path"]
                         if not os.path.exists(task_file_path):
-                            raise exp_engine_exceptions.ImplementationFileNotFound(
+                            raise exceptions.ImplementationFileNotFound(
                                 f"{task_file_path} in task {config.alias.name}")
                         assembled_workflow_task["prototypical_name"] = parsed_data["task_name"]
                         assembled_workflow_task["implementation"] = task_file_path
