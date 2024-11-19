@@ -1,10 +1,10 @@
-from .classes.workflow import Workflow
-from .classes.task import Task
-from .classes.dataset import Dataset
-from .classes.metric import Metric
-from .classes.events import AutomatedEvent
-from .classes.events import ManualEvent
-from .classes import exceptions
+from .models.workflow import Workflow
+from .models.task import Task
+from .models.dataset import Dataset
+from .models.metric import Metric
+from .models.events import AutomatedEvent
+from .models.events import ManualEvent
+from . import exceptions
 from .functions.execution import Execution
 import os
 import textx
@@ -744,7 +744,7 @@ def generate_experiment_specification(experiment_specification):
     return  nodes, automated_dict
 
 
-def run_experiment(experiment_specification, exp_id, runner_folder, config):
+def run_experiment(exp_id, experiment_specification, runner_folder, config):
     global CONFIG
     CONFIG = config
 
