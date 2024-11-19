@@ -1,4 +1,9 @@
-from . import exp_engine_classes as classes
+from .classes.workflow import Workflow
+from .classes.task import Task
+from .classes.dataset import Dataset
+from .classes.metric import Metric
+from .classes.events import AutomatedEvent
+from .classes.events import ManualEvent
 from .data_abstraction_layer.data_abstraction_api import *
 from .proactive_executionware import proactive_runner as proactive_runner
 from . import exp_engine_exceptions
@@ -48,12 +53,12 @@ def add_input_output_data(wf, firstNode, firstData, firstData2, firstData3, seco
         if firstNode:
             '''  Grammar rule: firstNode=[Node] '.' firstData2=ID '-->' secondNode=[Node] '.' secondData2=ID ';' '''
             task1 = wf.get_task(firstNode.name)
-            output_dataset = classes.WorkflowDataset(firstData2)
+            output_dataset = Dataset(firstData2)
             output_dataset.set_name_in_task_signature(firstData2)
             task1.output_files.append(output_dataset)
 
             task2 = wf.get_task(secondNode.name)
-            input_dataset = classes.WorkflowDataset(secondData2)
+            input_dataset = Dataset(secondData2)
             input_dataset.set_name_in_task_signature(secondData2)
             input_dataset.set_name_in_generating_task(firstData2)
             task2.input_files.append(input_dataset)
@@ -177,7 +182,7 @@ def get_underlying_tasks(t, assembled_wf, tasks_to_add):
 
 def flatten_workflows(assembled_wf):
     print(f"Flattening assembled workflow with name {assembled_wf.name}")
-    new_wf = classes.Workflow(assembled_wf.name)
+    new_wf = Workflow(assembled_wf.name)
     for t in assembled_wf.tasks:
         if t.sub_workflow:
             print(t.sub_workflow.name)
@@ -319,7 +324,7 @@ def parse_task(folder_path):
                     if not os.path.exists(implementation_file_path):
                         raise exp_engine_exceptions.ImplementationFileNotFound(f"{implementation_file_path}")
             if e.__class__.__name__ == "Metric":
-                metric = classes.Metric(e.name, e.semantic_type, e.kind, e.data_type)
+                metric = Metric(e.name, e.semantic_type, e.kind, e.data_type)
                 metrics.append(metric)
             if e.__class__.__name__ == "Parameter":
                 params.append(e.name)
@@ -337,17 +342,17 @@ def parse_task(folder_path):
 def get_workflow_components(experiments_metamodel, experiment_model, parsed_workflows, task_dependencies):
     for component in experiment_model.component:
         if component.__class__.__name__ == 'Workflow':
-            wf = classes.Workflow(component.name)
+            wf = Workflow(component.name)
 
             parsed_workflows.append(wf)
 
             for e in component.elements:
                 if e.__class__.__name__ == "DefineTask":
-                    task = classes.WorkflowTask(e.name)
+                    task = Task(e.name)
                     wf.add_task(task)
 
                 if e.__class__.__name__ == "Data":
-                    ds = classes.WorkflowDataset(e.name)
+                    ds = Dataset(e.name)
                     wf.add_dataset(ds)
 
                 if e.__class__.__name__ == "ConfigureTask":
@@ -526,12 +531,12 @@ def generate_experiment_specification(experiment_specification):
                     print(f"    Type: {node.eventType}")
                     if node.eventType == 'automated':
                         automated_events.add(node.name)
-                        parsed_event = classes.AutomatedEvent(node.name, node.validation_task, node.condition)
+                        parsed_event = AutomatedEvent(node.name, node.validation_task, node.condition)
                         parsed_automated_events.append(parsed_event)
 
                     if node.eventType == 'manual':
                         manual_events.add(node.name)
-                        parsed_event = classes.ManualEvent(node.name, node.validation_task, node.restart)
+                        parsed_event = ManualEvent(node.name, node.validation_task, node.restart)
                         parsed_manual_events.append(parsed_event)
 
                     if node.condition:
