@@ -1,4 +1,4 @@
-from . import exp_engine_functions as functions
+from .functions import run_experiment
 from .proactive_executionware import proactive_runner as proactive_runner
 from .data_abstraction_layer.data_abstraction_api import set_data_abstraction_config, create_experiment
 import os
@@ -14,7 +14,7 @@ def run(runner_file, exp_name, config):
     }
     set_data_abstraction_config(config)
     exp_id = create_experiment(new_exp)
-    functions.run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config)
+    run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config)
 
 
 def kill_job(job_id, config):
