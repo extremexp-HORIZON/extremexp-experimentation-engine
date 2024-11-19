@@ -49,7 +49,8 @@ python example.py
 The `exp_config/src/eexp_config/scripts` folder is copied over for convenience from the `proactive-python-client` project. 
 
 ## Instructions for publishing Python module to PyPI
-1. Build via 
+1. Make sure you are in the `exp_engine` folder.
+2. Build via 
 ```
 python -m build
 ```
