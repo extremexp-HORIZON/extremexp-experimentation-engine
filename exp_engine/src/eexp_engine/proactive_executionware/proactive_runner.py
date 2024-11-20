@@ -2,6 +2,7 @@ import proactive
 import os
 import json
 from ..data_abstraction_layer.data_abstraction_api import get_workflow, update_workflow, get_current_time
+import logging
 
 packagedir = os.path.dirname(os.path.abspath(__file__))
 PROACTIVE_HELPER_FULL_PATH = os.path.join(packagedir, "proactive_helper.py")
@@ -227,11 +228,13 @@ def execute_wf(w, wf_id, runner_folder, config):
     RUNNER_FOLDER = runner_folder
     CONFIG = config
 
-    print("****************************")
-    print(f"Executing workflow {w.name}")
-    print("****************************")
+    logger = logging.getLogger(__name__)
+    logger.info("****************************")
+    logger.info(f"Executing workflow {w.name}")
+    logger.info("****************************")
     w.print()
-    print("****************************")
+    logger.info("****************************")
+
     sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
 
     gateway = create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)

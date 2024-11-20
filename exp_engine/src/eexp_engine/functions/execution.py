@@ -5,6 +5,7 @@ import itertools
 import random
 
 EXECUTIONWARE = "PROACTIVE"
+logger = logging.getLogger(__name__)
 
 
 class Execution:
@@ -25,14 +26,14 @@ class Execution:
         self.space_configs = space_configs
         self.assembled_flat_wfs = assembled_flat_wfs
         self.results = {}
-        global RUNNER_FOLDER, CONFIG
+        global RUNNER_FOLDER, CONFIG, LOGGER
         RUNNER_FOLDER = runner_folder
         CONFIG = config
 
     def start(self):
         start_node = find_start_node(self.nodes, self.automated_dict)
-        print("Nodes: ", self.nodes)
-        print("Start Node: ", start_node)
+        logger.info(f"Nodes: {self.nodes}")
+        logger.info(f"Start Node: {start_node}")
         update_experiment(self.exp_id, {"status": "running", "start": get_current_time()})
         node = start_node
         result = self.execute_node(node)
@@ -43,7 +44,7 @@ class Execution:
         update_experiment(self.exp_id, {"status": "completed", "end": get_current_time()})
 
     def execute_node(self, node):
-        print(node)
+        logger.info(node)
         if node in self.spaces:
             return self.execute_space(node)
         elif node in self.automated_events:
@@ -52,10 +53,10 @@ class Execution:
             return self.execute_manual_event(node)
 
     def execute_space(self, node):
-        print("executing space")
+        logger.info("executing space")
         space_config = next((s for s in self.space_configs if s['name'] == node), None)
-        print('-------------------------------------------------------------------')
-        print(f"Running experiment of espace '{space_config['name']}' of type '{space_config['strategy']}'")
+        logger.info('-------------------------------------------------------------------')
+        logger.info(f"Running experiment of espace '{space_config['name']}' of type '{space_config['strategy']}'")
         method_type = space_config["strategy"]
         if method_type == "gridsearch":
             space_results = run_grid_search(space_config, self.exp_id, self.assembled_flat_wfs)
@@ -64,29 +65,29 @@ class Execution:
         if method_type =="singlerun":
             space_results = run_singlerun(space_config, self.exp_id)
         self.results[space_config['name']] = space_results
-        print("node executed")
-        print("Results so far")
+        logger.info("node executed")
+        logger.info("Results so far")
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(self.results)
         return 'True'
 
     def execute_automated_event(self, node):
-        print("executing automated event")
+        logger.info("executing automated event")
         e = next((e for e in self.parsed_automated_events if e.name == node), None)
-        print(e.task)
+        logger.info(e.task)
         module = __import__('IDEKO_events')
         func = getattr(module, e.task)
         ret = func(self.results)
-        print("--------------------------------------------------------------------")
+        logger.info("--------------------------------------------------------------------")
         return ret
 
     def execute_manual_event(self, node):
-        print("executing manual event")
+        logger.info("executing manual event")
         e = next((e for e in self.parsed_manual_events if e.name == node), None)
         module = __import__('IDEKO_events')
         func = getattr(module, e.task)
         ret = func(self.automated_dict, self.space_configs, e.name)
-        print("--------------------------------------------------------------------")
+        logger.info("--------------------------------------------------------------------")
         return ret
 
 

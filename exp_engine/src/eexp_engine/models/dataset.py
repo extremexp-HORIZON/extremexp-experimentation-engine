@@ -1,3 +1,7 @@
+import logging
+logger = logging.getLogger(__name__)
+
+
 class Dataset:
 
     def __init__(self, name):
@@ -16,7 +20,7 @@ class Dataset:
         self.name_in_generating_task = name_in_generating_task
 
     def print(self, tab=""):
-        print(f"{tab}\twith dataset name : {self.name}")
-        print(f"{tab}\twith dataset name in task signature : {self.name_in_task_signature}")
-        print(f"{tab}\twith dataset name in generating task : {self.name_in_generating_task}")
-        print(f"{tab}\twith dataset path : {self.path}")
+        logger.debug(f"{tab}\twith dataset name : {self.name}")
+        logger.debug(f"{tab}\twith dataset name in task signature : {self.name_in_task_signature}")
+        logger.debug(f"{tab}\twith dataset name in generating task : {self.name_in_generating_task}")
+        logger.debug(f"{tab}\twith dataset path : {self.path}")

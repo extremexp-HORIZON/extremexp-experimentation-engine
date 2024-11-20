@@ -1,3 +1,7 @@
+import logging
+logger = logging.getLogger(__name__)
+
+
 class Task:
 
     def __init__(self, name):
@@ -103,29 +107,29 @@ class Task:
         return new_t
 
     def print(self, tab=""):
-        print(f"{tab}with name : {self.name}")
-        print(f"{tab}\twith prototypical name : {self.prototypical_name}")
-        print(f"{tab}\twith prototypical inputs : {self.prototypical_inputs}")
-        print(f"{tab}\twith prototypical outputs : {self.prototypical_outputs}")
-        print(f"{tab}\twith implementation: {self.impl_file}")
-        print(f"{tab}\twith requirements_file: {self.requirements_file}")
-        print(f"{tab}\twith python version: {self.python_version}")
-        print(f"{tab}\twith sub_workflow_name: {self.sub_workflow_name}")
-        print(f"{tab}\twith sub_workflow: {self.sub_workflow}")
-        print(f"{tab}\twith dependencies: {self.dependencies}")
-        print(f"{tab}\twith inputs:")
+        logger.debug(f"{tab}with name : {self.name}")
+        logger.debug(f"{tab}\twith prototypical name : {self.prototypical_name}")
+        logger.debug(f"{tab}\twith prototypical inputs : {self.prototypical_inputs}")
+        logger.debug(f"{tab}\twith prototypical outputs : {self.prototypical_outputs}")
+        logger.debug(f"{tab}\twith implementation: {self.impl_file}")
+        logger.debug(f"{tab}\twith requirements_file: {self.requirements_file}")
+        logger.debug(f"{tab}\twith python version: {self.python_version}")
+        logger.debug(f"{tab}\twith sub_workflow_name: {self.sub_workflow_name}")
+        logger.debug(f"{tab}\twith sub_workflow: {self.sub_workflow}")
+        logger.debug(f"{tab}\twith dependencies: {self.dependencies}")
+        logger.debug(f"{tab}\twith inputs:")
         for ds in self.input_files:
             ds.print(tab+"\t")
-        print(f"{tab}\twith outputs:")
+        logger.debug(f"{tab}\twith outputs:")
         for ds in self.output_files:
             ds.print(tab+"\t")
-        print(f"{tab}\twith dependent modules: {self.dependent_modules}")
-        print(f"{tab}\twith order: {self.order}")
-        print(f"{tab}\twith params: {self.params}")
-        print(f"{tab}\twith metrics:")
+        logger.debug(f"{tab}\twith dependent modules: {self.dependent_modules}")
+        logger.debug(f"{tab}\twith order: {self.order}")
+        logger.debug(f"{tab}\twith params: {self.params}")
+        logger.debug(f"{tab}\twith metrics:")
         for m in self.metrics:
             m.print(tab+"\t")
-        # print(f"{tab}\twith condition: {self.condition}")
-        # print(f"{tab}\twith if_task_name: {self.if_task_name}")
-        # print(f"{tab}\twith else_task_name: {self.else_task_name}")
-        # print(f"{tab}\twith continuation_task_name: {self.continuation_task_name}")
+        # logger.debug(f"{tab}\twith condition: {self.condition}")
+        # logger.debug(f"{tab}\twith if_task_name: {self.if_task_name}")
+        # logger.debug(f"{tab}\twith else_task_name: {self.else_task_name}")
+        # logger.debug(f"{tab}\twith continuation_task_name: {self.continuation_task_name}")
