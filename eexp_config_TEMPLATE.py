@@ -12,3 +12,28 @@ PROACTIVE_PASSWORD=""
 # Data abstraction credentials (mandatory - ask CUNI)
 DATA_ABSTRACTION_BASE_URL = "https://api.expvis.smartarch.cz/api"
 DATA_ABSTRACTION_ACCESS_TOKEN = ''
+
+# logging configuration, optional; if not set, all loggers have INFO level
+LOGGING_CONFIG = {
+    'version': 1,
+    'loggers': {
+        'eexp_engine.functions': {
+            'level': 'INFO'
+        },
+        'eexp_engine.functions.parsing': {
+            'level': 'INFO',
+        },
+        'eexp_engine.functions.execution': {
+            'level': 'INFO',
+        },
+        'eexp_engine.data_abstraction_layer': {
+            'level': 'INFO'
+        },
+        'eexp_engine.models': {
+            'level': 'INFO'
+        },
+        'eexp_engine.proactive_executionware': {
+            'level': 'INFO'
+        }
+    }
+}

@@ -1,7 +1,7 @@
 import requests
 import logging
 import datetime
-logging.basicConfig(level=logging.INFO)
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +14,7 @@ def set_data_abstraction_config(config):
 def get_all_experiments():
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/executed-experiments"
     r = requests.get(url, headers=DATA_ABSTRACTION_HEADERS)
-    print(f"GET request to {url} return status code: {r.status_code}")
+    logger.info(f"GET request to {url} return status code: {r.status_code}")
     return r.json()['executed_experiments']
 
 
@@ -25,25 +25,25 @@ def create_experiment(body):
     logger.info(f"PUT request to {url} return status code: {r.status_code}")
     if r.status_code == 201:
         exp_id = r.json()['message']['experimentId']
-        print(f"New experiment created with id {exp_id}")
+        logger.info(f"New experiment created with id {exp_id}")
         return exp_id
     else:
-        print(r.json())
-        print("something went wrong when creating experiment")
+        logger.error(r.json())
+        logger.error("something went wrong when creating experiment")
         return None
 
 
 def get_experiment(exp_id):
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/experiments/{exp_id}"
     r = requests.get(url, headers=DATA_ABSTRACTION_HEADERS)
-    print(f"GET request to {url} return status code: {r.status_code}")
+    logger.info(f"GET request to {url} return status code: {r.status_code}")
     return r.json()['experiment']
 
 
 def update_experiment(exp_id, body):
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/experiments/{exp_id}"
     r = requests.post(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
-    print(f"POST request to {url} return status code: {r.status_code}")
+    logger.info(f"POST request to {url} return status code: {r.status_code}")
     return r.json()
 
 
@@ -52,28 +52,28 @@ def create_workflow(exp_id, body):
     body["experimentId"] = exp_id
     body["status"] = "scheduled"
     r = requests.put(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
-    print(f"PUT request to {url} return status code: {r.status_code}")
+    logger.info(f"PUT request to {url} return status code: {r.status_code}")
     if r.status_code == 201:
         wf_id = r.json()['workflow_id']
-        print(f"New workflow created with id {wf_id}")
+        logger.info(f"New workflow created with id {wf_id}")
         return wf_id
     else:
-        print(r.json())
-        print("something went wrong when creating workflow")
+        logger.error(r.json())
+        logger.error("something went wrong when creating workflow")
         return None
 
 
 def get_workflow(wf_id):
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/workflows/{wf_id}"
     r = requests.get(url, headers=DATA_ABSTRACTION_HEADERS)
-    print(f"GET request to {url} return status code: {r.status_code}")
+    logger.info(f"GET request to {url} return status code: {r.status_code}")
     return r.json()['workflow']
 
 
 def update_workflow(wf_id, body):
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/workflows/{wf_id}"
     r = requests.post(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
-    print(f"POST request to {url} return status code: {r.status_code}")
+    logger.info(f"POST request to {url} return status code: {r.status_code}")
     return r.json()
 
 
@@ -89,20 +89,20 @@ def create_metric(wf_id, task, name, semantic_type, kind, data_type):
     }
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/metrics"
     r = requests.put(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
-    print(f"PUT request to {url} return status code: {r.status_code}")
+    logger.info(f"PUT request to {url} return status code: {r.status_code}")
     if r.status_code == 201:
         m_id = r.json()['metric_id']
-        print(f"New metric created with id {m_id}")
+        logger.info(f"New metric created with id {m_id}")
     else:
-        print(r.json())
-        print(f"New metric was NOT created successfully")
+        logger.error(r.json())
+        logger.error(f"New metric was NOT created successfully")
 
 
 def update_metric(m_id, body):
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/metrics/{m_id}"
     r = requests.post(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
-    print(r.json())
-    print(f"POST request to {url} return status code: {r.status_code}")
+    logger.info(r.json())
+    logger.info(f"POST request to {url} return status code: {r.status_code}")
     return r.json()
 
 
@@ -131,8 +131,8 @@ def add_data_to_metric(m_id, data):
     body = {"records": records}
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/metrics-data/{m_id}"
     r = requests.put(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
-    print(f"PUT request to {url} return status code: {r.status_code}")
-    print(f"New data added to metric with id {m_id}")
+    logger.info(f"PUT request to {url} return status code: {r.status_code}")
+    logger.info(f"New data added to metric with id {m_id}")
 
 
 def get_current_time():

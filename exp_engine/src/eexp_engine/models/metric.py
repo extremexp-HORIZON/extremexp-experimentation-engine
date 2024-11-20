@@ -1,3 +1,7 @@
+import logging
+logger = logging.getLogger(__name__)
+
+
 class Metric:
 
     def __init__(self, name, semantic_type, kind, data_type):
@@ -7,10 +11,10 @@ class Metric:
         self.data_type = data_type
 
     def print(self, tab=""):
-        print(f"{tab}\twith metric name : {self.name}")
-        print(f"{tab}\twith metric semantic type : {self.semantic_type}")
-        print(f"{tab}\twith metric kind : {self.kind}")
-        print(f"{tab}\twith metric data_type : {self.data_type}")
+        logger.debug(f"{tab}\twith metric name : {self.name}")
+        logger.debug(f"{tab}\twith metric semantic type : {self.semantic_type}")
+        logger.debug(f"{tab}\twith metric kind : {self.kind}")
+        logger.debug(f"{tab}\twith metric data_type : {self.data_type}")
 
     def clone(self):
         new_m = Metric(self.name, self.semantic_type, self.kind, self.data_type)

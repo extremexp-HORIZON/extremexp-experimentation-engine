@@ -1,44 +1,47 @@
 from . import parsing
 from .execution import Execution
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def run_experiment(exp_id, experiment_specification, runner_folder, config):
     parsing.CONFIG = config
 
-    print("*********************************************************")
-    print("***************** PARSE WORKFLOWS ***********************")
-    print("*********************************************************")
+    logger.info("*********************************************************")
+    logger.info("***************** PARSE WORKFLOWS ***********************")
+    logger.info("*********************************************************")
     parsed_workflows, task_dependencies = parsing.parse_workflows(experiment_specification)
 
-    print("*********************************************************")
-    print("********** PARSE ASSEMBLED WORKFLOWS DATA ***************")
-    print("*********************************************************")
+    logger.info("*********************************************************")
+    logger.info("********** PARSE ASSEMBLED WORKFLOWS DATA ***************")
+    logger.info("*********************************************************")
     assembled_workflows_data = parsing.parse_assembled_workflow_data(experiment_specification)
 
     assembled_flat_wfs = []
     if assembled_workflows_data:
-        print("*********************************************************")
-        print("************ GENERATE ASSEMBLED WORKFLOWS ***************")
-        print("*********************************************************")
+        logger.info("*********************************************************")
+        logger.info("************ GENERATE ASSEMBLED WORKFLOWS ***************")
+        logger.info("*********************************************************")
         assembled_wfs = parsing.generate_final_assembled_workflows(parsed_workflows, assembled_workflows_data)
         for wf in assembled_wfs:
             wf.print()
 
-        print("*********************************************************")
-        print("********** GENERATE ASSEMBLED FLAT WORKFLOWS ************")
-        print("*********************************************************")
+        logger.info("*********************************************************")
+        logger.info("********** GENERATE ASSEMBLED FLAT WORKFLOWS ************")
+        logger.info("*********************************************************")
         parsing.generate_assembled_flat_workflows(assembled_wfs, assembled_flat_wfs)
 
-    print("*********************************************************")
-    print("************** EXPERIMENT SPECIFICATION *****************")
-    print("*********************************************************")
+    logger.info("*********************************************************")
+    logger.info("************** EXPERIMENT SPECIFICATION *****************")
+    logger.info("*********************************************************")
     nodes, automated_dict, spaces, automated_events, parsed_automated_events, \
     manual_events, parsed_manual_events, space_configs = \
         parsing.generate_experiment_specification(experiment_specification)
 
-    print("\n*********************************************************")
-    print("***************** RUNNING WORKFLOWS ***********************")
-    print("*********************************************************")
+    logger.info("*********************************************************")
+    logger.info("***************** RUNNING WORKFLOWS *********************")
+    logger.info("*********************************************************")
     execution = Execution(exp_id, nodes, automated_dict, spaces,
                           automated_events, parsed_automated_events,
                           manual_events, parsed_manual_events,

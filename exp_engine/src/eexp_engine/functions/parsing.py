@@ -7,8 +7,10 @@ from ..models.events import ManualEvent
 from .. import exceptions
 import os
 import textx
+import logging
 
 CONFIG = {}
+logger = logging.getLogger(__name__)
 packagedir = os.path.dirname(os.path.abspath(__file__))
 GRAMMAR_PATH = os.path.join(packagedir, "../grammar/workflow_grammar.tx")
 TASK_GRAMMAR_PATH = os.path.join(packagedir, "../grammar/task_grammar.tx")
@@ -17,12 +19,12 @@ KNOWN_TASK_INPUTS = ['dependent_modules_folders']
 
 def process_dependencies(task_dependencies, nodes, parsing_node_type, verbose_logging=False):
     if verbose_logging:
-        print(parsing_node_type)
+        logger.info(parsing_node_type)
     for n1, n2 in zip(nodes[0::1], nodes[1::1]):
         if verbose_logging:
-            print(str(n2.name), ' depends on ', str(n1))
+            logger.info(str(n2.name), ' depends on ', str(n1))
         if n2.name in task_dependencies:
-            print(f"{parsing_node_type}: Double dependency ({n2.name}), check your specification")
+            logger.info(f"{parsing_node_type}: Double dependency ({n2.name}), check your specification")
             # exit(0)
         else:
             # TODO what about tasks with multiple dependencies?
@@ -132,7 +134,7 @@ def get_underlying_tasks(t, assembled_wf, tasks_to_add):
         if not task.sub_workflow:
             if i==0:
                 check_if_subworkflow_input_matches_use_in_parent_workflow(t, task)
-                print(f"{t.dependencies} --> {t.name} -->  becomes {t.dependencies} --> {task.name}")
+                logger.info(f"{t.dependencies} --> {t.name} -->  becomes {t.dependencies} --> {task.name}")
                 task.add_dependencies(t.dependencies)
                 ''' This is for correctly resolving data dependencies in subworkflows '''
                 for ds in task.input_files:
@@ -144,7 +146,7 @@ def get_underlying_tasks(t, assembled_wf, tasks_to_add):
                 dependent_tasks = find_dependent_tasks(assembled_wf, t, [])
                 dep = [t.name for t in dependent_tasks]
                 check_if_subworkflow_output_matches_use_in_parent_workflow(t, task)
-                print(f"{t.name} --> {dep} becomes {task.name} --> {dep}")
+                logger.info(f"{t.name} --> {dep} becomes {task.name} --> {dep}")
                 for dependent_task in dependent_tasks:
                     ''' This is for correctly resolving data dependencies in subworkflows '''
                     for ds in dependent_task.input_files:
@@ -162,11 +164,11 @@ def get_underlying_tasks(t, assembled_wf, tasks_to_add):
 
 
 def flatten_workflows(assembled_wf):
-    print(f"Flattening assembled workflow with name {assembled_wf.name}")
+    logger.info(f"Flattening assembled workflow with name {assembled_wf.name}")
     new_wf = Workflow(assembled_wf.name)
     for t in assembled_wf.tasks:
         if t.sub_workflow:
-            print(t.sub_workflow.name)
+            logger.info(t.sub_workflow.name)
             tasks_to_add = get_underlying_tasks(t, assembled_wf, [])
             for t in tasks_to_add:
                 new_wf.add_task(t)
@@ -194,41 +196,41 @@ def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
         wf = next(w for w in parsed_workflows if w.name == assembled_wf_data["parent"]).clone(parsed_workflows)
         wf.name = assembled_wf_data["name"]
         new_wfs.append(wf)
-        print(wf.name)
+        logger.info(wf.name)
         for task in wf.tasks:
             if task.name in assembled_wf_data["tasks"].keys():
-                print(f"Need to configure task '{task.name}'")
+                logger.info(f"Need to configure task '{task.name}'")
                 task_data = assembled_wf_data["tasks"][task.name]
-                print(f"Changing prototypical_name of task '{task.name}' to '{task_data['prototypical_name']}'")
+                logger.info(f"Changing prototypical_name of task '{task.name}' to '{task_data['prototypical_name']}'")
                 task.prototypical_name = task_data["prototypical_name"]
-                print(f"Changing implementation of task '{task.name}' to '{task_data['implementation']}'")
+                logger.info(f"Changing implementation of task '{task.name}' to '{task_data['implementation']}'")
                 task.add_implementation_file(task_data["implementation"])
                 if "metrics" in task_data:
-                    print(f"Changing metrics of task '{task.name}' to '{task_data['metrics']}'")
+                    logger.info(f"Changing metrics of task '{task.name}' to '{task_data['metrics']}'")
                     for metric in task_data['metrics']:
                         task.add_metric(metric)
                 if "requirements_file" in task_data:
-                    print(f"Changing requirements file of task '{task.name}' to '{task_data['requirements_file']}'")
+                    logger.info(f"Changing requirements file of task '{task.name}' to '{task_data['requirements_file']}'")
                     task.add_requirements_file(task_data["requirements_file"])
                 if "python_version" in task_data:
-                    print(f"Changing python version of task '{task.name}' to '{task_data['python_version']}'")
+                    logger.info(f"Changing python version of task '{task.name}' to '{task_data['python_version']}'")
                     task.add_python_version(task_data["python_version"])
                 if "prototypical_inputs" in task_data:
-                    print(f"Changing prototypical_inputs of task '{task.name}' to '{task_data['prototypical_inputs']}'")
+                    logger.info(f"Changing prototypical_inputs of task '{task.name}' to '{task_data['prototypical_inputs']}'")
                     task.add_prototypical_inputs(task_data["prototypical_inputs"])
                 if "prototypical_outputs" in task_data:
-                    print(f"Changing prototypical outputs of task '{task.name}' to '{task_data['prototypical_outputs']}'")
+                    logger.info(f"Changing prototypical outputs of task '{task.name}' to '{task_data['prototypical_outputs']}'")
                     task.add_prototypical_outputs(task_data["prototypical_outputs"])
                 if "dependency" in task_data:
-                    print(f"Changing dependency of task '{task.name}' to '{task_data['dependency']}'")
+                    logger.info(f"Changing dependency of task '{task.name}' to '{task_data['dependency']}'")
                     task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, task_data["dependency"])
                 check_whether_dataflow_respects_task_signatures(task.name, task.prototypical_inputs, task.prototypical_outputs, task.input_files, task.output_files)
             else:
-                print(f"Do not need to configure task '{task.name}'")
+                logger.info(f"Do not need to configure task '{task.name}'")
             if task.sub_workflow:
                 # For now, we cannot configure a subworkflow TODO
                 pass
-        print("-------------------------------")
+        logger.info("-------------------------------")
     return new_wfs
 
 
@@ -392,36 +394,6 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
     return wf, parsed_workflows, task_dependencies
 
 
-# def get_experiment_specification(workflow_specification):
-#     experiment_specifications = []
-#     experiments_metamodel = textx.metamodel_from_file(GRAMMAR_PATH)
-#     workflow_model = experiments_metamodel.model_from_str(workflow_specification)
-#
-#     for component in workflow_model.component:
-#         if component.__class__.__name__ == 'AssembledWorkflow':
-#             for e in component.elements:
-#                 if e.__class__.__name__ == "ConfigureTask":
-#                     if e.filename:
-#                         implementation = e.filename
-#                         # print(implementation)
-#                         parts = implementation.split('.')
-#
-#                         if parts[0] == 'library-experiments':
-#                             task_file_path = os.path.join('library-experiments', parts[1] + '.xxp')
-#                         else:
-#                             task_file_path = None
-#
-#                         if not os.path.exists(task_file_path):
-#                             raise exceptions.ImplementationFileNotFound(
-#                                 f"{task_file_path} in task {e.alias.name}")
-#                         else:
-#                             with open(task_file_path, 'r') as file:
-#                                 experiment_specification = file.read()
-#                                 # print(experiment_specification)
-#                                 experiment_specifications.append(experiment_specification)
-#
-#     return experiment_specifications
-
 def parse_workflows(experiment_specification):
     parsed_workflows = []
     task_dependencies = {}
@@ -483,9 +455,8 @@ def parse_assembled_workflow_data(experiment_specification):
                     configurations.remove(config)
                     configurations += config.subtasks
 
-    import pprint
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(assembled_workflows_data)
+    from pprint import pformat
+    logger.debug(pformat(assembled_workflows_data))
 
     return assembled_workflows_data
 
@@ -506,13 +477,13 @@ def generate_experiment_specification(experiment_specification):
     for component in experiment_model.component:
         if component.__class__.__name__ == 'Experiment':
             # experiments.append(component.name)
-            print("Experiment name: ", component.name)
-            print("Experiment intent: ", component.intent_name)
+            logger.info(f"Experiment name: {component.name}")
+            logger.info(f"Experiment intent: {component.intent_name}")
 
             for node in component.experimentNode:
                 if node.__class__.__name__ == 'Event':
-                    print(f"Event: {node.name}")
-                    print(f"    Type: {node.eventType}")
+                    logger.info(f"Event: {node.name}")
+                    logger.info(f"    Type: {node.eventType}")
                     if node.eventType == 'automated':
                         automated_events.add(node.name)
                         parsed_event = AutomatedEvent(node.name, node.validation_task, node.condition)
@@ -524,16 +495,16 @@ def generate_experiment_specification(experiment_specification):
                         parsed_manual_events.append(parsed_event)
 
                     if node.condition:
-                        print(f"    Condition: {node.condition}")
-                    print(f"    Task: {node.validation_task}")
+                        logger.info(f"    Condition: {node.condition}")
+                    logger.info(f"    Task: {node.validation_task}")
                     if node.restart:
-                        print(f"    Restart: {node.restart}")
-                    print()
+                        logger.info(f"    Restart: {node.restart}")
+                    logger.info()
 
                 elif node.__class__.__name__ == 'SpaceConfig':
-                    print(f"  Space: {node.name}")
-                    print(f"    Workflow: {node.assembled_workflow.name}")
-                    print(f"    Strategy : {node.strategy_name}")
+                    logger.info(f"  Space: {node.name}")
+                    logger.info(f"    Workflow: {node.assembled_workflow.name}")
+                    logger.info(f"    Strategy : {node.strategy_name}")
 
                     spaces.add(node.name)
 
@@ -548,12 +519,12 @@ def generate_experiment_specification(experiment_specification):
 
                     if node.tasks:
                         for task_config in node.tasks:
-                            print(f"    Task: {task_config.task.name}")
+                            logger.info(f"    Task: {task_config.task.name}")
                             task_name = task_config.task.name
                             task_data = {}
 
                             for param_config in task_config.config:
-                                print(f"        Param: {param_config.param_name} = {param_config.vp}")
+                                logger.info(f"        Param: {param_config.param_name} = {param_config.vp}")
                                 param_name = param_config.param_name
                                 param_vp = param_config.vp
 
@@ -564,7 +535,7 @@ def generate_experiment_specification(experiment_specification):
                     if node.vps:
                         for vp in node.vps:
                             if hasattr(vp.vp_values, 'values'):
-                                print(f"        {vp.vp_name} = enum{vp.vp_values.values};")
+                                logger.info(f"        {vp.vp_name} = enum{vp.vp_values.values};")
                                 vp_data = {
                                     "name": vp.vp_name,
                                     "values": vp.vp_values.values,
@@ -576,7 +547,7 @@ def generate_experiment_specification(experiment_specification):
                                 min_value = vp.vp_values.minimum
                                 max_value = vp.vp_values.maximum
                                 step_value = getattr(vp.vp_values, 'step', 1)
-                                print(f"        {vp.vp_name} = range({min_value}, {max_value}, {step_value});")
+                                logger.info(f"        {vp.vp_name} = range({min_value}, {max_value}, {step_value});")
 
                                 vp_data = {
                                     "name": vp.vp_name,
@@ -588,18 +559,16 @@ def generate_experiment_specification(experiment_specification):
                                 space_config_data["VPs"].append(vp_data)
 
                     if (node.runs != 0):
-                        print(f"        Runs: ", {node.runs})
+                        logger.info(f"        Runs: ", {node.runs})
 
                     space_configs.append(space_config_data)
-
-                print()
 
             nodes = automated_events | manual_events | spaces
 
             if component.control:
-                print("Control exists")
-                print('------------------------------------------')
-                print("Automated Events")
+                logger.info("Control exists")
+                logger.info('------------------------------------------')
+                logger.info("Automated Events")
                 for control in component.control:
                     for explink in control.explink:
                         if explink.__class__.__name__ == 'RegularExpLink':
@@ -611,13 +580,13 @@ def generate_experiment_specification(experiment_specification):
                                     for event in automated_events:
                                         if event in initial_space_name or any(
                                                 event in space.name for space in explink.spaces):
-                                            print(f"Event: {event}")
+                                            logger.info(f"Event: {event}")
                                             link = f"  Regular Link: {initial_space_name}"
                                             for space in explink.spaces:
                                                 link += f" -> {space.name}"
                                                 # if space.name in nodes:
                                                 #     nodes.remove(space.name)
-                                            print(link)
+                                            logger.info(link)
 
                                 if initial_space_name not in automated_dict:
                                     automated_dict[initial_space_name] = {}
@@ -636,7 +605,7 @@ def generate_experiment_specification(experiment_specification):
                                     line = f"  Conditional Link: {explink.fromspace.name}"
                                     line += f" ?-> {explink.tospace.name}"
                                     line += f"  Condition: {explink.condition}"
-                                    print(line)
+                                    logger.info(line)
 
                                     if explink.tospace.name in nodes:
                                         nodes.remove(explink.tospace.name)
@@ -649,19 +618,19 @@ def generate_experiment_specification(experiment_specification):
                         # if explink.initial_space.name in automated_events or any(space.name in automated_events for space in explink.spaces):
                         #     for event in automated_events:
                         #         if event in explink.initial_space.name or any(event in space.name for space in explink.spaces):
-                        #             print()
-                        #             print(f"Event: {event}")
+                        #             LOGGER.info()
+                        #             LOGGER.info(f"Event: {event}")
                         #             link = f"  Regular Link: {explink.initial_space.name}"
                         #             for space in explink.spaces:
                         #                 link += f" -> {space.name}"
-                        #             print(link)
+                        #             LOGGER.info(link)
                         #
                         #             automated_queue.append(explink.initial_space.name)
                         #             for space in explink.spaces:
                         #                 automated_queue.append(space.name)
 
-                print('------------------------------------------')
-                print("Manual Events")
+                logger.info('------------------------------------------')
+                logger.info("Manual Events")
                 for control in component.control:
                     for explink in control.explink:
                         if explink.__class__.__name__ == 'RegularExpLink':
@@ -675,11 +644,11 @@ def generate_experiment_specification(experiment_specification):
                                     for event in manual_events:
                                         if event in initial_space_name or any(
                                                 event in space.name for space in explink.spaces):
-                                            print(f"Event: {event}")
+                                            logger.info(f"Event: {event}")
                                             link = f"  Regular Link: {initial_space_name}"
                                             for space in explink.spaces:
                                                 link += f" -> {space.name}"
-                                            print(link)
+                                            logger.info(link)
 
                                 if initial_space_name not in manual_dict:
                                     manual_dict[initial_space_name] = {}
@@ -695,46 +664,13 @@ def generate_experiment_specification(experiment_specification):
                                     line = f"  Conditional Link: {explink.fromspace.name}"
                                     line += f" ?-> {explink.tospace.name}"
                                     line += f"  Condition: {explink.condition}"
-                                    print(line)
+                                    logger.info(line)
 
                                 if explink.fromspace.name not in manual_dict:
                                     manual_dict[explink.fromspace.name] = {}
 
                                 manual_dict[explink.fromspace.name][explink.condition] = explink.tospace.name
-                print('------------------------------------------')
-
-    # print("Nodes: ",nodes)
-    # print("Automated Events:", automated_events)
-    # print("Manual Events",manual_events)
-    # print("Spaces: ", spaces)
-
-    # print("Spaces Config: ")
-    # pp = pprint.PrettyPrinter(indent=4)
-    # pp.pprint(space_configs)
-    # #
-    # print("Automated Dictionary:")
-    # pp = pprint.PrettyPrinter(indent=4)
-    # pp.pprint(automated_dict)
-    #
-    # print("Manual Dictionary:")
-    # pp = pprint.PrettyPrinter(indent=4)
-    # pp.pprint(manual_dict)
-
-    # print("Parsed Automated Events")
-    # for e in parsed_automated_events:
-    #     print(e.name)
-    #     print()
-    #
-    # print("Parsed Manual Events")
-    # for e in parsed_manual_events:
-    #     print(e.name)
-    #     print()
-
-    #
-    # for space_config in space_configs:
-    #     pp.pprint(space_config)
-    #     print()
-    #
+                logger.info('------------------------------------------')
 
     return nodes, automated_dict, spaces, automated_events, parsed_automated_events, \
            manual_events, parsed_manual_events, space_configs
