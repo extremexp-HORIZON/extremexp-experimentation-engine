@@ -49,6 +49,7 @@ def _load_dataset(variables, key):
 
 def create_dir(variables, key):
     job_id = variables.get("PA_JOB_ID")
+    # TODO Check: shouldn't the next line be PA_TASK_ID instead of PREVIOUS_TASK_ID?
     task_id = variables.get("PREVIOUS_TASK_ID")
     folder = os.path.join("/shared", job_id, task_id, key)
     os.makedirs(folder, exist_ok=True)
