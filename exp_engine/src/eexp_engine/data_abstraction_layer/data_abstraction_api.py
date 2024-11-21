@@ -112,8 +112,11 @@ def update_metrics_of_workflow(wf_id, result):
         for m in wf["metrics"]:
             m_id = next(iter(m))
             name = m[m_id]["name"]
-            value = result[name]
-            add_value_to_metric(m_id, value)
+            if name in result:
+                value = result[name]
+                add_value_to_metric(m_id, value)
+            else:
+                logger.warning(f"No value for metric {name}")
 
 
 def add_value_to_metric(m_id, value):
