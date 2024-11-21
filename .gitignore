@@ -11,3 +11,8 @@ eexp_config.py
 MOBY
 exp_engine/dist
 exp_engine/library-datasets/output
+local_env
+intermediate_files
+variables.json
+execution_engine_mapping.json
+results.json

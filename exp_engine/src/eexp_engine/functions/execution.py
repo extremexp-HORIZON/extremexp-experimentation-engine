@@ -1,10 +1,11 @@
 from ..data_abstraction_layer.data_abstraction_api import *
-from ..proactive_executionware import proactive_runner
+from ..proactive_executionware import proactive_runner, local_runner
 import pprint
 import itertools
 import random
 
 EXECUTIONWARE = "PROACTIVE"
+# EXECUTIONWARE = "LOCAL"
 logger = logging.getLogger(__name__)
 
 
@@ -283,7 +284,8 @@ def get_workflow_to_run(space_config, c, assembled_flat_wfs):
 def execute_wf(w, wf_id, executionware):
     if executionware == "PROACTIVE":
         return proactive_runner.execute_wf(w, wf_id, RUNNER_FOLDER, CONFIG)
-
+    if executionware == "LOCAL":
+        return local_runner.execute_wf(w, wf_id, RUNNER_FOLDER, CONFIG)
 
 def find_start_node(nodes, automated_dict):
     values = automated_dict.values()
