@@ -1,8 +1,9 @@
+[sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
+import proactive_helper as ph
 import os
 import json
-[sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
 from classes import preprocessing_functions
-import proactive_helper as ph
+
 
 X_pad, Y_pad_json = ph.load_datasets(variables, "XPad", "YPad")
 Y_pad = json.loads(Y_pad_json)

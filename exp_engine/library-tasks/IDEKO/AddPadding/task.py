@@ -1,9 +1,9 @@
+[sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
+import proactive_helper as ph
 import numpy as np
 import os
 import json
-[sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
 from classes import preprocessing_functions
-import proactive_helper as ph
 from helpers.logger import LoggerHelper, logging
 
 LoggerHelper.init_logger()
