@@ -4,8 +4,6 @@ import pprint
 import itertools
 import random
 
-EXECUTIONWARE = "PROACTIVE"
-# EXECUTIONWARE = "LOCAL"
 logger = logging.getLogger(__name__)
 
 
@@ -204,7 +202,7 @@ def run_scheduled_workflows(exp_id, configured_workflows_of_space, configuration
             workflow_to_run = configured_workflows_of_space[wf_id]
             if get_workflow(wf_id)["status"] != "completed":
                 update_workflow(wf_id, {"status": "running", "start": get_current_time()})
-                result = execute_wf(workflow_to_run, wf_id, EXECUTIONWARE)
+                result = execute_wf(workflow_to_run, wf_id)
                 update_workflow(wf_id, {"status": "completed", "end": get_current_time()})
                 update_metrics_of_workflow(wf_id, result)
                 workflow_results = {}
@@ -281,10 +279,10 @@ def get_workflow_to_run(space_config, c, assembled_flat_wfs):
     return configured_workflow
 
 
-def execute_wf(w, wf_id, executionware):
-    if executionware == "PROACTIVE":
+def execute_wf(w, wf_id):
+    if CONFIG.EXECUTIONWARE == "PROACTIVE":
         return proactive_runner.execute_wf(w, wf_id, RUNNER_FOLDER, CONFIG)
-    if executionware == "LOCAL":
+    if CONFIG.EXECUTIONWARE == "LOCAL":
         return local_runner.execute_wf(w, wf_id, RUNNER_FOLDER, CONFIG)
 
 def find_start_node(nodes, automated_dict):

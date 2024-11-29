@@ -5,7 +5,8 @@ EXPERIMENT_LIBRARY_PATH = 'exp_engine/library-experiments'
 DATASET_LIBRARY_RELATIVE_PATH = 'exp_engine/library-datasets'
 PYTHON_DEPENDENCIES_RELATIVE_PATH = 'exp_engine/tasks'
 
-# Proactive credentials (mandatory - ask ACTIVEEON)
+EXECUTIONWARE = "PROACTIVE" # other option: "LOCAL"
+# Proactive credentials (only needed if EXECUTIONWARE = "PROACTIVE" above)
 PROACTIVE_USERNAME=""
 PROACTIVE_PASSWORD=""
 
