@@ -9,6 +9,17 @@ VARIABLES = "variables.json"
 RESULT = "results.json"
 
 
+def find_and_replace_ResultMapPut(lines):
+    new_lines = []
+    for l in lines:
+        if "resultMap.put" in l:
+            new_line = l.replace("resultMap.put", "resultMap.__setitem__")
+            new_lines.append(new_line)
+        else:
+            new_lines.append(l)
+    return new_lines
+
+
 def execute_wf(w, wf_id, runner_folder, config):
     global RUNNER_FOLDER, CONFIG
     RUNNER_FOLDER = runner_folder
@@ -74,10 +85,11 @@ def execute_wf(w, wf_id, runner_folder, config):
             second_line = [f"variables = {{{variables}}}\n"]
             third_line = ["resultMap = {}\n"]
             last_line = ["ph.save_result(resultMap)"]
-            filelines = first_line + second_line + third_line + lines[2:] + last_line
+            filelines = first_line + second_line + third_line + find_and_replace_ResultMapPut(lines[2:]) + last_line
             fp.writelines(filelines)
         subprocess.run(["python -m venv local_env"], shell=True)
-        subprocess.run(["source ./local_env/bin/activate; python -m pip install --upgrade pip --quiet; pip install -r requirements.txt --quiet"], shell=True)
+        print(f'configuring vnenv with requirements.txt: {t.requirements_file}')
+        subprocess.run([f"source ./local_env/bin/activate; python -m pip install --upgrade pip --quiet; pip install -r {t.requirements_file} --quiet"], shell=True)
         subprocess.run([f"source ./local_env/bin/activate; python {new_file_path}"], env=my_env, shell=True)
 
         print("****************************")
