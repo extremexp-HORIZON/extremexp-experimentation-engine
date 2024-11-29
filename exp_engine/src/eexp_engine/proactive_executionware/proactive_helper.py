@@ -16,7 +16,10 @@ def save_datasets(variables, *data):
 
 
 def load_datasets(variables, *keys):
-    return [_load_dataset(variables, key) for key in keys]
+    datasets = [_load_dataset(variables, key) for key in keys]
+    if len(datasets) == 1:
+        return datasets[0]
+    return datasets
 
 
 def _save_dataset(variables, key, value):
