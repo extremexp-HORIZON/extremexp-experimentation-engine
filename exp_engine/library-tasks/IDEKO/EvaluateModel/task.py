@@ -21,9 +21,7 @@ units =[100, 100, 100]
 n_timestamps, n_features = ph.load_datasets(variables, "Timestamps2", "Features")
 X_test, y_test = ph.load_datasets(variables, "XTest", "YTest")
 X_pad, Y_pad = ph.load_datasets(variables, "XPad", "YPad")
-# TODO check that the line below works
 model_path = ph.load_datasets(variables, "OutputFolder")
-model_path = model_path[0]
 
 model_nn = NeuralNetwork(n_timestamps, n_features, activation_function, units)
 
