@@ -68,3 +68,22 @@ def pause_workflow(workflow_id):
 def resume_workflow(workflow_id):
     apiHandler.resume_workflow(workflow_id)
     return {"message": f"workflow with id {workflow_id} is resumed"}, 201
+
+
+@app.route("/exp/experiment/kill/<experiment_id>", methods=["GET"])
+@cross_origin()
+def kill_experiment(experiment_id):
+    apiHandler.kill_experiment(experiment_id)
+    return {"message": f"experiment with id {experiment_id} is killed"}, 201
+
+@app.route("/exp/experiment/pause/<experiment_id>", methods=["GET"])
+@cross_origin()
+def pause_experiment(experiment_id):
+    apiHandler.pause_experiment(experiment_id)
+    return {"message": f"experiment with id {experiment_id} is paused"}, 201
+
+@app.route("/exp/experiment/resume/<experiment_id>", methods=["GET"])
+@cross_origin()
+def resume_experiment(experiment_id):
+    apiHandler.resume_experiment(experiment_id)
+    return {"message": f"experiment with id {experiment_id} is resumed"}, 201
