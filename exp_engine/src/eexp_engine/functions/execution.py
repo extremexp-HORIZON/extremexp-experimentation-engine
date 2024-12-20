@@ -193,14 +193,13 @@ def run_scheduled_workflows(exp_id, configured_workflows_of_space, configuration
     exp = get_experiment(exp_id)
     workflows_count = len(exp["workflow_ids"])
     space_results = {}
-
     for attempts in range(workflows_count):
         wf_ids = get_experiment(exp_id)["workflow_ids"]
         wf_ids_of_this_space = [w for w in wf_ids if w in configured_workflows_of_space.keys()]
         run_count = 1
         for wf_id in wf_ids_of_this_space:
             workflow_to_run = configured_workflows_of_space[wf_id]
-            if get_workflow(wf_id)["status"] != "completed":
+            if get_workflow(wf_id)["status"] == "scheduled":
                 update_workflow(wf_id, {"status": "running", "start": get_current_time()})
                 result = execute_wf(workflow_to_run, wf_id)
                 update_workflow(wf_id, {"status": "completed", "end": get_current_time()})
