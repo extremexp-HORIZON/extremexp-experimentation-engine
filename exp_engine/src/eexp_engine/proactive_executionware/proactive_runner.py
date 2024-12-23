@@ -96,13 +96,23 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, ta
             task.addVariable(input_file.name_in_task_signature, input_file_path)
     for output_file in output_files:
         if output_file.path:
-            # take out the '**' to reveal the actual path to the folder
-            output_file_path = os.path.dirname(output_file.path) if "**" in output_file.path else output_file.path
-            final_output_path = os.path.join(output_file_path, wf_id)
-            task.addVariable(output_file.name_in_task_signature, final_output_path)
-            # add back the '**' to ensure that proactive treats it as a folder
-            final_output_path_proactive = os.path.join(final_output_path, "**") if "**" in output_file.path else final_output_path
-            task.addOutputFile(final_output_path_proactive)
+            if "**" in output_file.path:
+                # take out the '**' to reveal the actual path to the folder
+                output_file_path = os.path.dirname(output_file.path)
+                final_output_path = os.path.join(output_file_path, wf_id)
+                task.addVariable(output_file.name_in_task_signature, final_output_path)
+                # add back the '**' to ensure that proactive treats it as a folder
+                final_output_path_proactive = os.path.join(final_output_path, "**")
+                task.addOutputFile(final_output_path_proactive)
+                print(f"final_output_path: {final_output_path}")
+                print(f"final_output_path_proactive: {final_output_path_proactive}")
+            else:
+                output_file_path = os.path.dirname(output_file.path)
+                output_file_name = os.path.basename(output_file.path)
+                final_output_path = os.path.join(output_file_path, wf_id, output_file_name)
+                task.addVariable(output_file.name_in_task_signature, final_output_path)
+                task.addOutputFile(final_output_path)
+                print(f"final_output_path: {final_output_path}")
 
     dependent_modules_folders = []
     for dependent_module in dependent_modules:

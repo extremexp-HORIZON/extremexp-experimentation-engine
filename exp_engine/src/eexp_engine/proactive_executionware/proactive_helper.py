@@ -59,6 +59,18 @@ def create_dir(variables, key):
 
     return folder
 
+
+def get_file_path(variables, data_set_folder_path, file_name):
+    folder_path = variables.get(data_set_folder_path)
+    os.makedirs(folder_path, exist_ok=True)
+    file_path = os.path.join(folder_path, file_name)
+    # TODO remove the next 3 lines once the bug with output files if fixed
+    placeholder_path = os.path.join(folder_path, ".placeholder")
+    with open(placeholder_path, 'w'):
+        pass
+    return file_path
+
+
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.ndarray):
