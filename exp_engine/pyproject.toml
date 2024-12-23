@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eexp_engine"
-version = "0.0.9"
+version = "0.0.10"
 authors = [
   { name="Ilias Gerostathopoulos", email="iliasger@gmail.com" },
 ]
@@ -19,11 +19,10 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-dependencies = [
-    "textX==4.0.1",
-    "requests==2.32.3",
-    "proactive==14.1.0.2409240902.dev0",
-]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = "requirements-library.txt"}
 
 [project.urls]
 Homepage = "https://colab-repo.intracom-telecom.com/colab-projects/extremexp/experiment-execution/experimentation-engine/extremexp-experimentation-engine"

@@ -8,6 +8,7 @@ including interactions with data storage and database backends and users.
 python3 -m venv env
 source ./env/bin/activate
 python3 -m pip install --upgrade pip setuptools wheel python-dotenv
+pip install --upgrade --pre proactive
 ```
 and then either install the latest version published to PyPI via
 ```
