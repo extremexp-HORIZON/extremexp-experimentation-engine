@@ -11,7 +11,8 @@ RUN apk --no-cache add openjdk11 --repository=http://dl-cdn.alpinelinux.org/alpi
 
 RUN python3 -m pip install --upgrade pip setuptools wheel python-dotenv
 RUN pip install --upgrade --pre proactive
-RUN pip install -r requirements.txt
+RUN pip install -r requirements-library.txt
+RUN pip install -r requirements-service.txt
 
 COPY . .
 
