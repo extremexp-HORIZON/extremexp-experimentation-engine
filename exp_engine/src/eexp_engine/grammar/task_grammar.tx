@@ -10,7 +10,7 @@ Task:
     '}'
 ;
 
-Element:  InputData | OutputData | Metric | Implementation | VirtualEnv |  PythonVersion | Parameter | Comment;
+Element:  InputData | OutputData | Metric | Implementation | VirtualEnv |  PythonVersion | PreScript | Parameter | Comment;
 
 InputData: 'define input data' name=ID ';' ;
 
@@ -29,6 +29,8 @@ Implementation: 'implementation' filename=STRING';' ;
 VirtualEnv: 'venv' requirements_file_path=STRING';' ;
 
 PythonVersion: 'python_version' python_version=STRING';' ;
+
+PreScript: 'pre_script' pre_script=STRING';' ;
 
 Parameter:
     'define param' name=ID '{'

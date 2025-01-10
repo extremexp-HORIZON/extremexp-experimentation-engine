@@ -71,13 +71,16 @@ def _get_python_version(python_version, enforce_python_version=True):
         exit(0)
     if python_version == "3.9":
         return "/opt/miniconda3/py39/bin/python3"
+    else:
+        return python_version
 
 
-def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version,
+def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version, pre_script_file,
                         input_files=[], output_files=[], dependent_modules=[], dependencies=[], is_precious_result=False):
     print(f"Creating task {task_name}...")
     task = gateway.createPythonTask()
     task.setTaskName(task_name)
+    print(f"setting implementation from file {task_impl}")
     task.setTaskImplementationFromFile(task_impl)
 
     if requirements_file:
@@ -88,6 +91,17 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, ta
         task.setVirtualEnvFromFile(requirements_file)
     else:
         task.setForkEnvironment(fork_environment)
+
+    if pre_script_file:
+        print(f"setting pre_script from file {pre_script_file}")
+        pre_script = gateway.createPreScript(proactive.ProactiveScriptLanguage().python())
+        pre_script.setImplementationFromFile(pre_script_file)
+        task.setPreScript(pre_script)
+
+        task.addVariable("wf_id", wf_id)
+        task.addVariable("task_name", task_name)
+        task.addVariable("data_abstraction_base_url", CONFIG.DATA_ABSTRACTION_BASE_URL)
+        task.addVariable("data_abstraction_access_token", CONFIG.DATA_ABSTRACTION_ACCESS_TOKEN)
 
     for input_file in input_files:
         if input_file.path:
@@ -134,6 +148,7 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, ta
         task.addDependency(dependency)
     task.setPreciousResult(is_precious_result)
     print("Task created.")
+
     return task
 
 
@@ -257,7 +272,7 @@ def execute_wf(w, wf_id, runner_folder, config):
     for t in sorted_tasks:
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
         task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
-                                              t.python_version, t.input_files, t.output_files, t.dependent_modules,
+                                              t.python_version, t.pre_script, t.input_files, t.output_files, t.dependent_modules,
                                               dependent_tasks)
         if len(t.params) > 0:
             _configure_task(task_to_execute, t.params)
