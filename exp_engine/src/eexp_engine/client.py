@@ -1,5 +1,5 @@
 from .functions import run_experiment
-from .proactive_executionware import proactive_runner as proactive_runner
+from .executionware import proactive_runner as proactive_runner
 from .data_abstraction_layer.data_abstraction_api import set_data_abstraction_config, create_experiment
 import os
 import logging.config

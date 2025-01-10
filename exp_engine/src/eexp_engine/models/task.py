@@ -13,6 +13,7 @@ class Task:
         self.impl_file = None
         self.requirements_file = None
         self.python_version = None
+        self.pre_script = None
         self.input_files = []
         self.output_files = []
         self.metrics = []
@@ -47,6 +48,9 @@ class Task:
 
     def add_python_version(self, python_version):
         self.python_version = python_version
+
+    def add_pre_script(self, pre_script):
+        self.pre_script = pre_script
 
     def add_sub_workflow_name(self, workflow_name):
         self.sub_workflow_name = workflow_name
@@ -88,6 +92,7 @@ class Task:
         new_t.add_implementation_file(self.impl_file)
         new_t.add_requirements_file(self.requirements_file)
         new_t.add_python_version(self.python_version)
+        new_t.add_pre_script(self.pre_script)
         new_t.add_sub_workflow_name(self.sub_workflow_name)
         if self.sub_workflow_name:
             new_t.add_sub_workflow(next(w for w in parsed_workflows if w.name == self.sub_workflow_name).clone(parsed_workflows))
@@ -114,6 +119,7 @@ class Task:
         logger.debug(f"{tab}\twith implementation: {self.impl_file}")
         logger.debug(f"{tab}\twith requirements_file: {self.requirements_file}")
         logger.debug(f"{tab}\twith python version: {self.python_version}")
+        logger.debug(f"{tab}\twith pre_script: {self.pre_script}")
         logger.debug(f"{tab}\twith sub_workflow_name: {self.sub_workflow_name}")
         logger.debug(f"{tab}\twith sub_workflow: {self.sub_workflow}")
         logger.debug(f"{tab}\twith dependencies: {self.dependencies}")
