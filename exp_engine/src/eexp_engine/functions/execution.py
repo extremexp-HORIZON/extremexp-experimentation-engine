@@ -140,6 +140,7 @@ def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
         t_spec["name"] = t.name
         metadata = {}
         metadata["prototypical_name"] = t.prototypical_name
+        metadata["type"] = t.taskType
         t_spec["metadata"] = metadata
         t_spec["source_code"] = t.impl_file
         if len(t.params) > 0:

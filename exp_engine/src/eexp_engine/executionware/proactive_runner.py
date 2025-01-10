@@ -6,8 +6,10 @@ import logging
 
 packagedir = os.path.dirname(os.path.abspath(__file__))
 PROACTIVE_HELPER_FULL_PATH = os.path.join(packagedir, "proactive_helper.py")
-INTERACTIVE_TASK_PRESCRIPT_FULL_PATH = os.path.join(packagedir, "user_interaction", "prescript.py")
-INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH = os.path.join(packagedir, "user_interaction", "requirements.txt")
+interactive_path_folder = os.path.join(packagedir, "user_interaction")
+INTERACTIVE_TASK_PRESCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "prescript.py")
+INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH = os.path.join(interactive_path_folder, "requirements.txt")
+INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "postscript.py")
 EXECUTION_ENGINE_MAPPING_FILE = "execution_engine_mapping.json"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
 
@@ -77,7 +79,7 @@ def _get_python_version(python_version, enforce_python_version=True):
         return python_version
 
 
-def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version, type,
+def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version, taskType,
                         input_files=[], output_files=[], dependent_modules=[], dependencies=[], is_precious_result=False):
     print(f"Creating task {task_name}...")
     task = gateway.createPythonTask()
@@ -85,11 +87,16 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, ta
     print(f"setting implementation from file {task_impl}")
     task.setTaskImplementationFromFile(task_impl)
 
-    if type=="interactive":
+    if taskType=="interactive":
         print(f"setting pre_script for interactive task {task_name}")
         pre_script = gateway.createPreScript(proactive.ProactiveScriptLanguage().python())
         pre_script.setImplementationFromFile(INTERACTIVE_TASK_PRESCRIPT_FULL_PATH)
         task.setPreScript(pre_script)
+
+        print(f"setting post_script for interactive task {task_name}")
+        post_script = gateway.createPostScript(proactive.ProactiveScriptLanguage().python())
+        post_script.setImplementationFromFile(INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH)
+        task.setPostScript(post_script)
 
         task.addVariable("wf_id", wf_id)
         task.addVariable("task_name", task_name)
@@ -287,7 +294,7 @@ def execute_wf(w, wf_id, runner_folder, config):
     for t in sorted_tasks:
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
         task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
-                                              t.python_version, t.type, t.input_files, t.output_files, t.dependent_modules,
+                                              t.python_version, t.taskType, t.input_files, t.output_files, t.dependent_modules,
                                               dependent_tasks)
         if len(t.params) > 0:
             _configure_task(task_to_execute, t.params)

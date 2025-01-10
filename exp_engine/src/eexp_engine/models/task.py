@@ -5,8 +5,8 @@ logger = logging.getLogger(__name__)
 class Task:
 
     def __init__(self, name):
-        self.type = "manual"
         self.name = name
+        self.taskType = None
         self.params = {}
         self.order = None
         self.sub_workflow_name = None
@@ -49,8 +49,8 @@ class Task:
     def add_python_version(self, python_version):
         self.python_version = python_version
 
-    def set_type(self, type):
-        self.type = type
+    def set_type(self, taskType):
+        self.taskType = taskType
 
     def add_sub_workflow_name(self, workflow_name):
         self.sub_workflow_name = workflow_name
@@ -86,7 +86,7 @@ class Task:
 
     def clone(self, parsed_workflows=None):
         new_t = Task(self.name)
-        new_t.set_type(self.type)
+        new_t.set_type(self.taskType)
         new_t.prototypical_name = self.prototypical_name
         new_t.prototypical_inputs = self.prototypical_inputs
         new_t.prototypical_outputs = self.prototypical_outputs
@@ -113,7 +113,7 @@ class Task:
 
     def print(self, tab=""):
         logger.debug(f"{tab}with name : {self.name}")
-        logger.debug(f"{tab}\twith type: {self.type}")
+        logger.debug(f"{tab}\twith type: {self.taskType}")
         logger.debug(f"{tab}\twith prototypical name : {self.prototypical_name}")
         logger.debug(f"{tab}\twith prototypical inputs : {self.prototypical_inputs}")
         logger.debug(f"{tab}\twith prototypical outputs : {self.prototypical_outputs}")
