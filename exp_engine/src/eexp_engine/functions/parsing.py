@@ -215,9 +215,9 @@ def generate_final_assembled_workflows(parsed_workflows, assembled_wfs_data):
                 if "python_version" in task_data:
                     logger.info(f"Changing python version of task '{task.name}' to '{task_data['python_version']}'")
                     task.add_python_version(task_data["python_version"])
-                if "type" in task_data:
-                    logger.info(f"Changing type of task '{task.name}' to '{task_data['type']}'")
-                    task.set_type(task_data["type"])
+                if "taskType" in task_data:
+                    logger.info(f"Changing type of task '{task.name}' to '{task_data['taskType']}'")
+                    task.set_type(task_data["taskType"])
                 if "prototypical_inputs" in task_data:
                     logger.info(f"Changing prototypical_inputs of task '{task.name}' to '{task_data['prototypical_inputs']}'")
                     task.add_prototypical_inputs(task_data["prototypical_inputs"])
@@ -316,8 +316,10 @@ def parse_task(folder_path):
                 if e.python_version:
                     parsed_data["python_version"] = e.python_version
             if e.__class__.__name__ == "Type":
-                if e.type:
-                    parsed_data["type"] = e.type
+                if e.taskType:
+                    parsed_data["taskType"] = e.taskType
+    if "taskType" not in parsed_data:
+        parsed_data["taskType"] = "custom"
     check_python_code_use_of_task_signature(parsed_data["task_name"], parsed_data["implementation_file_path"],
                                             parsed_data["inputs"], parsed_data["outputs"], parsed_data["params"])
     return parsed_data
@@ -353,7 +355,7 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                         task.add_implementation_file(parsed_data["implementation_file_path"])
                         task.add_requirements_file(parsed_data.get("requirements_file_path"))
                         task.add_python_version(parsed_data.get("python_version"))
-                        task.set_type(parsed_data.get("type"))
+                        task.set_type(parsed_data.get("taskType"))
                         task.add_prototypical_inputs(parsed_data.get("inputs"))
                         task.add_prototypical_outputs(parsed_data.get("outputs"))
                     if e.subworkflow:
@@ -454,7 +456,7 @@ def parse_assembled_workflow_data(experiment_specification):
                         assembled_workflow_task["metrics"] = parsed_data["metrics"]
                         assembled_workflow_task["requirements_file"] = parsed_data.get("requirements_file_path")
                         assembled_workflow_task["python_version"] = parsed_data.get("python_version")
-                        assembled_workflow_task["type"] = parsed_data.get("type")
+                        assembled_workflow_task["type"] = parsed_data.get("taskType")
                         assembled_workflow_task["prototypical_inputs"] = parsed_data.get("inputs")
                         assembled_workflow_task["prototypical_outputs"] = parsed_data.get("outputs")
                         assembled_workflow_tasks[config.alias.name] = assembled_workflow_task

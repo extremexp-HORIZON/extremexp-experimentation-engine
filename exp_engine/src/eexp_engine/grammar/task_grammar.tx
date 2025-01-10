@@ -30,7 +30,7 @@ VirtualEnv: 'venv' requirements_file_path=STRING';' ;
 
 PythonVersion: 'python_version' python_version=STRING';' ;
 
-Type: 'type' type=ID';' ;
+Type: 'type' taskType=ID';' ;
 
 Parameter:
     'define param' name=ID '{'

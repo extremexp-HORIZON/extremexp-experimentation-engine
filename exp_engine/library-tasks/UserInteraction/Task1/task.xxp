@@ -1,5 +1,7 @@
 task Task1 {
 
+    type explainability;
+
     define output data dataframe_json;
 
     implementation "Task1/task.py";
