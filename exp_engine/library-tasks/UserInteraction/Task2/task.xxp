@@ -1,10 +1,12 @@
 task Task2 {
 
+    type interactive;
+    // for interactive tasks, Python 3.6.9 is used and cannot be changed
+
     define input data dataframe_json;
     define output data dataframe_json;
 
     implementation "Task2/task.py";
     venv "Task2/requirements.txt";
-    python_version "/usr/bin/python3";
-    pre_script "Task2/prescript.py";
+
 }
