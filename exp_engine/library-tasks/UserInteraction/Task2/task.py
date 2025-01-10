@@ -52,14 +52,12 @@ def continue_pipeline():
         # Save the updated dataframe to ProActive variables
         variables.put("dataframe_json", df.to_json())
         print("Updated dataframe passed to Task 3.")
-        print("ILIAS1")
         # Display confirmation and the updated dataframe
         html_response = f'''
         <h1>Data saved and pipeline will continue.</h1>
         <h2>Updated Dataframe:</h2>
         <pre>{df.to_string(index=False)}</pre>
         '''
-        print("ILIAS2")
         return html_response, 200
     except Exception as e:
         print("Error in continue_pipeline:", e)
@@ -80,7 +78,6 @@ def shutdown_server():
 
 @app.after_request
 def shutdown_if_requested(response):
-    print("request42")
     if request.endpoint in ['continue_pipeline', 'stop_pipeline']:
         shutdown_server()
     return response

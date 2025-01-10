@@ -6,6 +6,8 @@ import logging
 
 packagedir = os.path.dirname(os.path.abspath(__file__))
 PROACTIVE_HELPER_FULL_PATH = os.path.join(packagedir, "proactive_helper.py")
+INTERACTIVE_TASK_PRESCRIPT_FULL_PATH = os.path.join(packagedir, "user_interaction", "prescript.py")
+INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH = os.path.join(packagedir, "user_interaction", "requirements.txt")
 EXECUTION_ENGINE_MAPPING_FILE = "execution_engine_mapping.json"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
 
@@ -75,7 +77,7 @@ def _get_python_version(python_version, enforce_python_version=True):
         return python_version
 
 
-def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version, pre_script_file,
+def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version, type,
                         input_files=[], output_files=[], dependent_modules=[], dependencies=[], is_precious_result=False):
     print(f"Creating task {task_name}...")
     task = gateway.createPythonTask()
@@ -83,25 +85,38 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, ta
     print(f"setting implementation from file {task_impl}")
     task.setTaskImplementationFromFile(task_impl)
 
-    if requirements_file:
-        python_version_path = _get_python_version(python_version)
-        print(f"setting python version to {python_version_path}")
-        task.setDefaultPython(python_version_path)
-        print(f"setting venv from file {requirements_file}")
-        task.setVirtualEnvFromFile(requirements_file)
-    else:
-        task.setForkEnvironment(fork_environment)
-
-    if pre_script_file:
-        print(f"setting pre_script from file {pre_script_file}")
+    if type=="interactive":
+        print(f"setting pre_script for interactive task {task_name}")
         pre_script = gateway.createPreScript(proactive.ProactiveScriptLanguage().python())
-        pre_script.setImplementationFromFile(pre_script_file)
+        pre_script.setImplementationFromFile(INTERACTIVE_TASK_PRESCRIPT_FULL_PATH)
         task.setPreScript(pre_script)
 
         task.addVariable("wf_id", wf_id)
         task.addVariable("task_name", task_name)
         task.addVariable("data_abstraction_base_url", CONFIG.DATA_ABSTRACTION_BASE_URL)
         task.addVariable("data_abstraction_access_token", CONFIG.DATA_ABSTRACTION_ACCESS_TOKEN)
+
+        python_version_path = "/usr/bin/python3" # This is 3.6.9 in Proactive, and cannot be changed
+        task.setDefaultPython(python_version_path)
+
+        with open(INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH) as file:
+            requirements = [line.rstrip() for line in file]
+        if requirements_file:
+            print(f"Adding extra requirements from file {requirements_file}")
+            with open(requirements_file) as file:
+                extra_reqs = [line.rstrip() for line in file]
+            requirements += extra_reqs
+        task.setVirtualEnv(requirements=requirements)
+
+    else:
+        if requirements_file:
+            python_version_path = _get_python_version(python_version)
+            print(f"setting python version to {python_version_path}")
+            task.setDefaultPython(python_version_path)
+            print(f"setting venv from file {requirements_file}")
+            task.setVirtualEnvFromFile(requirements_file)
+        else:
+            task.setForkEnvironment(fork_environment)
 
     for input_file in input_files:
         if input_file.path:
@@ -272,7 +287,7 @@ def execute_wf(w, wf_id, runner_folder, config):
     for t in sorted_tasks:
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
         task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
-                                              t.python_version, t.pre_script, t.input_files, t.output_files, t.dependent_modules,
+                                              t.python_version, t.type, t.input_files, t.output_files, t.dependent_modules,
                                               dependent_tasks)
         if len(t.params) > 0:
             _configure_task(task_to_execute, t.params)
