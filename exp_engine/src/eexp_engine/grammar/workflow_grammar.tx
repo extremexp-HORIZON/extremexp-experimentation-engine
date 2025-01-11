@@ -47,8 +47,7 @@ TaskLink:
 ConfigureTask:
     'configure task' alias=[DefineTask] '{'
         ('param' parameters=ID ('=' values=INT | STRING | FLOAT | BOOL | "null")* ';')*
-        ('implementation' workflow=[Workflow]';' | 'implementation' filename=STRING';' | 'subworkflow' subworkflow=STRING';')?
-        ('dependency' dependency=STRING';')?
+        ('implementation' filename=STRING';' | 'subworkflow' subworkflow=STRING';')?
         (subtasks=ConfigureTask)*
     '}';
 

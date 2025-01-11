@@ -27,4 +27,5 @@ task EvaluateModel {
     }
 
     implementation "IDEKO/EvaluateModel/task.py";
+    dependency "IDEKO/Binary_v1/src/**";
 }

@@ -10,13 +10,11 @@ workflow IDEKO_multi_main {
   START -> ReadData -> PrepareData -> TrainModel -> EvaluateModel -> END;
 
   configure task ReadData {
-    implementation "IDEKO/ReadData";
-    dependency "IDEKO/Binary_v1/src/**";
+    implementation "IDEKO.ReadData";
   }
 
   configure task EvaluateModel {
-    implementation "IDEKO/EvaluateModel";
-    dependency "IDEKO/Binary_v1/src/**";
+    implementation "IDEKO.EvaluateModel";
   }
 
   configure task PrepareData {
@@ -66,15 +64,13 @@ workflow IDEKO_multi_main {
 
 workflow TrainModelNN from IDEKO_multi_main {
   configure task TrainModel {
-    implementation "IDEKO/TrainModelNN";
-    dependency "IDEKO/Binary_v1/src/**";
+    implementation "IDEKO.TrainModelNN";
   }
 }
 
 workflow TrainModelRNN from IDEKO_multi_main {
   configure task TrainModel {
-    implementation "IDEKO/TrainModelRNN";
-    dependency "IDEKO/Binary_v1/src/**";
+    implementation "IDEKO.TrainModelRNN";
   }
 }
 

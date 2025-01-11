@@ -10,7 +10,7 @@ Task:
     '}'
 ;
 
-Element:  InputData | OutputData | Metric | Implementation | VirtualEnv |  PythonVersion | Type | Parameter | Comment;
+Element:  InputData | OutputData | Metric | Implementation | Dependency | VirtualEnv |  PythonVersion | Type | Parameter | Comment;
 
 InputData: 'define input data' name=ID ';' ;
 
@@ -25,6 +25,8 @@ Metric: 'define metric' name=ID '{'
 METRIC_KIND: 'single-value' | 'series';
 
 Implementation: 'implementation' filename=STRING';' ;
+
+Dependency: 'dependency' dependency=STRING';' ;
 
 VirtualEnv: 'venv' requirements_file_path=STRING';' ;
 

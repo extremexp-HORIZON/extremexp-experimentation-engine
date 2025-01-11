@@ -7,4 +7,5 @@ task ReadData {
     define output data IndicatorList;
 
     implementation "IDEKO/ReadData/task.py";
+    dependency "IDEKO/Binary_v1/src/**";
 }

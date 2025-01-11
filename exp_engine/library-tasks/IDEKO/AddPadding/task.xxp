@@ -8,4 +8,5 @@ task AddPadding {
     define output data YPad;
 
     implementation "IDEKO/AddPadding/task.py";
+    dependency "IDEKO/Binary_v1/src/**";
 }
