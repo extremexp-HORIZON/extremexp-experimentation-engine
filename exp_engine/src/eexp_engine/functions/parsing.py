@@ -288,8 +288,8 @@ def parse_task(folder_path):
     metrics, params, inputs, outputs = [], [], [], []
     parsed_data["metrics"] = metrics
     parsed_data["params"] = params
-    parsed_data["inputs"] = inputs
-    parsed_data["outputs"] = outputs
+    parsed_data["prototypical_inputs"] = inputs
+    parsed_data["prototypical_outputs"] = outputs
     for component in workflow_model.component:
         if component.__class__.__name__ == "Task":
             parsed_data["task_name"] = component.name
@@ -311,7 +311,7 @@ def parse_task(folder_path):
                 params.append(e.name)
             if e.__class__.__name__ == "VirtualEnv":
                 if e.requirements_file_path:
-                    parsed_data["requirements_file_path"] = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.requirements_file_path)
+                    parsed_data["requirements_file"] = os.path.join(CONFIG.TASK_LIBRARY_PATH, e.requirements_file_path)
             if e.__class__.__name__ == "PythonVersion":
                 if e.python_version:
                     parsed_data["python_version"] = e.python_version
@@ -324,7 +324,8 @@ def parse_task(folder_path):
     if "taskType" not in parsed_data:
         parsed_data["taskType"] = "custom"
     check_python_code_use_of_task_signature(parsed_data["task_name"], parsed_data["implementation_file_path"],
-                                            parsed_data["inputs"], parsed_data["outputs"], parsed_data["params"])
+                                            parsed_data["prototypical_inputs"], parsed_data["prototypical_outputs"],
+                                            parsed_data["params"])
     return parsed_data
 
 
@@ -357,12 +358,13 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                             task.add_metric(metric)
                         task.prototypical_name = parsed_data["task_name"]
                         task.add_implementation_file(parsed_data["implementation_file_path"])
-                        task.add_requirements_file(parsed_data.get("requirements_file_path"))
+                        task.add_requirements_file(parsed_data.get("requirements_file"))
                         task.add_python_version(parsed_data.get("python_version"))
                         task.set_type(parsed_data.get("taskType"))
-                        task.add_prototypical_inputs(parsed_data.get("inputs"))
-                        task.add_prototypical_outputs(parsed_data.get("outputs"))
-                        task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, parsed_data.get("dependency"))
+                        task.add_prototypical_inputs(parsed_data.get("prototypical_inputs"))
+                        task.add_prototypical_outputs(parsed_data.get("prototypical_outputs"))
+                        if "dependency" in parsed_data:
+                            task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, parsed_data.get("dependency"))
                     if e.subworkflow:
                         task_subworkflow_path = get_task_subworkflow_path(e.subworkflow)
                         with open(task_subworkflow_path) as file:
@@ -457,13 +459,11 @@ def parse_assembled_workflow_data(experiment_specification):
                                 f"{task_file_path} in task {config.alias.name}")
                         assembled_workflow_task["prototypical_name"] = parsed_data["task_name"]
                         assembled_workflow_task["implementation"] = task_file_path
-                        assembled_workflow_task["metrics"] = parsed_data["metrics"]
-                        assembled_workflow_task["requirements_file"] = parsed_data.get("requirements_file_path")
-                        assembled_workflow_task["python_version"] = parsed_data.get("python_version")
-                        assembled_workflow_task["type"] = parsed_data.get("taskType")
-                        assembled_workflow_task["prototypical_inputs"] = parsed_data.get("inputs")
-                        assembled_workflow_task["prototypical_outputs"] = parsed_data.get("outputs")
-                        assembled_workflow_task["dependency"] = parsed_data.get("dependency")
+                        properties = ["metrics", "requirements_file", "python_version",
+                                      "taskType", "prototypical_inputs", "prototypical_outputs", "dependency"]
+                        for property in properties:
+                            if property in parsed_data:
+                                assembled_workflow_task[property] = parsed_data.get(property)
                         assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
                     configurations.remove(config)
                     configurations += config.subtasks
