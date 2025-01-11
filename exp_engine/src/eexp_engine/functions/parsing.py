@@ -315,6 +315,9 @@ def parse_task(folder_path):
             if e.__class__.__name__ == "PythonVersion":
                 if e.python_version:
                     parsed_data["python_version"] = e.python_version
+            if e.__class__.__name__ == "Dependency":
+                if e.dependency:
+                    parsed_data["dependency"] = e.dependency
             if e.__class__.__name__ == "Type":
                 if e.taskType:
                     parsed_data["taskType"] = e.taskType
@@ -344,7 +347,8 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                 if e.__class__.__name__ == "ConfigureTask":
                     task = wf.get_task(e.alias.name)
                     if e.filename:
-                        parsed_data = get_task_metadata(e.filename)
+                        actual_path = e.filename.replace(".", os.sep)
+                        parsed_data = get_task_metadata(actual_path)
                         implementation_file_path = parsed_data["implementation_file_path"]
                         if not os.path.exists(implementation_file_path):
                             raise exceptions.ImplementationFileNotFound(
@@ -358,6 +362,7 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                         task.set_type(parsed_data.get("taskType"))
                         task.add_prototypical_inputs(parsed_data.get("inputs"))
                         task.add_prototypical_outputs(parsed_data.get("outputs"))
+                        task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, parsed_data.get("dependency"))
                     if e.subworkflow:
                         task_subworkflow_path = get_task_subworkflow_path(e.subworkflow)
                         with open(task_subworkflow_path) as file:
@@ -366,8 +371,6 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                             sub_wf, parsed_workflows, task_dependencies = get_workflow_components(experiments_metamodel,subworkflow_model,parsed_workflows,task_dependencies)
                             task.add_sub_workflow(sub_wf)
                             task.add_sub_workflow_name(sub_wf.name)
-                    if e.dependency:
-                        task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, e.dependency)
 
                 if e.__class__.__name__ == "ConfigureData":
                     ds = wf.get_dataset(e.alias.name)
@@ -442,11 +445,12 @@ def parse_assembled_workflow_data(experiment_specification):
             while configurations:
                 for config in component.tasks:
                     assembled_workflow_task = {}
-                    if config.workflow:
-                        assembled_workflow_task["workflow"] = config.workflow
-                        assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
+                    if config.subworkflow:
+                        # TODO not supported for now
+                        None
                     elif config.filename:
-                        parsed_data = get_task_metadata(config.filename)
+                        actual_file = config.filename.replace(".", os.sep)
+                        parsed_data = get_task_metadata(actual_file)
                         task_file_path = parsed_data["implementation_file_path"]
                         if not os.path.exists(task_file_path):
                             raise exceptions.ImplementationFileNotFound(
@@ -459,9 +463,8 @@ def parse_assembled_workflow_data(experiment_specification):
                         assembled_workflow_task["type"] = parsed_data.get("taskType")
                         assembled_workflow_task["prototypical_inputs"] = parsed_data.get("inputs")
                         assembled_workflow_task["prototypical_outputs"] = parsed_data.get("outputs")
+                        assembled_workflow_task["dependency"] = parsed_data.get("dependency")
                         assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
-                    if config.dependency:
-                        assembled_workflow_task["dependency"] = config.dependency
                     configurations.remove(config)
                     configurations += config.subtasks
 

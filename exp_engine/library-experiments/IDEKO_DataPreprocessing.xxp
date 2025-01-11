@@ -6,13 +6,11 @@ workflow IDEKO_DataPreprocessing {
   START -> AddPadding -> SplitData -> END;
 
   configure task SplitData {
-    implementation "IDEKO/SplitData";
-    dependency "IDEKO/Binary_v1/src/**";
+    implementation "IDEKO.SplitData";
   }
 
   configure task AddPadding {
-    implementation "IDEKO/AddPadding";
-    dependency "IDEKO/Binary_v1/src/**";
+    implementation "IDEKO.AddPadding";
   }
 
   define input data X2;
