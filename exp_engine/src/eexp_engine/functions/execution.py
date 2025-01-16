@@ -1,5 +1,6 @@
 from ..data_abstraction_layer.data_abstraction_api import *
 from ..executionware import proactive_runner, local_runner
+from ..models.experiment import *
 import pprint
 import itertools
 import random
@@ -9,125 +10,119 @@ logger = logging.getLogger(__name__)
 
 class Execution:
 
-    def __init__(self, exp_id, nodes, automated_dict, spaces,
-                 automated_events, parsed_automated_events,
-                 manual_events, parsed_manual_events,
-                 space_configs, assembled_flat_wfs,
-                 runner_folder, config):
+    def __init__(self, exp_id, exp, assembled_flat_wfs, runner_folder, config):
         self.exp_id = exp_id
-        self.nodes = nodes
-        self.automated_dict = automated_dict
-        self.spaces = spaces
-        self.automated_events = automated_events
-        self.parsed_automated_events = parsed_automated_events
-        self.manual_events = manual_events
-        self.parsed_manual_events = parsed_manual_events
-        self.space_configs = space_configs
+        self.exp = exp
         self.assembled_flat_wfs = assembled_flat_wfs
         self.results = {}
+        self.run_count = 1
         global RUNNER_FOLDER, CONFIG, LOGGER
         RUNNER_FOLDER = runner_folder
         CONFIG = config
 
     def start(self):
-        start_node = find_start_node(self.nodes, self.automated_dict)
-        logger.info(f"Nodes: {self.nodes}")
-        logger.info(f"Start Node: {start_node}")
+        start_node = next(node for node in self.exp.control_node_containers if not node.is_next)
         update_experiment(self.exp_id, {"status": "running", "start": get_current_time()})
         node = start_node
         result = self.execute_node(node)
-        while node in self.automated_dict:
-            next_action = self.automated_dict[node]
-            node = next_action[result]
+        while node.conditions_to_next_node_containers:
+            node = node.conditions_to_next_node_containers[result]
             result = self.execute_node(node)
         update_experiment(self.exp_id, {"status": "completed", "end": get_current_time()})
 
-    def execute_node(self, node):
-        logger.info(node)
-        if node in self.spaces:
-            return self.execute_space(node)
-        elif node in self.automated_events:
-            return self.execute_automated_event(node)
-        elif node in self.manual_events:
-            return self.execute_manual_event(node)
+    def execute_node(self, control_node_container):
+        for node_name in control_node_container.parallel_node_names:
+            all_control_nodes = self.exp.spaces + self.exp.tasks + self.exp.interactions
+            node_to_execute = next(n for n in all_control_nodes if n.name==node_name)
+            logger.info(f"executing node {node_to_execute.name}")
+            # TODO support parallel execution of control nodes
+            if isinstance(node_to_execute, Space):
+                logger.debug("executing a Space")
+                return self.execute_space(node_to_execute)
+            if isinstance(node_to_execute, ExpTask):
+                logger.debug("executing an ExpTask")
+                return self.execute_task(node_to_execute)
+            # TODO implement Interaction tasks
 
     def execute_space(self, node):
-        logger.info("executing space")
-        space_config = next((s for s in self.space_configs if s['name'] == node), None)
-        logger.info('-------------------------------------------------------------------')
-        logger.info(f"Running experiment of espace '{space_config['name']}' of type '{space_config['strategy']}'")
-        method_type = space_config["strategy"]
+        method_type = node.strategy
         if method_type == "gridsearch":
-            space_results = run_grid_search(space_config, self.exp_id, self.assembled_flat_wfs)
+            logger.debug("Running gridsearch")
+            space_results, self.run_count = run_grid_search(self.exp_id, node, self.assembled_flat_wfs, self.run_count)
         if method_type == "randomsearch":
-            space_results = run_random_search(space_config, self.exp_id, self.assembled_flat_wfs)
-        if method_type =="singlerun":
-            space_results = run_singlerun(space_config, self.exp_id)
-        self.results[space_config['name']] = space_results
-        logger.info("node executed")
+            space_results, self.run_count = run_random_search(self.exp_id, node, self.assembled_flat_wfs, self.run_count)
+        self.results[node.name] = space_results
+        logger.info("Space executed")
         logger.info("Results so far")
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(self.results)
         return 'True'
 
-    def execute_automated_event(self, node):
-        logger.info("executing automated event")
-        e = next((e for e in self.parsed_automated_events if e.name == node), None)
-        logger.info(e.task)
-        module = __import__('IDEKO_events')
-        func = getattr(module, e.task)
-        ret = func(self.results)
-        logger.info("--------------------------------------------------------------------")
-        return ret
-
-    def execute_manual_event(self, node):
-        logger.info("executing manual event")
-        e = next((e for e in self.parsed_manual_events if e.name == node), None)
-        module = __import__('IDEKO_events')
-        func = getattr(module, e.task)
-        ret = func(self.automated_dict, self.space_configs, e.name)
-        logger.info("--------------------------------------------------------------------")
-        return ret
+    def execute_task(self, node):
+        logger.debug(f"task: {node.name}")
+        node.wf.print()
+        wf_id = create_executed_workflow_in_db(self.exp_id, self.run_count, node.wf)
+        self.run_count += 1
+        result = execute_wf(node.wf, wf_id)
+        self.results[node.name] = {'result': result}
+        logger.info("ExpTask executed")
+        logger.info("Results so far")
+        pp = pprint.PrettyPrinter(indent=4)
+        pp.pprint(self.results)
+        return 'True'
 
 
-def run_grid_search(space_config, exp_id, assembled_flat_wfs):
-    VPs = space_config["VPs"]
-    vp_combinations = []
-
-    for vp_data in VPs:
-        if vp_data["type"] == "enum":
-            vp_name = vp_data["name"]
-            vp_values = vp_data["values"]
-            vp_combinations.append([(vp_name, value) for value in vp_values])
-
-        elif vp_data["type"] == "range":
-            vp_name = vp_data["name"]
-            min_value = vp_data["min"]
-            max_value = vp_data["max"]
-            step_value = vp_data.get("step", 1) if vp_data["step"] != 0 else 1
-            vp_values = list(range(min_value, max_value, step_value))
-            vp_combinations.append([(vp_name, value) for value in vp_values])
-
-    # Generate combinations
-    combinations = list(itertools.product(*vp_combinations))
-
+def run_grid_search(exp_id, node, assembled_flat_wfs, run_count):
+    combinations = generate_combinations(node)
     print(f"\nGrid search generated {len(combinations)} configurations to run.\n")
     for combination in combinations:
         print(combination)
+    return run_combinations(exp_id, node, combinations, assembled_flat_wfs, run_count)
 
+
+def run_random_search(exp_id, node, assembled_flat_wfs, run_count):
+    combinations = generate_combinations(node)
+    random_indexes = [random.randrange(len(combinations)) for i in range(node.runs)]
+    random_combinations = [combinations[ri] for ri in random_indexes]
+    print(f"\nRandom search generated {len(random_combinations)} configurations to run.\n")
+    for c in random_combinations:
+        print(c)
+    return run_combinations(exp_id, node, random_combinations, assembled_flat_wfs, run_count)
+
+
+def generate_combinations(node):
+    vp_combinations = []
+    for vp in node.variability_points:
+        if vp.generator_type == "enum":
+            vp_name = vp.name
+            vp_values = vp.vp_data["values"]
+            vp_combinations.append([(vp_name, value) for value in vp_values])
+
+        elif vp.generator_type == "range":
+            vp_name = vp.name
+            min_value = vp.vp_data["min"]
+            max_value = vp.vp_data["max"]
+            step_value = vp.vp_data.get("step", 1) if vp.vp_data["step"] != 0 else 1
+            vp_values = list(range(min_value, max_value, step_value))
+            vp_combinations.append([(vp_name, value) for value in vp_values])
+
+    combinations = list(itertools.product(*vp_combinations))
+    return combinations
+
+
+def run_combinations(exp_id, node, combinations, assembled_flat_wfs, run_count):
     configured_workflows_of_space = {}
     configurations_of_space = {}
 
-    run_count = 1
     for c in combinations:
         print(f"Run {run_count}")
         print(f"Combination {c}")
-        configured_workflow = get_workflow_to_run(space_config, c, assembled_flat_wfs)
+        configured_workflow = get_workflow_to_run(node, c, assembled_flat_wfs)
         wf_id = create_executed_workflow_in_db(exp_id, run_count, configured_workflow)
         configured_workflows_of_space[wf_id] = configured_workflow
         configurations_of_space[wf_id] = c
         run_count += 1
-    return run_scheduled_workflows(exp_id, configured_workflows_of_space, configurations_of_space)
+    return run_scheduled_workflows(exp_id, configured_workflows_of_space, configurations_of_space), run_count
 
 
 def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
@@ -197,7 +192,7 @@ def run_scheduled_workflows(exp_id, configured_workflows_of_space, configuration
     for attempts in range(workflows_count):
         wf_ids = get_experiment(exp_id)["workflow_ids"]
         wf_ids_of_this_space = [w for w in wf_ids if w in configured_workflows_of_space.keys()]
-        run_count = 1
+        run_count_in_space = 1
         for wf_id in wf_ids_of_this_space:
             workflow_to_run = configured_workflows_of_space[wf_id]
             if get_workflow(wf_id)["status"] == "scheduled":
@@ -208,72 +203,23 @@ def run_scheduled_workflows(exp_id, configured_workflows_of_space, configuration
                 workflow_results = {}
                 workflow_results["configuration"] = configurations_of_space[wf_id]
                 workflow_results["result"] = result
-                space_results[run_count] = workflow_results
+                space_results[run_count_in_space] = workflow_results
             # TODO fix this count in case of reordering
-            run_count += 1
+            run_count_in_space += 1
     return space_results
 
 
-def run_random_search(space_config, exp_id, assembled_flat_wfs):
-    # TODO not working, revisit this
-    random_combinations = []
-
-    vps = space_config['VPs']
-    runs = space_config['runs']
-
-    for i in range(runs):
-        combination = []
-        for vp in vps:
-            vp_name = vp['name']
-            min_val = vp['min']
-            max_val = vp['max']
-
-            value = random.randint(min_val, max_val)
-
-            combination.append((vp_name, value))
-
-        random_combinations.append(tuple(combination))
-
-    print(f"\nRandom search generated {len(random_combinations)} configurations to run.\n")
-    for c in random_combinations:
-        print(c)
-
-    run_count = 1
-    space_results = {}
-    for c in random_combinations:
-        print(f"Run {run_count}")
-        workflow_to_run = get_workflow_to_run(space_config, c, assembled_flat_wfs)
-        result = execute_wf()
-        workflow_results = {}
-        workflow_results["configuration"] = c
-        workflow_results["result"] = result
-        space_results[run_count] = workflow_results
-        print("..........")
-        run_count += 1
-    return space_results
-
-
-def run_singlerun(space_config, exp_id):
-    # TODO not working, revisit this
-    print(f"Single Run")
-    # w = next(w for w in assembled_flat_wfs if w.name == space_config["assembled_workflow"])
-    print(space_config)
-    result = execute_wf()
-    workflow_results = []
-    workflow_results = result
-    print(workflow_results)
-
-
-def get_workflow_to_run(space_config, c, assembled_flat_wfs):
+def get_workflow_to_run(node, c, assembled_flat_wfs):
     c_dict = dict(c)
-    assembled_workflow = next(w for w in assembled_flat_wfs if w.name == space_config["assembled_workflow"])
+    assembled_workflow = next(w for w in assembled_flat_wfs if w.name == node.assembled_workflow)
     # TODO subclass the Workflow to capture different types (assembled, configured, etc.)
     configured_workflow = assembled_workflow.clone()
     for t in configured_workflow.tasks:
         t.params = {}
-        if t.name in space_config["tasks"].keys():
-            task_config = space_config["tasks"][t.name]
-            for param_name, param_vp in task_config.items():
+        variable_tasks = [vt for vt in node.variable_tasks if t.name==vt.name]
+        if len(variable_tasks) == 1:
+            variable_task = variable_tasks[0]
+            for param_name, param_vp in variable_task.param_names_to_vp_names.items():
                 print(f"Setting param '{param_name}' of task '{t.name}' to '{c_dict[param_vp]}'")
                 t.set_param(param_name, c_dict[param_vp])
     return configured_workflow
@@ -285,11 +231,4 @@ def execute_wf(w, wf_id):
     if CONFIG.EXECUTIONWARE == "LOCAL":
         return local_runner.execute_wf(w, wf_id, RUNNER_FOLDER, CONFIG)
 
-def find_start_node(nodes, automated_dict):
-    values = automated_dict.values()
-    if len(values) == 0:
-        # if the control is trivial, just pick the first node
-        return list(nodes)[0]
-    for n in automated_dict:
-        if n not in values:
-            return n
+

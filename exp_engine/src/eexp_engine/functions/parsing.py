@@ -4,6 +4,9 @@ from ..models.dataset import Dataset
 from ..models.metric import Metric
 from ..models.events import AutomatedEvent
 from ..models.events import ManualEvent
+from ..models.experiment import Experiment
+from ..models.experiment import Space
+from ..models.experiment import ControlNodeContainer
 from .. import exceptions
 import os
 import textx
@@ -474,216 +477,122 @@ def parse_assembled_workflow_data(experiment_specification):
     return assembled_workflows_data
 
 
+def extract_parallel_node_names(n):
+    node_names = []
+    if n.single_node:
+        node_names.append(n.single_node.name)
+    if n.first_node and n.rest_nodes:
+        node_names.append(n.first_node.name)
+        for rest_node in n.rest_nodes:
+            node_names.append(rest_node.name)
+    return node_names
 
-def generate_experiment_specification(experiment_specification):
+
+def create_if_needed_control_node_container(exp, names):
+    if exp.has_control_node_container(names):
+        node = exp.get_control_node_container(names)
+    else:
+        node = ControlNodeContainer(names)
+        exp.add_control_node_container(node)
+    return node
+
+
+def process_control_node_dependencies(exp, nodes, condition="True"):
+    if len(nodes)==1:
+        node_names = extract_parallel_node_names(nodes[0])
+        logger.debug(f"single node names: {node_names}")
+        create_if_needed_control_node_container(exp, node_names)
+    else:
+        for n1, n2 in zip(nodes[0::1], nodes[1::1]):
+            n1_node_names = extract_parallel_node_names(n1)
+            n2_node_names = extract_parallel_node_names(n2)
+            logger.debug(f"n1_node_names: {n1_node_names}")
+            logger.debug(f"n2_node_names: {n2_node_names}")
+            node1 = create_if_needed_control_node_container(exp, n1_node_names)
+            node2 = create_if_needed_control_node_container(exp, n2_node_names)
+            node1.add_next(node2, condition)
+
+
+def parse_experiment_specification(experiment_specification):
     experiments_metamodel = textx.metamodel_from_file(GRAMMAR_PATH)
     experiment_model = experiments_metamodel.model_from_str(experiment_specification)
-    spaces = set()
-    automated_events = set()
-    manual_events = set()
-    parsed_automated_events = []
-    parsed_manual_events = []
-    space_configs = []
-    automated_dict = {}
-    manual_dict = {}
-
     for component in experiment_model.component:
         if component.__class__.__name__ == 'Experiment':
-            # experiments.append(component.name)
-            logger.info(f"Experiment name: {component.name}")
-            logger.info(f"Experiment intent: {component.intent_name}")
-
+            exp = Experiment(component.name)
+            exp.set_intent(component.intent_name)
             for node in component.experimentNode:
-                if node.__class__.__name__ == 'Event':
-                    logger.info(f"Event: {node.name}")
-                    logger.info(f"    Type: {node.eventType}")
-                    if node.eventType == 'automated':
-                        automated_events.add(node.name)
-                        parsed_event = AutomatedEvent(node.name, node.validation_task, node.condition)
-                        parsed_automated_events.append(parsed_event)
-
-                    if node.eventType == 'manual':
-                        manual_events.add(node.name)
-                        parsed_event = ManualEvent(node.name, node.validation_task, node.restart)
-                        parsed_manual_events.append(parsed_event)
-
-                    if node.condition:
-                        logger.info(f"    Condition: {node.condition}")
-                    logger.info(f"    Task: {node.validation_task}")
-                    if node.restart:
-                        logger.info(f"    Restart: {node.restart}")
-                    logger.info()
-
-                elif node.__class__.__name__ == 'SpaceConfig':
-                    logger.info(f"  Space: {node.name}")
-                    logger.info(f"    Workflow: {node.assembled_workflow.name}")
-                    logger.info(f"    Strategy : {node.strategy_name}")
-
-                    spaces.add(node.name)
-
-                    space_config_data = {
-                        "name": node.name,
-                        "assembled_workflow": node.assembled_workflow.name,
-                        "strategy": node.strategy_name,
-                        "tasks": {},
-                        "VPs": [],
-                        "runs": node.runs
-                    }
-
+                if node.__class__.__name__ == 'SpaceConfig':
+                    space = Space(node.name)
+                    exp.add_space(space)
+                    space.set_assembled_workflow(node.assembled_workflow.name)
+                    space.set_strategy(node.strategy_name)
                     if node.tasks:
                         for task_config in node.tasks:
-                            logger.info(f"    Task: {task_config.task.name}")
-                            task_name = task_config.task.name
-                            task_data = {}
-
                             for param_config in task_config.config:
-                                logger.info(f"        Param: {param_config.param_name} = {param_config.vp}")
-                                param_name = param_config.param_name
-                                param_vp = param_config.vp
-
-                                task_data[param_name] = param_vp
-
-                            space_config_data["tasks"][task_name] = task_data
-
+                                space.add_task_param_to_vp_mapping(task_config.task.name,
+                                                                   param_config.param_name, param_config.vp)
                     if node.vps:
                         for vp in node.vps:
-                            if hasattr(vp.vp_values, 'values'):
-                                logger.info(f"        {vp.vp_name} = enum{vp.vp_values.values};")
+                            if vp.vp_values.__class__.__name__ == 'ENUM':
+                                vp_type = "enum"
                                 vp_data = {
-                                    "name": vp.vp_name,
                                     "values": vp.vp_values.values,
-                                    "type": "enum"
                                 }
-                                space_config_data["VPs"].append(vp_data)
-
-                            elif hasattr(vp.vp_values, 'minimum') and hasattr(vp.vp_values, 'maximum'):
-                                min_value = vp.vp_values.minimum
-                                max_value = vp.vp_values.maximum
-                                step_value = getattr(vp.vp_values, 'step', 1)
-                                logger.info(f"        {vp.vp_name} = range({min_value}, {max_value}, {step_value});")
-
+                            if vp.vp_values.__class__.__name__ == 'RANGE':
+                                vp_type = "range"
                                 vp_data = {
-                                    "name": vp.vp_name,
-                                    "min": min_value,
-                                    "max": max_value,
-                                    "step": step_value,
-                                    "type": "range"
+                                    "min": vp.vp_values.minimum,
+                                    "max": vp.vp_values.maximum,
+                                    "step": getattr(vp.vp_values, 'step', 1),
                                 }
-                                space_config_data["VPs"].append(vp_data)
+                            space.add_variability_point(vp.vp_name, vp_type, vp_data)
+                    if node.runs:
+                        space.set_runs(int(node.runs))
+                if node.__class__.__name__ == 'ExperimentControlTask':
+                    # exp.add_task(node.name, node.implementation, node.subworkflow)
+                    wf = Workflow(node.name)
+                    if node.implementation:
+                        task = Task(node.name)
+                        wf.add_task(task)
+                        actual_path = node.implementation.replace(".", os.sep)
+                        parsed_data = get_task_metadata(actual_path)
+                        implementation_file_path = parsed_data["implementation_file_path"]
+                        if not os.path.exists(implementation_file_path):
+                            raise exceptions.ImplementationFileNotFound(
+                                f"{implementation_file_path} in task {node.name}")
+                        for metric in parsed_data["metrics"]:
+                            task.add_metric(metric)
+                        task.prototypical_name = parsed_data["task_name"]
+                        task.add_implementation_file(parsed_data["implementation_file_path"])
+                        task.add_requirements_file(parsed_data.get("requirements_file"))
+                        task.add_python_version(parsed_data.get("python_version"))
+                        task.set_type(parsed_data.get("taskType"))
+                        task.add_prototypical_inputs(parsed_data.get("prototypical_inputs"))
+                        task.add_prototypical_outputs(parsed_data.get("prototypical_outputs"))
+                        if "dependency" in parsed_data:
+                            task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, parsed_data.get("dependency"))
+                        exp.add_task(node.name, wf)
 
-                    if (node.runs != 0):
-                        logger.info(f"        Runs: ", {node.runs})
-
-                    space_configs.append(space_config_data)
-
-            nodes = automated_events | manual_events | spaces
-
-            if component.control:
-                logger.info("Control exists")
-                logger.info('------------------------------------------')
-                logger.info("Automated Events")
-                for control in component.control:
-                    for explink in control.explink:
-                        if explink.__class__.__name__ == 'RegularExpLink':
-                            if explink.initial_space and explink.spaces:
-                                initial_space_name = explink.initial_space.name
-
-                                if any(event in initial_space_name or any(
-                                        event in space.name for space in explink.spaces) for event in automated_events):
-                                    for event in automated_events:
-                                        if event in initial_space_name or any(
-                                                event in space.name for space in explink.spaces):
-                                            logger.info(f"Event: {event}")
-                                            link = f"  Regular Link: {initial_space_name}"
-                                            for space in explink.spaces:
-                                                link += f" -> {space.name}"
-                                                # if space.name in nodes:
-                                                #     nodes.remove(space.name)
-                                            logger.info(link)
-
-                                if initial_space_name not in automated_dict:
-                                    automated_dict[initial_space_name] = {}
-
-                                for space in explink.spaces:
-                                    if space is not None:
-                                        automated_dict[initial_space_name]["True"] = space.name
-                                        if space.name in nodes:
-                                            nodes.remove(space.name)
-
-
-                        elif explink.__class__.__name__ == 'ConditionalExpLink':
-                            if explink.fromspace and explink.tospace:
-                                if any(event in explink.fromspace.name or event in explink.tospace.name for event in
-                                       automated_events):
-                                    line = f"  Conditional Link: {explink.fromspace.name}"
-                                    line += f" ?-> {explink.tospace.name}"
-                                    line += f"  Condition: {explink.condition}"
-                                    logger.info(line)
-
-                                    if explink.tospace.name in nodes:
-                                        nodes.remove(explink.tospace.name)
-
-                                if explink.fromspace.name not in automated_dict:
-                                    automated_dict[explink.fromspace.name] = {}
-
-                                automated_dict[explink.fromspace.name][explink.condition] = explink.tospace.name
-
-                        # if explink.initial_space.name in automated_events or any(space.name in automated_events for space in explink.spaces):
-                        #     for event in automated_events:
-                        #         if event in explink.initial_space.name or any(event in space.name for space in explink.spaces):
-                        #             LOGGER.info()
-                        #             LOGGER.info(f"Event: {event}")
-                        #             link = f"  Regular Link: {explink.initial_space.name}"
-                        #             for space in explink.spaces:
-                        #                 link += f" -> {space.name}"
-                        #             LOGGER.info(link)
-                        #
-                        #             automated_queue.append(explink.initial_space.name)
-                        #             for space in explink.spaces:
-                        #                 automated_queue.append(space.name)
-
-                logger.info('------------------------------------------')
-                logger.info("Manual Events")
-                for control in component.control:
-                    for explink in control.explink:
-                        if explink.__class__.__name__ == 'RegularExpLink':
-                            if explink.initial_space and explink.spaces:
-                                initial_space_name = explink.initial_space.name
-                                if initial_space_name == "START":
-                                    initial_space_name = explink.start.name
-
-                                if any(event in initial_space_name or any(
-                                        event in space.name for space in explink.spaces) for event in manual_events):
-                                    for event in manual_events:
-                                        if event in initial_space_name or any(
-                                                event in space.name for space in explink.spaces):
-                                            logger.info(f"Event: {event}")
-                                            link = f"  Regular Link: {initial_space_name}"
-                                            for space in explink.spaces:
-                                                link += f" -> {space.name}"
-                                            logger.info(link)
-
-                                if initial_space_name not in manual_dict:
-                                    manual_dict[initial_space_name] = {}
-
-                                for space in explink.spaces:
-                                    if space is not None:
-                                        manual_dict[initial_space_name]["True"] = space.name
-
-                        elif explink.__class__.__name__ == 'ConditionalExpLink':
-                            if explink.fromspace and explink.tospace:
-                                if any(event in explink.fromspace.name or event in explink.tospace.name for event in
-                                       manual_events):
-                                    line = f"  Conditional Link: {explink.fromspace.name}"
-                                    line += f" ?-> {explink.tospace.name}"
-                                    line += f"  Condition: {explink.condition}"
-                                    logger.info(line)
-
-                                if explink.fromspace.name not in manual_dict:
-                                    manual_dict[explink.fromspace.name] = {}
-
-                                manual_dict[explink.fromspace.name][explink.condition] = explink.tospace.name
-                logger.info('------------------------------------------')
-
-    return nodes, automated_dict, spaces, automated_events, parsed_automated_events, \
-           manual_events, parsed_manual_events, space_configs
+                if node.__class__.__name__ == 'ExperimentControlInteraction':
+                    # TODO implement interactions
+                    pass
+            for node in component.control:
+                if node.explink:
+                    for link in node.explink:
+                        if link.__class__.__name__ == 'RegularExpLink':
+                            if link.nodes:
+                                logger.debug("link with nodes")
+                                process_control_node_dependencies(exp, link.nodes)
+                            if link.start_nodes:
+                                logger.debug("link with start_nodes")
+                                process_control_node_dependencies(exp, link.start_nodes)
+                            if link.end_nodes:
+                                logger.debug("link with end_nodes")
+                                process_control_node_dependencies(exp, link.end_nodes)
+                            if link.first_node and link.rest_nodes:
+                                logger.debug("link with first_node and rest_nodes")
+                                process_control_node_dependencies(exp, [link.first_node] + link.end_nodes)
+                        if link.__class__.__name__ == 'ConditionalExpLink':
+                            logger.debug("conditional link")
+                            process_control_node_dependencies(exp, [link.from_node] + [link.to_node], link.condition)
+            return exp

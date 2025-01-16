@@ -1,0 +1,77 @@
+workflow ComplexControlW {
+
+    define task Task1;
+    define task Task2;
+
+    START -> Task1 -> Task2 -> END;
+
+    configure task Task1 {
+        implementation "Testcase_task1";
+    }
+
+}
+
+workflow ComplexControlAW1 from ComplexControlW {
+    configure task Task2 {
+        implementation "Testcase_task2_v1";
+    }
+}
+
+workflow ComplexControlAW2 from ComplexControlW {
+    configure task Task2 {
+        implementation "Testcase_task2_v2";
+    }
+}
+
+experiment ComplexControlExp1 {
+    intent testComplexControl;
+
+    control {
+        START -> S1 -> S2 -> END;
+//        T1 ?-> S2 { condition "2==3"};
+//        T1 ?-> S3 { condition "1==1"};
+//        S2 -> (I1 || I2) -> END;
+//        S3 -> I3 -> END;
+    }
+
+    space S1 of ComplexControlAW1 {
+        strategy randomsearch;
+        runs = 1;
+        param param1_vp = enum(2, 5, 7);
+        configure task Task1 {
+            param param1 = param1_vp;
+        }
+    }
+
+    space S2 of ComplexControlAW2 {
+        strategy gridsearch;
+        param param1_vp = range(3, 5);
+        configure task Task1 {
+            param param1 = param1_vp;
+        }
+    }
+
+    task T1 {
+        implementation "ExpTask1";
+    }
+
+    task T2 {
+        implementation "ExpTask1";
+    }
+
+    interaction I1 {
+        implementation "TestInteraction1";
+    }
+
+    interaction I2 {
+        subworkflow "TestInteraction2";
+    }
+
+    interaction I3 {
+        subworkflow "TestInteraction3";
+    }
+
+    space S3 of ComplexControlAW2 {
+        strategy gridsearch;
+    }
+}

@@ -1,3 +1,9 @@
 task Task1 {
-    implementation "testcase_task_library/Testcase_task1/task.py";
+    implementation "Testcase_task1/task.py";
+
+    define param param1 {
+        type Integer;
+        default 10;
+        range [1,20];
+    }
 }

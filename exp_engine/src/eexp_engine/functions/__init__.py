@@ -35,16 +35,11 @@ def run_experiment(exp_id, experiment_specification, runner_folder, config):
     logger.info("*********************************************************")
     logger.info("************** EXPERIMENT SPECIFICATION *****************")
     logger.info("*********************************************************")
-    nodes, automated_dict, spaces, automated_events, parsed_automated_events, \
-    manual_events, parsed_manual_events, space_configs = \
-        parsing.generate_experiment_specification(experiment_specification)
+    exp = parsing.parse_experiment_specification(experiment_specification)
+    exp.print()
 
     logger.info("*********************************************************")
     logger.info("***************** RUNNING WORKFLOWS *********************")
     logger.info("*********************************************************")
-    execution = Execution(exp_id, nodes, automated_dict, spaces,
-                          automated_events, parsed_automated_events,
-                          manual_events, parsed_manual_events,
-                          space_configs, assembled_flat_wfs,
-                          runner_folder, config)
+    execution = Execution(exp_id, exp, assembled_flat_wfs, runner_folder, config)
     execution.start()

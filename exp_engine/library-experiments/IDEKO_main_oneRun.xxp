@@ -77,7 +77,7 @@ workflow TrainModelRNN from IDEKO_multi_main {
 experiment EXP {
   intent FindBestClassifier;
   control {
-    S1;
+    START -> S1 -> END;
   }
 
   space S1 of TrainModelNN {
