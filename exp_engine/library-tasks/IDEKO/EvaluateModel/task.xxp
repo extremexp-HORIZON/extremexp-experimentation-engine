@@ -9,19 +9,18 @@ task EvaluateModel {
     define input data OutputFolder;
 
     define metric IDEKO_accuracy {
-        semanticType accuracy;
+        semanticType ML_Accuracy;
         kind single-value;
         type double;
     }
 
     define metric IDEKO_loss {
-        semanticType loss;
         kind single-value;
         type double;
     }
 
     define metric IDEKO_recall {
-        semanticType recall;
+        semanticType ML_Recall;
         kind single-value;
         type double;
     }

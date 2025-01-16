@@ -17,10 +17,12 @@ InputData: 'define input data' name=ID ';' ;
 OutputData: 'define output data' name=ID ';' ;
 
 Metric: 'define metric' name=ID '{'
-        'semanticType' semantic_type=ID ';'
+        ('semanticType' semantic_type=METRIC_SEMANTIC_TYPE ';')?
         'kind' kind=METRIC_KIND ';'
         'type' data_type=ID ';'
     '}';
+
+METRIC_SEMANTIC_TYPE: 'ML_Accuracy' | 'ML_Recall' | 'ML_Precision' | 'ML_F1Score' | 'Model_TrainingTime';
 
 METRIC_KIND: 'single-value' | 'series';
 
