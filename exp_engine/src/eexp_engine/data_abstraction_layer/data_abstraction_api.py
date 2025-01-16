@@ -83,10 +83,11 @@ def create_metric(wf_id, task, name, semantic_type, kind, data_type):
         "producedByTask": task,
         "type": data_type,
         "kind": kind,
-        "semantic_type": semantic_type,
         "parent_id": wf_id,
         "parent_type": "workflow"
     }
+    if semantic_type:
+        body["semantic_type"] = semantic_type
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/metrics"
     r = requests.put(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
     logger.info(f"PUT request to {url} return status code: {r.status_code}")
