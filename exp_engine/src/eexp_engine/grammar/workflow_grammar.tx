@@ -86,23 +86,23 @@ Experiment:
         experimentNode*=ExperimentNode
     '}';
 
-ExperimentNode: SpaceConfig | Event ;
+ExperimentNode: SpaceConfig | ExperimentControlTask | ExperimentControlInteraction ;
 
-Event:
-        'event' name=ID '{'
-            'type' eventType=EventType ';'
-            ('condition' condition=STRING ';')*
-            'task' validation_task=ID ';'
-            ('restart' restart=BOOL ';')*
-        '}';
+ExperimentControlTask:
+    'task' name=ID '{'
+        ('implementation' implementation=STRING';' | 'subworkflow' subworkflow=STRING';')?
+    '}';
 
-EventType: 'automated' | 'manual';
+ExperimentControlInteraction:
+    'interaction' name=ID '{'
+        ('implementation' implementation=STRING';' | 'subworkflow' subworkflow=STRING';')?
+    '}';
 
 SpaceConfig:
     'space' name=ID 'of' assembled_workflow=[AssembledWorkflow] '{'
         'strategy' strategy_name=Strategy ';'
-        (vps=VP)*
         ('runs' '=' runs=INT ';')?
+        (vps=VP)*
         (tasks=ESpaceTaskConfiguration)*
     '}'|
     'space' name=ID 'of' assembled_workflow=[Workflow] '{'
@@ -146,23 +146,28 @@ Control:
 
 ExpLink:  RegularExpLink | ConditionalExpLink;
 
+RegularExpLinkOLD:
+    initial_space='START' '->' start=[ExperimentNode] ';' |
+    'START' '->' start=[ExperimentNode]  '->' 'END' ';' |
+    initial_space=[ExperimentNode] '->' (spaces=[ExperimentNode])+ ';' |
+    initial_space=[ExperimentNode] '->' (spaces=[ExperimentNode] '->')+ 'END' ';'
+;
+
 RegularExpLink:
-    initial_space='START' '->' start=[ExperimentNode] ';' |'START' '->' start=[ExperimentNode]  '->' 'END' ';' |
-
-    initial_space=[ExperimentNode]
-    '->'
-    (spaces=[ExperimentNode])+
-    ';' |
-
-    initial_space=[ExperimentNode]
-    '->'
-    (spaces=[ExperimentNode] '->')+
-    'END'
-    ';'
+    'START' '->' (nodes+=ExperimentControlNode '->')+ 'END' ';' |
+    'START' ('->' start_nodes+=ExperimentControlNode)+ ';' |
+    (end_nodes+=ExperimentControlNode '->')+ 'END' ';' |
+    first_node=ExperimentControlNode ('->' rest_nodes+=ExperimentControlNode)+ ';'
 ;
 
 ConditionalExpLink:
-    fromspace=[ExperimentNode] '?->' tospace=[ExperimentNode] '{' 'condition' condition=STRING '}' ';'
+    from_node=ExperimentControlNode '?->' to_node=ExperimentControlNode '{' 'condition' condition=STRING '}' ';'
+;
+
+ExperimentControlNode:
+    single_node=[ExperimentNode] |
+    '(' single_node=[ExperimentNode] ')' |
+    '(' first_node=[ExperimentNode] ('||' rest_nodes+=[ExperimentNode])+ ')'
 ;
 
 Comment: /\/\/.*$/;
