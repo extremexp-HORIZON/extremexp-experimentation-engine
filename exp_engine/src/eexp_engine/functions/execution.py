@@ -20,14 +20,23 @@ class Execution:
         RUNNER_FOLDER = runner_folder
         CONFIG = config
 
+    def evaluate_condition(self, condition):
+        return eval(condition, {"results": self.results})
+
+    def execute_control_logic(self, node):
+        if node.conditions_to_next_node_containers:
+            for python_expression in node.conditions_to_next_node_containers:
+                print(f"python_expression {python_expression}")
+                if self.evaluate_condition(python_expression):
+                    next_node = node.conditions_to_next_node_containers[python_expression]
+                    self.execute_node(next_node)
+                    self.execute_control_logic(next_node)
+
     def start(self):
         start_node = next(node for node in self.exp.control_node_containers if not node.is_next)
         update_experiment(self.exp_id, {"status": "running", "start": get_current_time()})
-        node = start_node
-        result = self.execute_node(node)
-        while node.conditions_to_next_node_containers:
-            node = node.conditions_to_next_node_containers[result]
-            result = self.execute_node(node)
+        self.execute_node(start_node)
+        self.execute_control_logic(start_node)
         update_experiment(self.exp_id, {"status": "completed", "end": get_current_time()})
 
     def execute_node(self, control_node_container):
@@ -38,10 +47,10 @@ class Execution:
             # TODO support parallel execution of control nodes
             if isinstance(node_to_execute, Space):
                 logger.debug("executing a Space")
-                return self.execute_space(node_to_execute)
+                self.execute_space(node_to_execute)
             if isinstance(node_to_execute, ExpTask):
                 logger.debug("executing an ExpTask")
-                return self.execute_task(node_to_execute)
+                self.execute_task(node_to_execute)
             # TODO implement Interaction tasks
 
     def execute_space(self, node):
@@ -56,7 +65,6 @@ class Execution:
         logger.info("Results so far")
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(self.results)
-        return 'True'
 
     def execute_task(self, node):
         logger.debug(f"task: {node.name}")
@@ -69,7 +77,6 @@ class Execution:
         logger.info("Results so far")
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(self.results)
-        return 'True'
 
 
 def run_grid_search(exp_id, node, assembled_flat_wfs, run_count):

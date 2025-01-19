@@ -146,18 +146,11 @@ Control:
 
 ExpLink:  RegularExpLink | ConditionalExpLink;
 
-RegularExpLinkOLD:
-    initial_space='START' '->' start=[ExperimentNode] ';' |
-    'START' '->' start=[ExperimentNode]  '->' 'END' ';' |
-    initial_space=[ExperimentNode] '->' (spaces=[ExperimentNode])+ ';' |
-    initial_space=[ExperimentNode] '->' (spaces=[ExperimentNode] '->')+ 'END' ';'
-;
-
 RegularExpLink:
     'START' '->' (nodes+=ExperimentControlNode '->')+ 'END' ';' |
     'START' ('->' start_nodes+=ExperimentControlNode)+ ';' |
     (end_nodes+=ExperimentControlNode '->')+ 'END' ';' |
-    first_node=ExperimentControlNode ('->' rest_nodes+=ExperimentControlNode)+ ';'
+    first_node=ExperimentControlNode ('->' other_nodes+=ExperimentControlNode)+ ';'
 ;
 
 ConditionalExpLink:
@@ -167,7 +160,7 @@ ConditionalExpLink:
 ExperimentControlNode:
     single_node=[ExperimentNode] |
     '(' single_node=[ExperimentNode] ')' |
-    '(' first_node=[ExperimentNode] ('||' rest_nodes+=[ExperimentNode])+ ')'
+    '(' node_one=[ExperimentNode] ('||' rest_nodes+=[ExperimentNode])+ ')'
 ;
 
 Comment: /\/\/.*$/;

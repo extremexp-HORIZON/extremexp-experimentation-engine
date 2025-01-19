@@ -481,8 +481,8 @@ def extract_parallel_node_names(n):
     node_names = []
     if n.single_node:
         node_names.append(n.single_node.name)
-    if n.first_node and n.rest_nodes:
-        node_names.append(n.first_node.name)
+    if n.node_one and n.rest_nodes:
+        node_names.append(n.node_one.name)
         for rest_node in n.rest_nodes:
             node_names.append(rest_node.name)
     return node_names
@@ -589,9 +589,9 @@ def parse_experiment_specification(experiment_specification):
                             if link.end_nodes:
                                 logger.debug("link with end_nodes")
                                 process_control_node_dependencies(exp, link.end_nodes)
-                            if link.first_node and link.rest_nodes:
+                            if link.first_node and link.other_nodes:
                                 logger.debug("link with first_node and rest_nodes")
-                                process_control_node_dependencies(exp, [link.first_node] + link.end_nodes)
+                                process_control_node_dependencies(exp, [link.first_node] + link.other_nodes)
                         if link.__class__.__name__ == 'ConditionalExpLink':
                             logger.debug("conditional link")
                             process_control_node_dependencies(exp, [link.from_node] + [link.to_node], link.condition)

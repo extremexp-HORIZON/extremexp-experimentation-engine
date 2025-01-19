@@ -27,9 +27,10 @@ experiment ComplexControlExp1 {
     intent testComplexControl;
 
     control {
-        START -> S1 -> S2 -> END;
-//        T1 ?-> S2 { condition "2==3"};
-//        T1 ?-> S3 { condition "1==1"};
+//        START -> S1 -> S2 -> END;
+        START -> S1;
+        S1 ?-> S2 { condition "results['S1'][1]['result']['output']<100" };
+        S1 ?-> S3 { condition "results['S1'][1]['result']['output']<90" };
 //        S2 -> (I1 || I2) -> END;
 //        S3 -> I3 -> END;
     }
@@ -45,7 +46,15 @@ experiment ComplexControlExp1 {
 
     space S2 of ComplexControlAW2 {
         strategy gridsearch;
-        param param1_vp = range(3, 5);
+        param param1_vp = range(3, 4);
+        configure task Task1 {
+            param param1 = param1_vp;
+        }
+    }
+
+    space S3 of ComplexControlAW2 {
+        strategy gridsearch;
+        param param1_vp = range(4, 5);
         configure task Task1 {
             param param1 = param1_vp;
         }
@@ -71,7 +80,4 @@ experiment ComplexControlExp1 {
         subworkflow "TestInteraction3";
     }
 
-    space S3 of ComplexControlAW2 {
-        strategy gridsearch;
-    }
 }
