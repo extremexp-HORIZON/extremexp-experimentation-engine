@@ -34,30 +34,25 @@ class Experiment:
                 return True
         return False
 
-    def traverse_and_print_control_node_container(self, node, tab):
+    def print_control_node_container(self, node, tab):
         node.print(tab)
         for python_expression in node.conditions_to_next_node_containers:
-            if python_expression:
+            next_node = node.conditions_to_next_node_containers[python_expression]
+            logger.debug(f"{tab}\t--> {next_node.to_string()} ({python_expression})")
+
+    def traverse_and_print_control_node_container(self, node, tab):
+        if node.conditions_to_next_node_containers:
+            tab += '\t'
+            for python_expression in node.conditions_to_next_node_containers:
                 next_node = node.conditions_to_next_node_containers[python_expression]
-                if eval(python_expression):
-                    logger.debug(f"{tab}\t--> {next_node.to_string()} ({python_expression})")
-                else:
-                    logger.debug(f"{tab}\t!-> {next_node.to_string()} ({python_expression})")
+                self.print_control_node_container(next_node, tab)
+                self.traverse_and_print_control_node_container(next_node, tab)
 
     def traverse_and_print_control_node_containers(self, tab):
-        logger.debug(f"{tab}control_node_containers:")
-        node = next(node for node in self.control_node_containers if not node.is_next)
-        while node.conditions_to_next_node_containers:
+            logger.debug(f"{tab}control_node_containers:")
+            node = next(node for node in self.control_node_containers if not node.is_next)
+            self.print_control_node_container(node, tab)
             self.traverse_and_print_control_node_container(node, tab)
-            tab += '\t'
-            next_node = None
-            for python_expression in node.conditions_to_next_node_containers:
-                if eval(python_expression):
-                    next_node = node.conditions_to_next_node_containers[python_expression]
-                    break
-            if not next_node:
-                return
-            node = next_node
 
     def print(self, tab=""):
         logger.debug(f"{tab}name : {self.name}")
