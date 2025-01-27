@@ -1,13 +1,12 @@
 workflow ComplexControlW {
 
-    define task Task1;
-    define task Task2;
-
-    START -> Task1 -> Task2 -> END;
-
-    configure task Task1 {
+    task Task1 {
         implementation "Testcase_task1";
     }
+
+    task Task2;
+
+     START -> Task1 -> Task2 -> END;
 
 }
 
@@ -30,7 +29,7 @@ experiment ComplexControlExp1 {
 //        START -> S1 -> S2 -> END;
         START -> S1;
         S1 ?-> S2 { condition "results['S1'][1]['result']['output']<100" };
-        S1 ?-> S3 { condition "results['S1'][1]['result']['output']<90" };
+        S1 ?-> S3 { condition "results['S1'][1]['result']['output']>90" };
 //        S2 -> (I1 || I2) -> END;
 //        S3 -> I3 -> END;
     }
