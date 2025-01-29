@@ -1,20 +1,16 @@
 workflow UserInteraction {
 
-    define task Task1;
-    define task Task2;
-    define task Task3;
-
     START -> Task1 -> Task2 -> Task3 -> END;
 
-    configure task Task1 {
+    task Task1 {
         implementation "Task1";
     }
 
-    configure task Task2 {
+    task Task2 {
         implementation "Task2";
     }
 
-    configure task Task3 {
+    task Task3 {
         implementation "Task3";
     }
 

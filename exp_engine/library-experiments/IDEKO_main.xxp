@@ -1,23 +1,23 @@
 package IDEKO;
 
 workflow IDEKO_multi_main {
-  define task ReadData;
-  define task TrainModel;
-  define task EvaluateModel;
-  define task PrepareData;
+
+
 
   // Task CONNECTIONS
   START -> ReadData -> PrepareData -> TrainModel -> EvaluateModel -> END;
 
-  configure task ReadData {
+  task TrainModel;
+
+  task ReadData {
     implementation "IDEKO.ReadData";
   }
 
-  configure task EvaluateModel {
+  task EvaluateModel {
     implementation "IDEKO.EvaluateModel";
   }
 
-  configure task PrepareData {
+  task PrepareData {
     subworkflow "IDEKO_DataPreprocessing";
   }
 
@@ -63,13 +63,13 @@ workflow IDEKO_multi_main {
 }
 
 workflow TrainModelNN from IDEKO_multi_main {
-  configure task TrainModel {
+  task TrainModel {
     implementation "IDEKO.TrainModelNN";
   }
 }
 
 workflow TrainModelRNN from IDEKO_multi_main {
-  configure task TrainModel {
+  task TrainModel {
     implementation "IDEKO.TrainModelRNN";
   }
 }
@@ -86,7 +86,7 @@ experiment EXP {
     param epochs_vp = range(2, 4);
     // param epochs_vp = enum(2);
     param batch_size_vp = enum(64);
-    configure task TrainModel {
+    task TrainModel {
       param epochs = epochs_vp;
       param batch_size = batch_size_vp;
     }
@@ -97,7 +97,7 @@ experiment EXP {
     strategy gridsearch;
     param epochs_vp = enum(2);
     param batch_size_vp = enum(32);
-    configure task TrainModel {
+    task TrainModel {
       param epochs = epochs_vp;
       param batch_size = batch_size_vp;
     }
