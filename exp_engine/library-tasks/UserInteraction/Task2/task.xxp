@@ -9,4 +9,8 @@ task Task2 {
     implementation "Task2/task.py";
     venv "Task2/requirements.txt";
 
+    define metric TestUserAction {
+        kind single-value;
+        type string;
+    }
 }
