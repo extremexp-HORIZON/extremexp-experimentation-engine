@@ -11,13 +11,13 @@ workflow ComplexControlW {
 }
 
 workflow ComplexControlAW1 from ComplexControlW {
-    configure task Task2 {
+    task Task2 {
         implementation "Testcase_task2_v1";
     }
 }
 
 workflow ComplexControlAW2 from ComplexControlW {
-    configure task Task2 {
+    task Task2 {
         implementation "Testcase_task2_v2";
     }
 }
@@ -38,7 +38,7 @@ experiment ComplexControlExp1 {
         strategy randomsearch;
         runs = 1;
         param param1_vp = enum(2, 5, 7);
-        configure task Task1 {
+        task Task1 {
             param param1 = param1_vp;
         }
     }
@@ -46,7 +46,7 @@ experiment ComplexControlExp1 {
     space S2 of ComplexControlAW2 {
         strategy gridsearch;
         param param1_vp = range(3, 4);
-        configure task Task1 {
+        task Task1 {
             param param1 = param1_vp;
         }
     }
@@ -54,7 +54,7 @@ experiment ComplexControlExp1 {
     space S3 of ComplexControlAW2 {
         strategy gridsearch;
         param param1_vp = range(4, 5);
-        configure task Task1 {
+        task Task1 {
             param param1 = param1_vp;
         }
     }

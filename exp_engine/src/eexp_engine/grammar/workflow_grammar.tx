@@ -55,7 +55,7 @@ Task:
 // have a seperate grammar for configure task within workflows (line 14)
 
 ConfigureTask:
-    'configure task' task=[Task]'{'
+    'task' task=[Task]'{'
         ('param' parameters=ID ('=' values=INT | STRING | FLOAT | BOOL | "null")* ';')*
         ('implementation' filename=STRING';' | 'subworkflow' subworkflow=STRING';')?
     '}';
@@ -140,7 +140,7 @@ RANGE:
 
 
 ESpaceTaskConfiguration:
-    'configure task' task=[Task] '{'
+    'task' task=[Task] '{'
          (config=ParameterConfiguration)*
     '}';
 
