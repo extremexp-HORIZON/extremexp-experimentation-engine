@@ -340,7 +340,7 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
             parsed_workflows.append(wf)
 
             for e in component.elements:
-                if e.__class__.__name__ == "DefineTask":
+                if e.__class__.__name__ == "Task":
                     task = Task(e.name)
                     wf.add_task(task)
 
@@ -350,6 +350,8 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 
                 if e.__class__.__name__ == "ConfigureTask":
                     task = wf.get_task(e.alias.name)
+
+                if e.__class__.__name__ == "Task" or e.__class__.__name__ == "ConfigureTask":
                     if e.filename:
                         actual_path = e.filename.replace(".", os.sep)
                         parsed_data = get_task_metadata(actual_path)
@@ -426,6 +428,8 @@ def parse_workflows(experiment_specification):
     set_is_main_attribute(parsed_workflows)
 
     for wf in parsed_workflows:
+        for t in wf.tasks:
+            print(t.name)
         wf.print()
 
     return parsed_workflows, task_dependencies
@@ -459,7 +463,7 @@ def parse_assembled_workflow_data(experiment_specification):
                         task_file_path = parsed_data["implementation_file_path"]
                         if not os.path.exists(task_file_path):
                             raise exceptions.ImplementationFileNotFound(
-                                f"{task_file_path} in task {config.alias.name}")
+                                f"{task_file_path} in task {config.task.name}")
                         assembled_workflow_task["prototypical_name"] = parsed_data["task_name"]
                         assembled_workflow_task["implementation"] = task_file_path
                         properties = ["metrics", "requirements_file", "python_version",
@@ -467,9 +471,9 @@ def parse_assembled_workflow_data(experiment_specification):
                         for property in properties:
                             if property in parsed_data:
                                 assembled_workflow_task[property] = parsed_data.get(property)
-                        assembled_workflow_tasks[config.alias.name] = assembled_workflow_task
+                        assembled_workflow_tasks[config.task.name] = assembled_workflow_task
                     configurations.remove(config)
-                    configurations += config.subtasks
+
 
     from pprint import pformat
     logger.debug(pformat(assembled_workflows_data))

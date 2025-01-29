@@ -12,11 +12,10 @@ Workflow:
 ;
 
 // Note: StartAndEndEvent has to be come BEFORE StartEvent in the next line
-Element: Node | Data | ConfigureTask | ConfigureData |  StartAndEndEvent | StartEvent | EndEvent | TaskLink | ConditionLink | DataLink | GroupTask | Comment;
+Element:  Node | Data | ConfigureData |  StartAndEndEvent | StartEvent | EndEvent | TaskLink | ConditionLink | DataLink | GroupTask | Comment;
 
 Node:
-    DefineTask | Operator
-;
+    Task | ConfigureTask | Operator;
 
 StartAndEndEvent:
     'START'
@@ -44,14 +43,24 @@ TaskLink:
     ';'
 ;
 
-ConfigureTask:
-    'configure task' alias=[DefineTask] '{'
+Task:
+    'task' name=ID '{'
         ('param' parameters=ID ('=' values=INT | STRING | FLOAT | BOOL | "null")* ';')*
         ('implementation' filename=STRING';' | 'subworkflow' subworkflow=STRING';')?
-        (subtasks=ConfigureTask)*
+    '}' |
+
+    'task' name=ID ';'
+    ;
+
+// have a seperate grammar for configure task within workflows (line 14)
+
+ConfigureTask:
+    'configure task' task=[Task]'{'
+        ('param' parameters=ID ('=' values=INT | STRING | FLOAT | BOOL | "null")* ';')*
+        ('implementation' filename=STRING';' | 'subworkflow' subworkflow=STRING';')?
     '}';
 
-DefineTask: 'define task' name=ID ';';
+//DefineTask: 'define task' name=ID ';';
 
 ConfigureData:
     'configure data' alias=[Data] '{'
@@ -131,7 +140,7 @@ RANGE:
 
 
 ESpaceTaskConfiguration:
-    'configure task' task=[DefineTask] '{'
+    'configure task' task=[Task] '{'
          (config=ParameterConfiguration)*
     '}';
 
