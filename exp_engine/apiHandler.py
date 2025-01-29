@@ -29,47 +29,70 @@ class ApiHandler(object):
         # functions.run_experiment(experiment_specification, exp_id)
 
     def kill_workflow(self, wf_id):
-        print(f"Killing workflow with id: {wf_id}")
-        job_id  = get_workflow(wf_id)["metadata"]["proactive_job_id"]
-        print(f"Killing proactive job with id: {job_id}")
-        client.kill_job(job_id, eexp_config)
-        # TODO: UPDATE THE STATUS?
+        wf = get_workflow(wf_id)
+        job_status = wf["status"]
+
+        if job_status == "running":
+            print(f"Killing workflow with id: {wf_id}")
+            job_id  = get_workflow(wf_id)["metadata"]["proactive_job_id"]
+            print(f"Killing proactive job with id: {job_id}")
+            client.kill_job(job_id, eexp_config)
+            update_workflow(wf_id, {"status": "killed"})
+
+        elif job_status == "scheduled":
+            update_workflow(wf_id, {"status": "cancelled"})
 
 
     def pause_workflow(self, wf_id):
-        print(f"Pausing workflow with id: {wf_id}")
-        job_id  = get_workflow(wf_id)["metadata"]["proactive_job_id"]
-        print(f"Pausing proactive job with id: {job_id}")
-        client.pause_job(job_id, eexp_config)
+        wf = get_workflow(wf_id)
+        job_status = wf["status"]
+
+        if job_status == "running":
+            print(f"Pausing workflow with id: {wf_id}")
+            job_id  = get_workflow(wf_id)["metadata"]["proactive_job_id"]
+            print(f"Pausing proactive job with id: {job_id}")
+            client.pause_job(job_id, eexp_config)
+            update_workflow(wf_id, {"status": "paused"})
 
     def resume_workflow(self, wf_id):
-        print(f"Resuming workflow with id: {wf_id}")
-        job_id  = get_workflow(wf_id)["metadata"]["proactive_job_id"]
-        print(f"Resuming proactive job with id: {job_id}")
-        client.resume_job(job_id, eexp_config)
+        wf = get_workflow(wf_id)
+        job_status = wf["status"]
+
+        if job_status == "resumed":
+            print(f"Resuming workflow with id: {wf_id}")
+            job_id  = get_workflow(wf_id)["metadata"]["proactive_job_id"]
+            print(f"Resuming proactive job with id: {job_id}")
+            client.resume_job(job_id, eexp_config)
+            update_workflow(wf_id, {"status": "resumed"})
 
 
     def kill_experiment(self, exp_id):
         print(f"Killing an experiment with id: {exp_id}")
         wfs_ids = get_experiment(exp_id)["workflow_ids"]
 
-        for i in wfs_ids:
-            wf = get_workflow(i)
-            job_status = wf["status"]
+        exp_status = get_experiment(exp_id)["status"]
 
-            if job_status == "completed":
-                continue
+        if exp_status == "killed":
+            print(f"The experiment has already been killed")
 
-            elif job_status == "running":
-                job_id = wf["metadata"]["proactive_job_id"]
-                print(f"Killing proactive job with id: {job_id}")
-                update_workflow(i, {"status": "killed"})
-                client.kill_job(job_id, eexp_config)
+        else:
+            for i in wfs_ids:
+                wf = get_workflow(i)
+                job_status = wf["status"]
 
-            elif job_status == "scheduled":
-                update_workflow(i, {"status": "cancelled"})
+                if job_status == "completed":
+                    continue
 
-        update_experiment(exp_id, {"status": "killed"})
+                elif job_status == "running":
+                    job_id = wf["metadata"]["proactive_job_id"]
+                    print(f"Killing proactive job with id: {job_id}")
+                    update_workflow(i, {"status": "killed"})
+                    client.kill_job(job_id, eexp_config)
+
+                elif job_status == "scheduled":
+                    update_workflow(i, {"status": "cancelled"})
+
+            update_experiment(exp_id, {"status": "killed"})
 
     def pause_experiment(self, exp_id):
         print(f"Pausing an experiment with id: {exp_id}")
