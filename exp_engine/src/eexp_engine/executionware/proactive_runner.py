@@ -178,7 +178,7 @@ def _configure_task(task, configurations):
     print(f"Configuring task {task.getTaskName()}")
     for k in configurations.keys():
         value = configurations[k]
-        if type(value) == int:
+        if type(value) == int or type(value) == float:
             value = str(value)
         task.addVariable(k, value)
 
