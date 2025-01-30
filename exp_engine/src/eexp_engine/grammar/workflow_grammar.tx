@@ -129,7 +129,8 @@ VP_value: ENUM | RANGE;
 
 ENUM:
     'enum(' values+=INT [','] ')' ';' |
-    'enum(' values+=STRING [','] ')' ';'
+    'enum(' values+=STRING [','] ')' ';' |
+    'enum(' values+=FLOAT [','] ')' ';'
 ;
 
 RANGE:
