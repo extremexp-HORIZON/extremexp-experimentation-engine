@@ -65,6 +65,7 @@ ConfigureTask:
 ConfigureData:
     'configure data' alias=[Data] '{'
         'path' path=STRING';'
+        ('type' dataset_type=STRING';')?
     '}';
 
 Operator: 'define operator' name=ID ';';
