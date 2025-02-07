@@ -383,6 +383,8 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                     ds = wf.get_dataset(e.alias.name)
                     dataset_relative_path = os.path.join(CONFIG.DATASET_LIBRARY_RELATIVE_PATH, e.path)
                     ds.add_path(dataset_relative_path)
+                    if e.dataset_type:
+                        ds.set_dataset_type(e.dataset_type)
 
                 if e.__class__.__name__ == "StartAndEndEvent":
                     process_dependencies(task_dependencies, e.nodes, "StartAndEndEvent")
