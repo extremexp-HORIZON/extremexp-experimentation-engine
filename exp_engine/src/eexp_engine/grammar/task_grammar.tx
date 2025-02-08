@@ -39,8 +39,17 @@ Type: 'type' taskType=ID';' ;
 Parameter:
     'define param' name=ID '{'
         'type' type=ID ';'
-        'default' default=INT ';'
-        'range' '[' range_min=INT ',' range_max=INT ']' ';'
+        'default' (default=FLOAT | default=INT | default=STRING) ';'
+        parameter_domain
     '}';
+
+parameter_domain:
+    'range' '(' param_range_int_min=INT ',' param_range_int_max=INT ')' ';' |
+    'range' '(' param_range_int_min=INT ',' param_range_int_max=INT ',' param_range_int_step=INT ');' |
+    'range' '(' param_range_float_min=FLOAT ',' param_range_float_max=FLOAT ',' param_range_float_step=FLOAT ');' |
+    'enum' '(' values+=INT [','] ')' ';' |
+    'enum' '(' values+=FLOAT [','] ')' ';' |
+    'enum' '(' values+=STRING [','] ')' ';'
+;
 
 Comment: /\/\/.*$/;
