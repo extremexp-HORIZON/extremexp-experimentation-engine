@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eexp_engine"
-version = "0.0.19"
+version = "0.0.20"
 authors = [
   { name="Ilias Gerostathopoulos", email="iliasger@gmail.com" },
 ]
