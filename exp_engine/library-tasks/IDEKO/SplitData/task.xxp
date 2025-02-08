@@ -14,9 +14,8 @@ task SplitData {
 
     define param split_percentage {
         type Integer;
-        default 70;
-        // MA: let's have the range as the following
-        range [50,90];
+        default 70.0;
+        enum (50.0, 60.0, 70.0);
     }
 
     implementation "IDEKO/SplitData/task.py";
