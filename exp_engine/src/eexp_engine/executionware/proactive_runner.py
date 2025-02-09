@@ -175,12 +175,18 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, ta
 
 
 def _configure_task(task, configurations):
-    print(f"Configuring task {task.getTaskName()}")
+    task_name = task.getTaskName()
+    print(f"Configuring task {task_name}")
+    task_params_str = f"{task_name}["
     for k in configurations.keys():
         value = configurations[k]
-        if type(value) == int:
+        if type(value) == int or type(value) == float:
             value = str(value)
         task.addVariable(k, value)
+        task_params_str += f"{k} --> {value} | "
+    task_params_str = task_params_str[:-3]
+    task_params_str += "]"
+    return task_params_str
 
 
 def _create_flow_script(gateway, condition_task_name, if_task_name, else_task_name, continuation_task_name, condition):
@@ -291,13 +297,16 @@ def execute_wf(w, wf_id, runner_folder, config):
 
     created_tasks = []
     task_statuses = []
+
+    job_params_str = ""
     for t in sorted_tasks:
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
         task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
                                               t.python_version, t.taskType, t.input_files, t.output_files, t.dependent_modules,
                                               dependent_tasks)
         if len(t.params) > 0:
-            _configure_task(task_to_execute, t.params)
+            job_params_str += _configure_task(task_to_execute, t.params)
+            job_params_str += ", "
         if t.is_condition_task():
             task_to_execute.setFlowScript(
                 _create_flow_script(gateway, t.name, t.if_task_name, t.else_task_name, t.continuation_task_name, t.condition)
@@ -306,6 +315,7 @@ def execute_wf(w, wf_id, runner_folder, config):
         task_statuses.append({"name": t.name, "status": "Pending"})
         created_tasks.append(task_to_execute)
     print("Tasks added.")
+    job.addVariable(f"params", job_params_str[:-2])
 
     job_id, job_result_map, job_outputs = _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statuses)
     _teardown(gateway)

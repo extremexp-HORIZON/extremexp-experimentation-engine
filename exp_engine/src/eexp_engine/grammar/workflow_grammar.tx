@@ -55,7 +55,7 @@ Task:
 // have a seperate grammar for configure task within workflows (line 14)
 
 ConfigureTask:
-    'configure task' task=[Task]'{'
+    'task' task=[Task]'{'
         ('param' parameters=ID ('=' values=INT | STRING | FLOAT | BOOL | "null")* ';')*
         ('implementation' filename=STRING';' | 'subworkflow' subworkflow=STRING';')?
     '}';
@@ -65,6 +65,7 @@ ConfigureTask:
 ConfigureData:
     'configure data' alias=[Data] '{'
         'path' path=STRING';'
+        ('type' dataset_type=STRING';')?
     '}';
 
 Operator: 'define operator' name=ID ';';
@@ -129,7 +130,8 @@ VP_value: ENUM | RANGE;
 
 ENUM:
     'enum(' values+=INT [','] ')' ';' |
-    'enum(' values+=STRING [','] ')' ';'
+    'enum(' values+=STRING [','] ')' ';' |
+    'enum(' values+=FLOAT [','] ')' ';'
 ;
 
 RANGE:
@@ -140,7 +142,7 @@ RANGE:
 
 
 ESpaceTaskConfiguration:
-    'configure task' task=[Task] '{'
+    'task' task=[Task] '{'
          (config=ParameterConfiguration)*
     '}';
 

@@ -20,13 +20,13 @@ task TrainModelRNN {
     define param epochs {
         type Integer;
         default 90;
-        range [1,200];
+        range (1,200);
     }
 
     define param batch_size {
         type Integer;
         default 64;
-        range [8,256];
+        range (8,256);
     }
 
     implementation "IDEKO/TrainModelRNN/task.py";
