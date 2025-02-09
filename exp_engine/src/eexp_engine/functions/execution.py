@@ -166,6 +166,9 @@ def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
                 input_datasets.append(input_file)
                 input_file["name"] = f.name
                 input_file["uri"] = f.path
+                metadata = {}
+                metadata["type"] = f.dataset_type
+                input_file["metadata"] = metadata
         if len(t.output_files) > 0:
             output_datasets = []
             t_spec["output_datasets"] = output_datasets
@@ -174,6 +177,9 @@ def create_executed_workflow_in_db(exp_id, run_count, workflow_to_run):
                 output_datasets.append(output_file)
                 output_file["name"] = f.name
                 output_file["uri"] = f.path
+                metadata = {}
+                metadata["type"] = f.dataset_type
+                output_file["metadata"] = metadata
         for m in t.metrics:
             if t.name in wf_metrics:
                 wf_metrics[t.name].append(m)

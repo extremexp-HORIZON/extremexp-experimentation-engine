@@ -1,15 +1,13 @@
 workflow IDEKO_DataPreprocessing {
-  define task SplitData;
-  define task AddPadding;
 
   // Task CONNECTIONS
   START -> AddPadding -> SplitData -> END;
 
-  configure task SplitData {
+  task SplitData {
     implementation "IDEKO.SplitData";
   }
 
-  configure task AddPadding {
+  task AddPadding {
     implementation "IDEKO.AddPadding";
   }
 
