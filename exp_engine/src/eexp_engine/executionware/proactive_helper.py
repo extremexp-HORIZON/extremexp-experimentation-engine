@@ -4,7 +4,9 @@ import pickle
 import json
 import numpy as np
 
-EXECUTION_ENGINE_MAPPING_FILE = "execution_engine_mapping.json"
+EXECUTION_ENGINE_MAPPING_FILE_PREFIX = "execution_engine_mapping"
+EXECUTION_ENGINE_MAPPING_FILE = next(filename for filename in os.listdir('.')
+                                     if filename.startswith(EXECUTION_ENGINE_MAPPING_FILE_PREFIX))
 
 with open(EXECUTION_ENGINE_MAPPING_FILE, 'r') as file:
     execution_engine_mapping = json.load(file)
