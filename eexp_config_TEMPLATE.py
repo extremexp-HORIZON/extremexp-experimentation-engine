@@ -5,6 +5,9 @@ EXPERIMENT_LIBRARY_PATH = 'exp_engine/library-experiments'
 DATASET_LIBRARY_RELATIVE_PATH = 'exp_engine/library-datasets'
 PYTHON_DEPENDENCIES_RELATIVE_PATH = 'exp_engine/tasks'
 
+# number of workflows that the engine can run in parallel at any given moment (if omitted, value is 1)
+MAX_SUBPROCESSES = 3
+
 EXECUTIONWARE = "PROACTIVE" # other option: "LOCAL"
 # Proactive credentials (only needed if EXECUTIONWARE = "PROACTIVE" above)
 PROACTIVE_USERNAME=""
