@@ -293,61 +293,59 @@ def reconnect_if_needed(gateway):
     return create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
 
 
-def execute_wf(w, wf_id, runner_folder, config, queue):
+def execute_wf(w, exp_id, wf_id, runner_folder, config):
     global RUNNER_FOLDER, CONFIG, EXECUTION_ENGINE_MAPPING_FILE, GATEWAY
     RUNNER_FOLDER = runner_folder
     CONFIG = config
     set_data_abstraction_config(CONFIG)
     EXECUTION_ENGINE_MAPPING_FILE = f"{EXECUTION_ENGINE_MAPPING_FILE_PREFIX}_{wf_id}.json"
 
-    try:
-        logger = logging.getLogger(__name__)
-        logger.info("****************************")
-        logger.info(f"Executing workflow {w.name}")
-        logger.info("****************************")
-        w.print()
-        logger.info("****************************")
+    logger = logging.getLogger(__name__)
+    logger.info("****************************")
+    logger.info(f"Executing workflow {w.name}")
+    logger.info("****************************")
+    w.print()
+    logger.info("****************************")
 
-        sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
+    sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
 
-        gateway = create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
-        job = _create_job(gateway, w.name)
-        fork_env = _create_fork_env(gateway, job)
-        mapping = _create_execution_engine_mapping(sorted_tasks)
+    gateway = create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
+    job = _create_job(gateway, w.name)
+    fork_env = _create_fork_env(gateway, job)
+    mapping = _create_execution_engine_mapping(sorted_tasks)
 
-        created_tasks = []
-        task_statuses = []
+    created_tasks = []
+    task_statuses = []
 
-        job_params_str = ""
-        for t in sorted_tasks:
-            dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
-            task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
-                                                  t.python_version, t.taskType, t.input_files, t.output_files, t.dependent_modules,
-                                                  dependent_tasks)
-            if len(t.params) > 0:
-                job_params_str += _configure_task(task_to_execute, t.params)
-                job_params_str += ", "
-            if t.is_condition_task():
-                task_to_execute.setFlowScript(
-                    _create_flow_script(gateway, t.name, t.if_task_name, t.else_task_name, t.continuation_task_name, t.condition)
-                )
-            job.addTask(task_to_execute)
-            task_statuses.append({"name": t.name, "status": "Pending"})
-            created_tasks.append(task_to_execute)
-        print("Tasks added.")
-        job_params_str = job_params_str[:-2]
-        job.addVariable(f"params", job_params_str)
+    job_params_str = ""
+    for t in sorted_tasks:
+        dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
+        task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
+                                              t.python_version, t.taskType, t.input_files, t.output_files, t.dependent_modules,
+                                              dependent_tasks)
+        if len(t.params) > 0:
+            job_params_str += _configure_task(task_to_execute, t.params)
+            job_params_str += ", "
+        if t.is_condition_task():
+            task_to_execute.setFlowScript(
+                _create_flow_script(gateway, t.name, t.if_task_name, t.else_task_name, t.continuation_task_name, t.condition)
+            )
+        job.addTask(task_to_execute)
+        task_statuses.append({"name": t.name, "status": "Pending"})
+        created_tasks.append(task_to_execute)
+    print("Tasks added.")
+    job_params_str = job_params_str[:-2]
+    job.addVariable(f"params", job_params_str)
+    job.addVariable(f"wf_id", wf_id)
+    job.addVariable(f"exp_id", exp_id)
 
-        job_id, job_result_map, job_outputs = _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statuses)
-        _teardown(gateway)
+    job_id, job_result_map, job_outputs = _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statuses)
+    _teardown(gateway)
 
-        print("****************************")
-        print(f"Finished executing workflow {w.name}")
-        print(job_params_str)
-        print(job_result_map)
-        print("****************************")
+    print("****************************")
+    print(f"Finished executing workflow {w.name}")
+    print(job_params_str)
+    print(job_result_map)
+    print("****************************")
 
-        queue.put(job_result_map)
-    except Exception as e:
-        print(f"Exception at subprocess: {e}")
-        queue.put({})
+    return job_result_map
