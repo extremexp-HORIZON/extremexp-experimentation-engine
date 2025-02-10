@@ -16,13 +16,12 @@ class Execution:
         self.exp_id = exp_id
         self.exp = exp
         self.assembled_flat_wfs = assembled_flat_wfs
+        self.runner_folder = runner_folder
+        self.config = config
         self.results = {}
         self.run_count = 1
         self.queue = Queue()
         self.subprocesses = 0
-        global RUNNER_FOLDER, CONFIG, LOGGER
-        RUNNER_FOLDER = runner_folder
-        CONFIG = config
 
     def evaluate_condition(self, condition):
         return eval(condition, {"results": self.results})
@@ -75,7 +74,7 @@ class Execution:
         node.wf.print()
         wf_id = self.create_executed_workflow_in_db(self.exp_id, self.run_count, node.wf)
         self.run_count += 1
-        result = execute_wf(node.wf, wf_id, self.queue)
+        result = execute_wf(node.wf, self.exp_id, wf_id, self.queue)
         self.results[node.name] = {'result': result}
         logger.info("ExpTask executed")
         logger.info("Results so far")
@@ -208,12 +207,12 @@ class Execution:
                 break
             processes = []
             for wf_id in scheduled_wf_ids:
-                if self.subprocesses == CONFIG.MAX_SUBPROCESSES:
+                if self.subprocesses == self.config.MAX_SUBPROCESSES:
                     # parallelization limit reached
                     break
                 update_workflow(wf_id, {"status": "running", "start": get_current_time()})
                 workflow_to_run = configured_workflows_of_space[wf_id]
-                p = Process(target=proactive_runner.execute_wf, args=(workflow_to_run, wf_id, RUNNER_FOLDER, CONFIG, self.queue))
+                p = Process(target=self.execute_wf, args=(workflow_to_run, wf_id))
                 processes.append((wf_id, p))
                 p.start()
                 self.subprocesses += 1
@@ -251,11 +250,18 @@ class Execution:
                     t.set_param(param_name, c_dict[param_vp])
         return configured_workflow
 
-
-def execute_wf(w, wf_id, queue):
-    if CONFIG.EXECUTIONWARE == "PROACTIVE":
-        return proactive_runner.execute_wf(w, wf_id, RUNNER_FOLDER, CONFIG, queue)
-    if CONFIG.EXECUTIONWARE == "LOCAL":
-        return local_runner.execute_wf(w, wf_id, RUNNER_FOLDER, CONFIG, queue)
+    def execute_wf(self, w, wf_id):
+        try:
+            if self.config.EXECUTIONWARE == "PROACTIVE":
+                result = proactive_runner.execute_wf(w, self.exp_id, wf_id, self.runner_folder, self.config)
+            elif self.config.EXECUTIONWARE == "LOCAL":
+                result = local_runner.execute_wf(w, self.exp_id, wf_id, self.runner_folder, self.config)
+            else:
+                print("You need to setup an executionware")
+                exit(0)
+            self.queue.put(result)
+        except Exception as e:
+            print(f"Exception at subprocess: {e}")
+            self.queue.put({})
 
 
