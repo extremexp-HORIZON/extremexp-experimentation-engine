@@ -54,7 +54,6 @@ class Execution:
             if isinstance(node_to_execute, ExpTask):
                 logger.debug("executing an ExpTask")
                 self.execute_task(node_to_execute)
-            # TODO implement Interaction tasks
 
     def execute_space(self, node):
         method_type = node.strategy
@@ -72,9 +71,14 @@ class Execution:
     def execute_task(self, node):
         logger.debug(f"task: {node.name}")
         node.wf.print()
-        wf_id = self.create_executed_workflow_in_db(self.exp_id, self.run_count, node.wf)
+        wf_id = self.create_executed_workflow_in_db(node.wf)
         self.run_count += 1
-        result = execute_wf(node.wf, self.exp_id, wf_id, self.queue)
+
+        p = Process(target=self.execute_wf, args=(node.wf, wf_id))
+        p.start()
+        result = self.queue.get()
+        p.join()
+
         self.results[node.name] = {'result': result}
         logger.info("ExpTask executed")
         logger.info("Results so far")

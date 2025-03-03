@@ -4,6 +4,6 @@ task Task1 {
     define param param1 {
         type Integer;
         default 10;
-        range [1,20];
+        range (1,20);
     }
 }
