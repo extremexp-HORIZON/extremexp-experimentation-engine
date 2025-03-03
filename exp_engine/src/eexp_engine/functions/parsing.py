@@ -2,8 +2,6 @@ from ..models.workflow import Workflow
 from ..models.task import Task
 from ..models.dataset import Dataset
 from ..models.metric import Metric
-from ..models.events import AutomatedEvent
-from ..models.events import ManualEvent
 from ..models.experiment import Experiment
 from ..models.experiment import Space
 from ..models.experiment import ControlNodeContainer
@@ -519,6 +517,32 @@ def process_control_node_dependencies(exp, nodes, condition="True"):
             node1.add_next(node2, condition)
 
 
+def get_experiment_task(node):
+    wf = Workflow(node.name)
+    # TODO support composite experiment tasks
+    if node.implementation:
+        task = Task(node.name)
+        wf.add_task(task)
+        actual_path = node.implementation.replace(".", os.sep)
+        parsed_data = get_task_metadata(actual_path)
+        implementation_file_path = parsed_data["implementation_file_path"]
+        if not os.path.exists(implementation_file_path):
+            raise exceptions.ImplementationFileNotFound(
+                f"{implementation_file_path} in task {node.name}")
+        for metric in parsed_data["metrics"]:
+            task.add_metric(metric)
+        task.prototypical_name = parsed_data["task_name"]
+        task.add_implementation_file(parsed_data["implementation_file_path"])
+        task.add_requirements_file(parsed_data.get("requirements_file"))
+        task.add_python_version(parsed_data.get("python_version"))
+        task.set_type(parsed_data.get("taskType"))
+        task.add_prototypical_inputs(parsed_data.get("prototypical_inputs"))
+        task.add_prototypical_outputs(parsed_data.get("prototypical_outputs"))
+        if "dependency" in parsed_data:
+            task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, parsed_data.get("dependency"))
+    return wf
+
+
 def parse_experiment_specification(experiment_specification):
     experiments_metamodel = textx.metamodel_from_file(GRAMMAR_PATH)
     experiment_model = experiments_metamodel.model_from_str(experiment_specification)
@@ -555,33 +579,14 @@ def parse_experiment_specification(experiment_specification):
                     if node.runs:
                         space.set_runs(int(node.runs))
                 if node.__class__.__name__ == 'ExperimentControlTask':
-                    # exp.add_task(node.name, node.implementation, node.subworkflow)
-                    wf = Workflow(node.name)
-                    if node.implementation:
-                        task = Task(node.name)
-                        wf.add_task(task)
-                        actual_path = node.implementation.replace(".", os.sep)
-                        parsed_data = get_task_metadata(actual_path)
-                        implementation_file_path = parsed_data["implementation_file_path"]
-                        if not os.path.exists(implementation_file_path):
-                            raise exceptions.ImplementationFileNotFound(
-                                f"{implementation_file_path} in task {node.name}")
-                        for metric in parsed_data["metrics"]:
-                            task.add_metric(metric)
-                        task.prototypical_name = parsed_data["task_name"]
-                        task.add_implementation_file(parsed_data["implementation_file_path"])
-                        task.add_requirements_file(parsed_data.get("requirements_file"))
-                        task.add_python_version(parsed_data.get("python_version"))
-                        task.set_type(parsed_data.get("taskType"))
-                        task.add_prototypical_inputs(parsed_data.get("prototypical_inputs"))
-                        task.add_prototypical_outputs(parsed_data.get("prototypical_outputs"))
-                        if "dependency" in parsed_data:
-                            task.add_dependent_module(CONFIG.PYTHON_DEPENDENCIES_RELATIVE_PATH, parsed_data.get("dependency"))
-                        exp.add_task(node.name, wf)
-
+                    wf = get_experiment_task(node)
+                    exp.add_task(node.name, wf)
                 if node.__class__.__name__ == 'ExperimentControlInteraction':
-                    # TODO implement interactions
-                    pass
+                    wf = get_experiment_task(node)
+                    task = wf.get_task(node.name)
+                    if task.taskType != "interactive":
+                        raise exceptions.InteractionTaskDoesNotHaveInteractiveType(f"Interaction {node.name} is not implemented by a interactive task")
+                    exp.add_task(node.name, wf)
             for node in component.control:
                 if node.explink:
                     for link in node.explink:

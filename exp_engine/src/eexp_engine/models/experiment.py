@@ -185,6 +185,7 @@ class Space(ControlNode):
 
 
 class ExpTask(ControlNode):
+    """ Abstraction for both automated and interactive tasks at the experiment level """
 
     def __init__(self, name, wf):
         super().__init__(name)
@@ -193,3 +194,4 @@ class ExpTask(ControlNode):
 
     def print(self, tab=""):
         logger.debug(f"{tab}name : {self.name}")
+
