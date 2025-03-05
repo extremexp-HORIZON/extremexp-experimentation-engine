@@ -26,12 +26,7 @@ experiment ComplexControlExp1 {
     intent testComplexControl;
 
     control {
-//        START -> S1 -> S2 -> END;
-        START -> S1;
-        S1 ?-> S2 { condition "results['S1'][1]['result']['output']<100" };
-        S1 ?-> S3 { condition "results['S1'][1]['result']['output']>90" };
-//        S2 -> (I1 || I2) -> END;
-//        S3 -> I3 -> END;
+          S1 ?-> S2 { condition "check_results_less_than 100" };
     }
 
     space S1 of ComplexControlAW1 {
@@ -68,15 +63,7 @@ experiment ComplexControlExp1 {
     }
 
     interaction I1 {
-        implementation "TestInteraction1";
-    }
-
-    interaction I2 {
-        subworkflow "TestInteraction2";
-    }
-
-    interaction I3 {
-        subworkflow "TestInteraction3";
+        implementation "ExpInteraction1";
     }
 
 }

@@ -5,6 +5,7 @@ import pprint
 import itertools
 import random
 import time
+import importlib
 from multiprocessing import Process, Queue
 
 logger = logging.getLogger(__name__)
@@ -23,8 +24,14 @@ class Execution:
         self.queue = Queue()
         self.subprocesses = 0
 
-    def evaluate_condition(self, condition):
-        return eval(condition, {"results": self.results})
+    def evaluate_condition(self, condition_str):
+        if condition_str:
+            return True
+        condition_str_list = condition_str.split()
+        python_conditions = importlib.import_module(self.config.PYTHON_CONDITIONS_FILE)
+        condition = getattr(python_conditions, condition_str_list[0])
+        args = condition_str_list[1:] + [self.results]
+        return condition(*args)
 
     def execute_control_logic(self, node):
         if node.conditions_to_next_node_containers:

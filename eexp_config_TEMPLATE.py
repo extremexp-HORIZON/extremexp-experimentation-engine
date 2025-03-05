@@ -1,9 +1,13 @@
 # Main folders (mandatory) - paths are just examples
 TASK_LIBRARY_PATH = 'exp_engine/library-tasks'
 EXPERIMENT_LIBRARY_PATH = 'exp_engine/library-experiments'
-# The ones below has to be a path relative to the client script
+# The ones below has to be a path relative to the script that invokes the client.run()
 DATASET_LIBRARY_RELATIVE_PATH = 'exp_engine/library-datasets'
 PYTHON_DEPENDENCIES_RELATIVE_PATH = 'exp_engine/tasks'
+
+# Reference here the Python file that holds the functions used in the evaluation of conditions.
+# Path is relative to the script that invokes the client.run()
+PYTHON_CONDITIONS_FILE = 'exp_engine.library-tasks.experiment_conditions'
 
 # number of workflows that the engine can run in parallel at any given moment (if omitted, value is 1)
 MAX_SUBPROCESSES = 3

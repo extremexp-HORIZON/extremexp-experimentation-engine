@@ -26,9 +26,7 @@ experiment ComplexControlExp1 {
     intent testComplexControl;
 
     control {
-        START -> S1 ->  I1 -> END;
-        // S1 ?-> S2 { condition "results['S1'][1]['result']['output']>=100" };
-        // S1 ?-> S3 { condition "results['S1'][1]['result']['output']<100" };
+        START -> S1 -> I1 -> END;
     }
 
     space S1 of ComplexControlAW1 {
