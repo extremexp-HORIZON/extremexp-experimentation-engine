@@ -18,6 +18,7 @@ class Config:
         self.EXECUTIONWARE = config.EXECUTIONWARE
         self.PROACTIVE_USERNAME = config.PROACTIVE_USERNAME
         self.PROACTIVE_PASSWORD = config.PROACTIVE_PASSWORD
+        self.PYTHON_CONDITIONS_FILE = config.PYTHON_CONDITIONS_FILE
         if 'MAX_SUBPROCESSES' in dir(config):
             logger.debug(f"Setting MAX_SUBPROCESSES to {config.MAX_SUBPROCESSES}")
             self.MAX_SUBPROCESSES = config.MAX_SUBPROCESSES
