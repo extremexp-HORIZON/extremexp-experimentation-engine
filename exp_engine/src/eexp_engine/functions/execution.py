@@ -25,7 +25,7 @@ class Execution:
         self.subprocesses = 0
 
     def evaluate_condition(self, condition_str):
-        if condition_str:
+        if condition_str == "True":
             return True
         condition_str_list = condition_str.split()
         python_conditions = importlib.import_module(self.config.PYTHON_CONDITIONS_FILE)
