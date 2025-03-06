@@ -8,8 +8,18 @@ EXECUTION_ENGINE_MAPPING_FILE_PREFIX = "execution_engine_mapping"
 EXECUTION_ENGINE_MAPPING_FILE = next(filename for filename in os.listdir('.')
                                      if filename.startswith(EXECUTION_ENGINE_MAPPING_FILE_PREFIX))
 
+RESULTS_FILE = "experiment_results.json"
+
 with open(EXECUTION_ENGINE_MAPPING_FILE, 'r') as file:
     execution_engine_mapping = json.load(file)
+
+
+def get_experiment_results():
+    if os.path.exists(RESULTS_FILE):
+        with open(RESULTS_FILE, 'r') as file:
+            return json.load(file)
+    print("results file does not exist")
+    return None
 
 
 def save_datasets(variables, *data):
