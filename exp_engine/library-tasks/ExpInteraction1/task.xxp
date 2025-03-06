@@ -1,0 +1,8 @@
+task Task2 {
+
+     type interactive;
+    // for interactive tasks, Python 3.6.9 is used and cannot be changed
+
+    implementation "ExpInteraction1/task.py";
+
+}
