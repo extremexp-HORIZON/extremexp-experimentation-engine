@@ -12,6 +12,7 @@ INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH = os.path.join(interactive_path_folder
 INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "postscript.py")
 EXECUTION_ENGINE_MAPPING_FILE_PREFIX = "execution_engine_mapping"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
+RESULTS_FILE = "experiment_results.json"
 
 
 def create_gateway_and_connect_to_it(username, password):
@@ -81,8 +82,8 @@ def _get_python_version(python_version, enforce_python_version=True):
         return python_version
 
 
-def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version, taskType,
-                        input_files=[], output_files=[], dependent_modules=[], dependencies=[], is_precious_result=False):
+def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version, taskType,
+                        input_files=[], output_files=[], dependent_modules=[], dependencies=[]):
     print(f"Creating task {task_name}...")
     gateway = reconnect_if_needed(gateway)
     task = gateway.createPythonTask()
@@ -167,13 +168,18 @@ def _create_python_task(gateway, wf_id, task_name, fork_environment, mapping, ta
         json.dump(mapping, f)
     task.addInputFile(EXECUTION_ENGINE_MAPPING_FILE)
 
+    if results_so_far:
+        with open(RESULTS_FILE, 'w') as f:
+            json.dump(results_so_far, f)
+        task.addInputFile(RESULTS_FILE)
+
     proactive_helper_folder = os.path.dirname(PROACTIVE_HELPER_RELATIVE_PATH)
     dependent_modules_folders.append(proactive_helper_folder)
     task.addVariable("dependent_modules_folders", ','.join(dependent_modules_folders))
     for dependency in dependencies:
         print(f"Adding dependency of '{task_name}' to '{dependency.getTaskName()}'")
         task.addDependency(dependency)
-    task.setPreciousResult(is_precious_result)
+    task.setPreciousResult(False)
     print("Task created.")
 
     return task
@@ -222,6 +228,8 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
     update_workflow(wf_id, {"metadata": {"proactive_job_id": str(job_id)}})
 
     os.remove(EXECUTION_ENGINE_MAPPING_FILE)
+    if os.path.isfile(RESULTS_FILE):
+        os.remove(RESULTS_FILE)
     import time
     is_finished = False
     seconds = 0
@@ -293,7 +301,7 @@ def reconnect_if_needed(gateway):
     return create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
 
 
-def execute_wf(w, exp_id, wf_id, runner_folder, config):
+def execute_wf(w, exp_id, wf_id, runner_folder, config, results_so_far):
     global RUNNER_FOLDER, CONFIG, EXECUTION_ENGINE_MAPPING_FILE, GATEWAY
     RUNNER_FOLDER = runner_folder
     CONFIG = config
@@ -320,7 +328,7 @@ def execute_wf(w, exp_id, wf_id, runner_folder, config):
     job_params_str = ""
     for t in sorted_tasks:
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
-        task_to_execute = _create_python_task(gateway, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
+        task_to_execute = _create_python_task(gateway, results_so_far, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
                                               t.python_version, t.taskType, t.input_files, t.output_files, t.dependent_modules,
                                               dependent_tasks)
         if len(t.params) > 0:

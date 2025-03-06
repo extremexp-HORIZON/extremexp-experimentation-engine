@@ -81,12 +81,18 @@ class Execution:
         wf_id = self.create_executed_workflow_in_db(node.wf)
         self.run_count += 1
 
-        p = Process(target=self.execute_wf, args=(node.wf, wf_id))
+        p = Process(target=self.execute_wf, args=(node.wf, wf_id, self.results))
         p.start()
         result = self.queue.get()
         p.join()
 
-        self.results[node.name] = {'result': result}
+        workflow_results = {}
+        workflow_results["configuration"] = ()
+        workflow_results["result"] = result
+        node_results = {}
+        node_results[1] = workflow_results
+        self.results[node.name] = node_results
+
         logger.info("ExpTask executed")
         logger.info("Results so far")
         pp = pprint.PrettyPrinter(indent=4)
@@ -261,10 +267,10 @@ class Execution:
                     t.set_param(param_name, c_dict[param_vp])
         return configured_workflow
 
-    def execute_wf(self, w, wf_id):
+    def execute_wf(self, w, wf_id, results_so_far=None):
         try:
             if self.config.EXECUTIONWARE == "PROACTIVE":
-                result = proactive_runner.execute_wf(w, self.exp_id, wf_id, self.runner_folder, self.config)
+                result = proactive_runner.execute_wf(w, self.exp_id, wf_id, self.runner_folder, self.config, results_so_far)
             elif self.config.EXECUTIONWARE == "LOCAL":
                 result = local_runner.execute_wf(w, self.exp_id, wf_id, self.runner_folder, self.config)
             else:
