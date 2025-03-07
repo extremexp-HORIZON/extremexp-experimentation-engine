@@ -42,7 +42,7 @@ def run(runner_file, exp_name, config):
 
     config_obj = Config(config)
     set_data_abstraction_config(config_obj)
-    exp_id = create_experiment(new_exp)
+    exp_id = create_experiment(new_exp, "dummy_user")
     run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj)
 
 

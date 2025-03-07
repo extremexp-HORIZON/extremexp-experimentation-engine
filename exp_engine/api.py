@@ -42,7 +42,7 @@ def run():
             'model': str(dsl_output),
             'metadata': metadata
         }
-        exp_id = create_experiment(new_exp)
+        exp_id = create_experiment(new_exp, "dummy_user")
 
         apiHandler.run_experiment(exp_id)
         return {"message": "experiment started"}, 201
