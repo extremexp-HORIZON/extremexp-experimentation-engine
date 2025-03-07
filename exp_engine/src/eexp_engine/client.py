@@ -19,13 +19,13 @@ class Config:
         self.PROACTIVE_USERNAME = config.PROACTIVE_USERNAME
         self.PROACTIVE_PASSWORD = config.PROACTIVE_PASSWORD
         self.PYTHON_CONDITIONS_FILE = config.PYTHON_CONDITIONS_FILE
-        if 'MAX_SUBPROCESSES' in dir(config):
-            logger.debug(f"Setting MAX_SUBPROCESSES to {config.MAX_SUBPROCESSES}")
-            self.MAX_SUBPROCESSES = config.MAX_SUBPROCESSES
+        if 'MAX_WORKFLOWS_IN_PARALLEL_PER_NODE' in dir(config):
+            logger.debug(f"Setting MAX_WORKFLOWS_IN_PARALLEL_PER_NODE to {config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE}")
+            self.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE
         else:
-            default_max_subprocesses = 1
-            logger.debug(f"Setting MAX_SUBPROCESSES to the default value of {default_max_subprocesses}")
-            self.MAX_SUBPROCESSES = default_max_subprocesses
+            default_max_workflows_in_parallel_per_node = 1
+            logger.debug(f"Setting MAX_WORKFLOWS_IN_PARALLEL_PER_NODE to the default value of {default_max_workflows_in_parallel_per_node}")
+            self.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = default_max_workflows_in_parallel_per_node
 
 
 def run(runner_file, exp_name, config):
