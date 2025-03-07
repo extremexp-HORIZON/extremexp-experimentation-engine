@@ -9,8 +9,8 @@ PYTHON_DEPENDENCIES_RELATIVE_PATH = 'exp_engine/tasks'
 # Path is relative to the script that invokes the client.run()
 PYTHON_CONDITIONS_FILE = 'exp_engine.library-tasks.experiment_conditions'
 
-# number of workflows that the engine can run in parallel at any given moment (if omitted, value is 1)
-MAX_SUBPROCESSES = 3
+# number of workflows that the engine can run in parallel per node at any given moment (if omitted, value is 1)
+MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = 3
 
 EXECUTIONWARE = "PROACTIVE" # other option: "LOCAL"
 # Proactive credentials (only needed if EXECUTIONWARE = "PROACTIVE" above)

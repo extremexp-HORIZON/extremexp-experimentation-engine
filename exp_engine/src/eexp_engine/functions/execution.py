@@ -21,7 +21,8 @@ class Execution:
         self.config = config
         self.results = {}
         self.run_count = 1
-        self.queue = Queue()
+        self.queues_for_nodes = {}
+        self.queues_for_workflows = {}
         self.subprocesses = 0
 
     def evaluate_condition(self, condition_str):
@@ -39,28 +40,73 @@ class Execution:
                 print(f"python_expression {python_expression}")
                 if self.evaluate_condition(python_expression):
                     next_node = node.conditions_to_next_node_containers[python_expression]
-                    self.execute_node(next_node)
-                    self.execute_control_logic(next_node)
+                    self.execute_nodes_in_container(next_node)
 
     def start(self):
         start_node = next(node for node in self.exp.control_node_containers if not node.is_next)
         update_experiment(self.exp_id, {"status": "running", "start": get_current_time()})
-        self.execute_node(start_node)
-        self.execute_control_logic(start_node)
+        self.execute_nodes_in_container(start_node)
         update_experiment(self.exp_id, {"status": "completed", "end": get_current_time()})
 
-    def execute_node(self, control_node_container):
+    def execute_nodes_in_container_sequential_DEPRECATED(self, control_node_container):
+        all_control_nodes = self.exp.spaces + self.exp.tasks + self.exp.interactions
         for node_name in control_node_container.parallel_node_names:
-            all_control_nodes = self.exp.spaces + self.exp.tasks + self.exp.interactions
             node_to_execute = next(n for n in all_control_nodes if n.name==node_name)
+            self.results[node_to_execute.name] = self.execute_node_sequential(node_to_execute)
+            logger.info("Node executed")
+            logger.info("Results so far")
+            pp = pprint.PrettyPrinter(indent=4)
+            pp.pprint(self.results)
+        self.execute_control_logic(control_node_container)
+
+    def execute_node_sequential_DEPRECATED(self, node_to_execute):
+        logger.info(f"executing node {node_to_execute.name}")
+        if isinstance(node_to_execute, Space):
+            logger.debug("executing a Space")
+            return self.execute_space(node_to_execute)
+        if isinstance(node_to_execute, ExpTask):
+            logger.debug("executing an ExpTask")
+            return self.execute_task(node_to_execute)
+
+    def execute_nodes_in_container(self, control_node_container):
+        all_control_nodes = self.exp.spaces + self.exp.tasks + self.exp.interactions
+        processes = []
+        for node_name in control_node_container.parallel_node_names:
+            node_to_execute = next(n for n in all_control_nodes if n.name==node_name)
+            node_queue = Queue()
+            self.queues_for_nodes[node_name] = node_queue
+            p = Process(target=self.execute_node, args=(node_to_execute, node_queue))
+            processes.append((node_name, p))
+            p.start()
+            time.sleep(1)
+        processes_results = {}
+        for (node_name, p) in processes:
+            result = self.queues_for_nodes[node_name].get()
+            processes_results[node_name] = result
+        for (node_name, p) in processes:
+            p.join()
+            result = processes_results[node_name]
+            self.results[node_name] = result
+            logger.info("Node executed")
+            logger.info("Results so far")
+            pp = pprint.PrettyPrinter(indent=4)
+            pp.pprint(self.results)
+
+        self.execute_control_logic(control_node_container)
+
+    def execute_node(self, node_to_execute, node_queue):
+        try:
             logger.info(f"executing node {node_to_execute.name}")
-            # TODO support parallel execution of control nodes
             if isinstance(node_to_execute, Space):
                 logger.debug("executing a Space")
-                self.execute_space(node_to_execute)
+                result = self.execute_space(node_to_execute)
             if isinstance(node_to_execute, ExpTask):
                 logger.debug("executing an ExpTask")
-                self.execute_task(node_to_execute)
+                result = self.execute_task(node_to_execute)
+            node_queue.put(result)
+        except Exception as e:
+            print(f"Exception at subprocess: {e}")
+            node_queue.put({})
 
     def execute_space(self, node):
         method_type = node.strategy
@@ -69,11 +115,7 @@ class Execution:
             space_results, self.run_count = self.run_grid_search(node)
         if method_type == "randomsearch":
             space_results, self.run_count = self.run_random_search(node)
-        self.results[node.name] = space_results
-        logger.info("Space executed")
-        logger.info("Results so far")
-        pp = pprint.PrettyPrinter(indent=4)
-        pp.pprint(self.results)
+        return space_results
 
     def execute_task(self, node):
         logger.debug(f"task: {node.name}")
@@ -81,9 +123,11 @@ class Execution:
         wf_id = self.create_executed_workflow_in_db(node.wf)
         self.run_count += 1
 
-        p = Process(target=self.execute_wf, args=(node.wf, wf_id, self.results))
+        queue_for_workflow = Queue()
+        self.queues_for_workflows[wf_id] = queue_for_workflow
+        p = Process(target=self.execute_wf, args=(node.wf, wf_id, queue_for_workflow, self.results))
         p.start()
-        result = self.queue.get()
+        result = self.queues_for_workflows[wf_id].get()
         p.join()
 
         workflow_results = {}
@@ -91,12 +135,7 @@ class Execution:
         workflow_results["result"] = result
         node_results = {}
         node_results[1] = workflow_results
-        self.results[node.name] = node_results
-
-        logger.info("ExpTask executed")
-        logger.info("Results so far")
-        pp = pprint.PrettyPrinter(indent=4)
-        pp.pprint(self.results)
+        return node_results
 
     def run_grid_search(self, node):
         combinations = self.generate_combinations(node)
@@ -148,6 +187,7 @@ class Execution:
         return self.run_scheduled_workflows(configured_workflows_of_space, configurations_of_space), self.run_count
 
     def create_executed_workflow_in_db(self, workflow_to_run):
+        set_data_abstraction_config(self.config)
         task_specifications = []
         wf_metrics = {}
         for t in sorted(workflow_to_run.tasks, key=lambda t: t.order):
@@ -224,19 +264,21 @@ class Execution:
                 break
             processes = []
             for wf_id in scheduled_wf_ids:
-                if self.subprocesses == self.config.MAX_SUBPROCESSES:
+                if self.subprocesses == self.config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE:
                     # parallelization limit reached
                     break
                 update_workflow(wf_id, {"status": "running", "start": get_current_time()})
                 workflow_to_run = configured_workflows_of_space[wf_id]
-                p = Process(target=self.execute_wf, args=(workflow_to_run, wf_id))
+                queue_for_workflow = Queue()
+                self.queues_for_workflows[wf_id] = queue_for_workflow
+                p = Process(target=self.execute_wf, args=(workflow_to_run, wf_id, queue_for_workflow))
                 processes.append((wf_id, p))
                 p.start()
                 self.subprocesses += 1
                 time.sleep(1)
             results = {}
             for (wf_id, p) in processes:
-                result = self.queue.get()
+                result = self.queues_for_workflows[wf_id].get()
                 results[wf_id] = result
             for (wf_id, p) in processes:
                 p.join()
@@ -267,7 +309,7 @@ class Execution:
                     t.set_param(param_name, c_dict[param_vp])
         return configured_workflow
 
-    def execute_wf(self, w, wf_id, results_so_far=None):
+    def execute_wf(self, w, wf_id, queue_for_workflow, results_so_far=None):
         try:
             if self.config.EXECUTIONWARE == "PROACTIVE":
                 result = proactive_runner.execute_wf(w, self.exp_id, wf_id, self.runner_folder, self.config, results_so_far)
@@ -276,9 +318,9 @@ class Execution:
             else:
                 print("You need to setup an executionware")
                 exit(0)
-            self.queue.put(result)
+            queue_for_workflow.put(result)
         except Exception as e:
             print(f"Exception at subprocess: {e}")
-            self.queue.put({})
+            queue_for_workflow.put({})
 
 
