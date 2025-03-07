@@ -18,8 +18,11 @@ def get_all_experiments():
     return r.json()['executed_experiments']
 
 
-def create_experiment(body):
+def create_experiment(body, creator_name):
     body["status"] = "scheduled"
+    creator = {}
+    creator["name"] = creator_name
+    body["creator"] = creator
     url = f"{CONFIG.DATA_ABSTRACTION_BASE_URL}/experiments"
     r = requests.put(url, json=body, headers=DATA_ABSTRACTION_HEADERS)
     logger.info(f"PUT request to {url} return status code: {r.status_code}")
