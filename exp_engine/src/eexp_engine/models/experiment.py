@@ -123,21 +123,18 @@ class Space(ControlNode):
 
         def __init__(self, name):
             self.name = name
-            self.generator_type = None
-            self.vp_data = {}
+            self.value_generators = []
 
-        def set_generator_type(self, generator_type):
-            self.generator_type = generator_type
-
-        def set_vp_data(self, vp_data):
-            self.vp_data = vp_data
+        def add_value_generator(self, generator_type, vp_data):
+            self.value_generators.append((generator_type, vp_data))
 
         def print(self, tab=""):
             logger.debug(f"{tab}name : {self.name}")
-            logger.debug(f"{tab}generator_type : {self.generator_type}")
-            logger.debug(f"{tab}vp_data:")
-            for vp_datum in self.vp_data.keys():
-                logger.debug(f"{tab}\t{vp_datum} --> {self.vp_data[vp_datum]}")
+            for value_generator in self.value_generators:
+                logger.debug(f"{tab}\tgenerator_type : {value_generator[0]}")
+                logger.debug(f"{tab}\tvp_data:")
+                for vp_datum in value_generator[1].keys():
+                    logger.debug(f"{tab}\t\t{vp_datum} --> {value_generator[1][vp_datum]}")
 
     def __init__(self, name):
         super().__init__(name)
@@ -145,8 +142,10 @@ class Space(ControlNode):
         self.assembled_workflow = None
         self.strategy = None
         self.runs = None
+        self.filter_function = None
+        self.generator_function = None
         self.variable_tasks = []
-        self.variability_points = []
+        self.variability_points = {}
 
     def set_assembled_workflow(self, assembled_workflow):
         self.assembled_workflow = assembled_workflow
@@ -157,6 +156,12 @@ class Space(ControlNode):
     def set_runs(self, runs):
         self.runs = runs
 
+    def set_filter_function(self, filter_function):
+        self.filter_function = filter_function
+
+    def set_generator_function(self, generator_function):
+        self.generator_function = generator_function
+
     def add_task_param_to_vp_mapping(self, name, param_name, vp_name):
         if name in [t.name for t in self.variable_tasks]:
             t = next(t for t in self.variable_tasks if t.name==name)
@@ -166,21 +171,25 @@ class Space(ControlNode):
         t.add_param(param_name, vp_name)
 
     def add_variability_point(self, vp_name, vp_type, vp_data):
-        vp = self.VariabilityPoint(vp_name)
-        vp.set_generator_type(vp_type)
-        vp.set_vp_data(vp_data)
-        self.variability_points.append(vp)
+        if vp_name in self.variability_points.keys():
+            vp = self.variability_points[vp_name]
+        else:
+            vp = self.VariabilityPoint(vp_name)
+            self.variability_points[vp_name] = vp
+        vp.add_value_generator(vp_type, vp_data)
 
     def print(self, tab=""):
         logger.debug(f"{tab}name : {self.name}")
         logger.debug(f"{tab}strategy : {self.strategy}")
+        logger.debug(f"{tab}runs : {self.runs}")
+        logger.debug(f"{tab}filter_function : {self.filter_function}")
+        logger.debug(f"{tab}generator_function : {self.generator_function}")
         logger.debug(f"{tab}variable_tasks:")
         for t in self.variable_tasks:
             t.print(tab+"\t")
         logger.debug(f"{tab}variability_points:")
-        for vp in self.variability_points:
-            vp.print(tab+"\t")
-        logger.debug(f"{tab}runs : {self.runs}")
+        for vp in self.variability_points.keys():
+            self.variability_points[vp].print(tab+"\t")
         logger.debug(f"{tab}---------------------------------")
 
 

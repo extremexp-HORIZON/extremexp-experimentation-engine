@@ -556,6 +556,8 @@ def parse_experiment_specification(experiment_specification):
                     exp.add_space(space)
                     space.set_assembled_workflow(node.assembled_workflow.name)
                     space.set_strategy(node.strategy_name)
+                    space.set_filter_function(node.filter_function)
+                    space.set_generator_function(node.generator_function)
                     if node.tasks:
                         for task_config in node.tasks:
                             for param_config in task_config.config:
