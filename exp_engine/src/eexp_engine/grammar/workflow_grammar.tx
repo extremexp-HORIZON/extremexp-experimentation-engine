@@ -113,6 +113,8 @@ SpaceConfig:
         'strategy' strategy_name=Strategy ';'
         ('runs' '=' runs=INT ';')?
         (vps=VP)*
+        ('filter' filter_function=STRING ';')?
+        ('generator' generator_function=STRING ';')?
         (tasks=ESpaceTaskConfiguration)*
     '}'|
     'space' name=ID 'of' assembled_workflow=[Workflow] '{'

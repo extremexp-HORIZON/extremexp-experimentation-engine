@@ -7,7 +7,10 @@ PYTHON_DEPENDENCIES_RELATIVE_PATH = 'exp_engine/tasks'
 
 # Reference here the Python file that holds the functions used in the evaluation of conditions.
 # Path is relative to the script that invokes the client.run()
-PYTHON_CONDITIONS_FILE = 'exp_engine.library-tasks.experiment_conditions'
+PYTHON_CONDITIONS = 'exp_engine.library-tasks.experiment_conditions'
+
+# The Python file that holds any functions used for filtering or generating configurations for spaces
+PYTHON_CONFIGURATIONS = 'exp_engine.library-tasks.experiment_configurations'
 
 # number of workflows that the engine can run in parallel per node at any given moment (if omitted, value is 1)
 MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = 3

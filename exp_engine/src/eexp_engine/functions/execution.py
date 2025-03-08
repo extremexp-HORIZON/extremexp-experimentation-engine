@@ -28,11 +28,16 @@ class Execution:
     def evaluate_condition(self, condition_str):
         if condition_str == "True":
             return True
-        condition_str_list = condition_str.split()
-        python_conditions = importlib.import_module(self.config.PYTHON_CONDITIONS_FILE)
-        condition = getattr(python_conditions, condition_str_list[0])
-        args = condition_str_list[1:] + [self.results]
-        return condition(*args)
+        if not self.config.PYTHON_CONDITIONS:
+            logger.error("Cannot apply condition, missing PYTHON_CONDITIONS path in eexp_engine")
+            logger.error("The default case in this case is to evaluate the condition as FALSE")
+            return False
+        else:
+            condition_str_list = condition_str.split()
+            python_conditions = importlib.import_module(self.config.PYTHON_CONDITIONS)
+            condition = getattr(python_conditions, condition_str_list[0])
+            args = condition_str_list[1:] + [self.results]
+            return condition(*args)
 
     def execute_control_logic(self, node):
         if node.conditions_to_next_node_containers:
@@ -155,21 +160,43 @@ class Execution:
 
     def generate_combinations(self, node):
         vp_combinations = []
-        for vp in node.variability_points:
-            if vp.generator_type == "enum":
-                vp_name = vp.name
-                vp_values = vp.vp_data["values"]
-                vp_combinations.append([(vp_name, value) for value in vp_values])
-
-            elif vp.generator_type == "range":
-                vp_name = vp.name
-                min_value = vp.vp_data["min"]
-                max_value = vp.vp_data["max"]
-                step_value = vp.vp_data.get("step", 1) if vp.vp_data["step"] != 0 else 1
-                vp_values = list(range(min_value, max_value, step_value))
-                vp_combinations.append([(vp_name, value) for value in vp_values])
+        for vp_name, vp in node.variability_points.items():
+            vp_values = []
+            for value_generator in vp.value_generators:
+                generator_type = value_generator[0]
+                vp_data = value_generator[1]
+                if generator_type == "enum":
+                    vp_values += vp_data["values"]
+                elif generator_type == "range":
+                    min_value = vp_data["min"]
+                    max_value = vp_data["max"]
+                    step_value = vp_data.get("step", 1) if vp_data["step"] != 0 else 1
+                    vp_values += list(range(min_value, max_value, step_value))
+            vp_combinations.append([(vp_name, value) for value in vp_values])
 
         combinations = list(itertools.product(*vp_combinations))
+        combinations = [dict(c) for c in combinations]
+
+        if node.filter_function:
+            if not self.config.PYTHON_CONFIGURATIONS:
+                logger.error("Cannot filter configurations, missing PYTHON_CONFIGURATIONS path in eexp_engine")
+            else:
+                configuration_filter_str = node.filter_function
+                python_configurations = importlib.import_module(self.config.PYTHON_CONFIGURATIONS)
+                configurations_filter = getattr(python_configurations, configuration_filter_str)
+                logger.info(f"Filtering configurations of space {node.name} using function {configuration_filter_str}()")
+                combinations = configurations_filter(combinations)
+
+        if node.generator_function:
+            if not self.config.PYTHON_CONFIGURATIONS:
+                logger.error("Cannot generate configurations, missing PYTHON_CONFIGURATIONS path in eexp_engine")
+            else:
+                configuration_generator_str = node.generator_function
+                python_configurations = importlib.import_module(self.config.PYTHON_CONFIGURATIONS)
+                configurations_generator = getattr(python_configurations, configuration_generator_str)
+                logger.info(f"Generating configurations for space {node.name} using function {configuration_generator_str}()")
+                combinations += configurations_generator()
+
         return combinations
 
     def run_combinations(self, node, combinations):
@@ -294,8 +321,7 @@ class Execution:
                 run_count_in_space += 1
         return space_results
 
-    def get_workflow_to_run(self, node, c):
-        c_dict = dict(c)
+    def get_workflow_to_run(self, node, c_dict):
         assembled_workflow = next(w for w in self.assembled_flat_wfs if w.name == node.assembled_workflow)
         # TODO subclass the Workflow to capture different types (assembled, configured, etc.)
         configured_workflow = assembled_workflow.clone()
