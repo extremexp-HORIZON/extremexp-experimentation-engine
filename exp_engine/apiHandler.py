@@ -3,7 +3,7 @@ from src.eexp_engine import client
 from src.eexp_engine.data_abstraction_layer.data_abstraction_api import *
 import eexp_config
 import logging
-
+import importlib
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,16 +17,9 @@ class ApiHandler(object):
     def __init__(self):
         print("ApiHandler created")
 
-    def run_experiment(self, exp_id):
-        # TODO make this work with the eexp_engine module instead
-        None
-        # dsl_file="IDEKO_main"
-        #
-        # with open(self.EXPERIMENTS_FOLDER + dsl_file + '.xxp', 'r') as file:
-        #     experiment_specification = file.read()
-        #
-        # logger.info("running experiment NOW")
-        # functions.run_experiment(experiment_specification, exp_id)
+    def run_exp(self,exp_name):
+       config = importlib.import_module("eexp_config")
+       client.run(__file__, exp_name, config)
 
     def kill_workflow(self, wf_id):
         wf = get_workflow(wf_id)

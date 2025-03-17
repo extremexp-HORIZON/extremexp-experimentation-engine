@@ -30,6 +30,9 @@ class Config:
 
 
 def run(runner_file, exp_name, config):
+    logger.info(f"abspath: {os.path.relpath(config.EXPERIMENT_LIBRARY_PATH)}")
+    logger.info(f"os.listdir: {os.listdir(config.EXPERIMENT_LIBRARY_PATH)}")
+
     with open(os.path.join(config.EXPERIMENT_LIBRARY_PATH, exp_name + ".xxp"), 'r') as file:
         workflow_specification = file.read()
 
@@ -43,7 +46,9 @@ def run(runner_file, exp_name, config):
 
     config_obj = Config(config)
     set_data_abstraction_config(config_obj)
+
     exp_id = create_experiment(new_exp, "dummy_user")
+
     run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj)
 
 
