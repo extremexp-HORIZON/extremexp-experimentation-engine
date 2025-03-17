@@ -14,12 +14,10 @@ cors = CORS(app) # cors is added in advance to allow cors requests
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 
-@app.route('/exp/run', methods=["GET"])
+@app.route('/exp/run/<experimentname>', methods=["GET"])
 @cross_origin()
-def run():
-    arr = os.listdir("/home/user/workspace")
-    print(f"dir: {arr}")
-    app.logger.info(arr)
+def run(experimentname):
+    apiHandler.run_exp(experimentname)
     return {"message": "experiment started"}, 201
 
 # @app.route('/exp/run', methods=["POST"])
@@ -55,8 +53,6 @@ def run():
 #
 #         apiHandler.run_experiment(exp_id)
 #         return {"message": "experiment started"}, 201
-
-
 
 @app.route("/exp/workflow/kill/<workflow_id>", methods=["GET"])
 @cross_origin()
