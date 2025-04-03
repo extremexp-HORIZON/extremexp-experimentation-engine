@@ -17,9 +17,7 @@ RESULTS_FILE = "experiment_results.json"
 
 def create_gateway_and_connect_to_it(username, password):
     print("Logging on proactive-server...")
-    proactive_host = 'try.activeeon.com'
-    proactive_port = '8443'
-    proactive_url  = "https://"+proactive_host+":"+proactive_port
+    proactive_url  = CONFIG.PROACTIVE_URL
     print("Creating gateway ")
     gateway = proactive.ProActiveGateway(proactive_url, debug=False)
     print("Gateway created")
