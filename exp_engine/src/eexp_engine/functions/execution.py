@@ -57,7 +57,7 @@ class Execution:
         all_control_nodes = self.exp.spaces + self.exp.tasks + self.exp.interactions
         for node_name in control_node_container.parallel_node_names:
             node_to_execute = next(n for n in all_control_nodes if n.name==node_name)
-            self.results[node_to_execute.name] = self.execute_node_sequential(node_to_execute)
+            self.results[node_to_execute.name] = self.execute_node_sequential_DEPRECATED(node_to_execute)
             logger.info("Node executed")
             logger.info("Results so far")
             pp = pprint.PrettyPrinter(indent=4)
@@ -74,7 +74,7 @@ class Execution:
             return self.execute_task(node_to_execute)
 
     def execute_nodes_in_container(self, control_node_container):
-        all_control_nodes = self.exp.spaces + self.exp.tasks + self.exp.interactions
+        all_control_nodes = self.exp.spaces + self.exp.tasks
         processes = []
         for node_name in control_node_container.parallel_node_names:
             node_to_execute = next(n for n in all_control_nodes if n.name==node_name)

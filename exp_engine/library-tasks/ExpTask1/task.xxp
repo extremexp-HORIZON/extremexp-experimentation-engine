@@ -1,6 +1,6 @@
 task ExpTask1 {
 
-    define input data Results;
+    define input data T1InputFile;
 
     implementation "ExpTask1/task.py";
 }
