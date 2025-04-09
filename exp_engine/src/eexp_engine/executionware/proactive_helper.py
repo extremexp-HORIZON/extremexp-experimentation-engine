@@ -22,32 +22,24 @@ def get_experiment_results():
     return None
 
 
-def save_datasets(variables, *data):
-    for (key, value) in data:
-        _save_dataset(variables, key, value)
-
-
-def load_datasets(variables, *keys):
-    datasets = [_load_dataset(variables, key) for key in keys]
-    if len(datasets) == 1:
-        return datasets[0]
-    return datasets
-
-
-def _save_dataset(variables, key, value):
+def save_dataset(variables, key, value, resultMap=None):
     value_size = sys.getsizeof(value)
     print(f"Saving output data of size {value_size} with key {key}")
     job_id = variables.get("PA_JOB_ID")
     task_id = variables.get("PA_TASK_ID")
     task_folder = os.path.join("/shared", job_id, task_id)
     os.makedirs(task_folder, exist_ok=True)
-    output_filename = os.path.join(task_folder, key)
-    with open(output_filename, "wb") as outfile:
+    output_file_path = os.path.join(task_folder, key)
+    with open(output_file_path, "wb") as outfile:
         pickle.dump(value, outfile)
     variables.put("PREVIOUS_TASK_ID", str(task_id))
+    print(f"resultMap: {resultMap}")
+    if resultMap is not None:
+        print(f"Adding file {output_file_path} path for file {key} to job results")
+        resultMap.put(key, output_file_path)
 
 
-def _load_dataset(variables, key):
+def load_dataset(variables, key):
     print(f"Loading input data with key {key}")
     job_id = variables.get("PA_JOB_ID")
     task_id = variables.get("PREVIOUS_TASK_ID")
@@ -57,7 +49,11 @@ def _load_dataset(variables, key):
         if key in execution_engine_mapping[task_name]:
             key = execution_engine_mapping[task_name][key]
     input_filename = os.path.join(task_folder, key)
-    with open(input_filename, "rb") as f:
+    return load_dataset_by_path(input_filename)
+
+
+def load_dataset_by_path(file_path):
+    with open(file_path, "rb") as f:
         file_contents = pickle.load(f)
     return file_contents
 

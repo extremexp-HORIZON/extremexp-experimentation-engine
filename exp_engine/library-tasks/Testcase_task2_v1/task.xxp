@@ -1,3 +1,5 @@
 task Task2 {
     implementation "Testcase_task2_v1/task.py";
+
+    define output data Task2v1OutputFile;
 }
