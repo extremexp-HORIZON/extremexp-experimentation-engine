@@ -10,3 +10,8 @@ file_path = S1_results["Task1OutputFile"]
 
 file_contents = ph.load_dataset_by_path(file_path)
 print(file_contents)
+
+input_file = variables.get("T1InputFile")
+with open(input_file, "r") as f:
+    content = f.readlines()
+    print(content)

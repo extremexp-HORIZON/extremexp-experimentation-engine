@@ -43,6 +43,7 @@ class Workflow:
         logger.debug(f"{tab}Workflow with name: {self.name}")
         logger.debug(f"{tab}Workflow is main?: {self.is_main}")
         logger.debug(f"{tab}Workflow is flat?: {self.is_flat()}")
+        logger.debug(f"{tab}Workflow tasks:")
         for t in sorted(self.tasks, key=lambda t: t.order):
             t.print(tab+"\t")
             if t.sub_workflow:

@@ -580,14 +580,22 @@ def parse_experiment_specification(experiment_specification):
                             space.add_variability_point(vp.vp_name, vp_type, vp_data)
                     if node.runs:
                         space.set_runs(int(node.runs))
-                if node.__class__.__name__ == 'ExperimentControlTask':
-                    wf = get_experiment_task(node)
-                    exp.add_task(node.name, wf)
-                if node.__class__.__name__ == 'ExperimentControlInteraction':
+                if (node.__class__.__name__ == 'ExperimentControlTask' or
+                        node.__class__.__name__ == 'ExperimentControlInteraction'):
                     wf = get_experiment_task(node)
                     task = wf.get_task(node.name)
-                    if task.taskType != "interactive":
+                    if node.__class__.__name__ == 'ExperimentControlInteraction' and task.taskType != "interactive":
                         raise exceptions.InteractionTaskDoesNotHaveInteractiveType(f"Interaction {node.name} is not implemented by a interactive task")
+                    input_datasets = []
+                    for d in node.data:
+                        ds = Dataset(d.name)
+                        dataset_relative_path = os.path.join(CONFIG.DATASET_LIBRARY_RELATIVE_PATH, d.path)
+                        ds.add_path(dataset_relative_path)
+                        ds.set_name_in_task_signature(d.name)
+                        if d.dataset_type:
+                            ds.set_dataset_type(d.dataset_type)
+                        input_datasets.append(ds)
+                    task.input_files = input_datasets
                     exp.add_task(node.name, wf)
             for node in component.control:
                 if node.explink:

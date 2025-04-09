@@ -9,7 +9,6 @@ class Experiment:
         self.intent = None
         self.spaces = []
         self.tasks = []
-        self.interactions = []
         self.control_node_containers = []
 
     def set_intent(self, intent):
@@ -49,10 +48,10 @@ class Experiment:
                 self.traverse_and_print_control_node_container(next_node, tab)
 
     def traverse_and_print_control_node_containers(self, tab):
-            logger.debug(f"{tab}control_node_containers:")
-            node = next(node for node in self.control_node_containers if not node.is_next)
-            self.print_control_node_container(node, tab)
-            self.traverse_and_print_control_node_container(node, tab)
+        logger.debug(f"{tab}control_node_containers:")
+        node = next(node for node in self.control_node_containers if not node.is_next)
+        self.print_control_node_container(node, tab)
+        self.traverse_and_print_control_node_container(node, tab)
 
     def print(self, tab=""):
         logger.debug(f"{tab}name : {self.name}")
@@ -63,9 +62,6 @@ class Experiment:
         logger.debug(f"{tab}tasks:")
         for task in self.tasks:
             task.print(tab+"\t")
-        logger.debug(f"{tab}interactions:")
-        for interaction in self.interactions:
-            interaction.print(tab+"\t")
         self.traverse_and_print_control_node_containers(tab)
 
 
@@ -203,4 +199,6 @@ class ExpTask(ControlNode):
 
     def print(self, tab=""):
         logger.debug(f"{tab}name : {self.name}")
+        logger.debug(f"{tab}workflow :")
+        self.wf.print(tab + "\t")
 

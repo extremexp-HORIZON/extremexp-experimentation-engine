@@ -57,6 +57,9 @@ experiment ComplexControlExp1 {
 
     task T1 {
         implementation "ExpTask1";
+        input data T1InputFile {
+            path "tests/dummy.txt";
+        }
     }
 
     task T2 {

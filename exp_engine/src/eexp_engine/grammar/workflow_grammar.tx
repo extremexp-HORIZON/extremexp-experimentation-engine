@@ -96,16 +96,24 @@ Experiment:
         experimentNode*=ExperimentNode
     '}';
 
-ExperimentNode: SpaceConfig | ExperimentControlTask | ExperimentControlInteraction ;
+ExperimentNode:  ExperimentControlTask |  ExperimentControlInteraction | SpaceConfig;
 
 ExperimentControlTask:
     'task' name=ID '{'
-        ('implementation' implementation=STRING';' | 'subworkflow' subworkflow=STRING';')?
+        ('implementation' implementation=STRING';' | 'subworkflow' subworkflow=STRING';')
+        (data=ExperimentData)*
     '}';
 
 ExperimentControlInteraction:
     'interaction' name=ID '{'
-        ('implementation' implementation=STRING';' | 'subworkflow' subworkflow=STRING';')?
+        ('implementation' implementation=STRING';' | 'subworkflow' subworkflow=STRING';')
+        (data=ExperimentData)*
+    '}';
+
+ExperimentData:
+    'input data' name=ID '{'
+        'path' path=STRING';'
+        ('type' dataset_type=STRING';')?
     '}';
 
 SpaceConfig:
