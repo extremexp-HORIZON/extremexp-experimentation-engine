@@ -1,6 +1,8 @@
 task Task1 {
     implementation "Testcase_task1/task.py";
 
+    define output data Task1OutputFile;
+
     define param param1 {
         type Integer;
         default 10;

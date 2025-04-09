@@ -27,6 +27,7 @@ experiment ComplexControlExp1 {
 
     control {
           S1 ?-> S2 { condition "check_results_less_than 100" };
+          S2 -> T1;
     }
 
     space S1 of ComplexControlAW1 {
