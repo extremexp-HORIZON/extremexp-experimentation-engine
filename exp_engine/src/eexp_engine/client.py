@@ -19,6 +19,7 @@ class Config:
         self.PROACTIVE_URL = config.PROACTIVE_URL
         self.PROACTIVE_USERNAME = config.PROACTIVE_USERNAME
         self.PROACTIVE_PASSWORD = config.PROACTIVE_PASSWORD
+        self.PROACTIVE_PYTHON_VERSIONS = config.PROACTIVE_PYTHON_VERSIONS
         self.PYTHON_CONDITIONS = config.PYTHON_CONDITIONS if 'PYTHON_CONDITIONS' in dir(config) else None
         self.PYTHON_CONFIGURATIONS = config.PYTHON_CONFIGURATIONS if 'PYTHON_CONFIGURATIONS' in dir(config) else None
         if 'MAX_WORKFLOWS_IN_PARALLEL_PER_NODE' in dir(config):
@@ -51,6 +52,8 @@ def run(runner_file, exp_name, config):
     exp_id = create_experiment(new_exp, "dummy_user")
 
     run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj)
+
+    return exp_id
 
 
 def kill_job(job_id, config):

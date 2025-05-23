@@ -19,7 +19,7 @@ class ApiHandler(object):
 
     def run_exp(self,exp_name):
        config = importlib.import_module("eexp_config")
-       client.run(__file__, exp_name, config)
+       return client.run(__file__, exp_name, config)
 
     def kill_workflow(self, wf_id):
         wf = get_workflow(wf_id)

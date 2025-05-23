@@ -1,11 +1,30 @@
-import os
 import threading
 import pandas as pd
 from flask import Flask, request, render_template_string
+import ctypes
 
 # Load the dataframe passed from Task 1
 dataframe_json = variables.get("dataframe_json")
 df = pd.read_json(dataframe_json)
+
+class StoppableThread(threading.Thread):
+    def get_id(self):  # pylint: disable=R1710
+        if hasattr(self, "_thread_id"):
+            return self._thread_id
+        for thread_id, thread in threading._active.items():  # pylint: disable=W0212
+            if thread is self:
+                return thread_id
+
+    def kill(self):
+        thread_id = self.get_id()
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_long(thread_id), ctypes.py_object(SystemExit)
+        )
+        if res == 0:
+            raise ValueError(f"Invalid thread id: {thread_id}")
+        if res > 1:
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(thread_id), None)
+            raise SystemExit("Stopping thread failure")
 
 # Flask application
 app = Flask(__name__)
@@ -69,12 +88,9 @@ def stop_pipeline():
     # Send a response before shutting down
     return "Pipeline terminated. You can close this page now.", 200
 
-# Flask shutdown utility
 def shutdown_server():
-    func = request.environ.get('werkzeug.server.shutdown')
-    if func is None:
-        raise RuntimeError("Not running with the Werkzeug Server")
-    func()
+    flask_thread.kill()
+    flask_thread.join()
 
 @app.after_request
 def shutdown_if_requested(response):
@@ -88,5 +104,5 @@ def run_flask_app():
 
 
 print("Starting Flask application...")
-flask_thread = threading.Thread(target=run_flask_app)
+flask_thread = StoppableThread(target=run_flask_app)
 flask_thread.start()

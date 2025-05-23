@@ -16,12 +16,16 @@ PYTHON_CONFIGURATIONS = 'exp_engine.library-tasks.experiment_configurations'
 MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = 3
 
 EXECUTIONWARE = "PROACTIVE" # other option: "LOCAL"
-# Proactive credentials (only needed if EXECUTIONWARE = "PROACTIVE" above)
+# Proactive details (only needed if EXECUTIONWARE = "PROACTIVE" above)
+PROACTIVE_URL = "http://146.124.106.171:8880"
+# Proactive credentials (mandatory - ask ICOM)
 PROACTIVE_USERNAME=""
 PROACTIVE_PASSWORD=""
+# You need to specify at least the path to the default python version, i.e. 3.8
+PROACTIVE_PYTHON_VERSIONS = {"3.8": "/usr/bin/python3.8", "3.9": "/usr/bin/python3.9"}
 
-# Data abstraction credentials (mandatory - ask CUNI)
-DATA_ABSTRACTION_BASE_URL = "https://api.expvis.smartarch.cz/api"
+# Data abstraction credentials (mandatory - ask ICOM)
+DATA_ABSTRACTION_BASE_URL = "http://146.124.106.171:8445/api"
 DATA_ABSTRACTION_ACCESS_TOKEN = ''
 
 # logging configuration, optional; if not set, all loggers have INFO level
