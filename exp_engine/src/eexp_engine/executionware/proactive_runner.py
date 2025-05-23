@@ -70,16 +70,6 @@ def _create_execution_engine_mapping(tasks):
     return mapping
 
 
-def _get_python_version(python_version, enforce_python_version=True):
-    if not python_version and enforce_python_version:
-        print("You need to set a Python version when configuring a virtual environment.")
-        exit(0)
-    if python_version == "3.9":
-        return "/opt/miniconda3/py39/bin/python3"
-    else:
-        return python_version
-
-
 def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version, taskType,
                         input_files=[], output_files=[], dependent_modules=[], dependencies=[]):
     print(f"Creating task {task_name}...")
@@ -107,7 +97,7 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
         task.addVariable("data_abstraction_base_url", CONFIG.DATA_ABSTRACTION_BASE_URL)
         task.addVariable("data_abstraction_access_token", CONFIG.DATA_ABSTRACTION_ACCESS_TOKEN)
 
-        python_version_path = "/usr/bin/python3" # This is 3.6.9 in Proactive, and cannot be changed
+        python_version_path = "/usr/bin/python3.8" # This depends on the Proactive deployment (here in ICOM)
         task.setDefaultPython(python_version_path)
 
         with open(INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH) as file:
@@ -121,7 +111,10 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
 
     else:
         if requirements_file:
-            python_version_path = _get_python_version(python_version)
+            if not python_version:
+                print("You need to set a Python version when configuring a virtual environment!")
+                exit(0)
+            python_version_path = CONFIG.PROACTIVE_PYTHON_VERSIONS[python_version]
             print(f"setting python version to {python_version_path}")
             task.setDefaultPython(python_version_path)
             print(f"setting venv from file {requirements_file}")
@@ -254,7 +247,7 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
                 completed_task["end"] = current_time
                 update_workflow(wf_id, {"tasks": wf["tasks"]})
                 print(f"Task {task_name} completed at {current_time}")
-        
+
         print(f"Current job status: {job_status}: {seconds}")
         if job_status.upper() in ["FINISHED", "CANCELED", "FAILED", "KILLED"]:
             is_finished = True
