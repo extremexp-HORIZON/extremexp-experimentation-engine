@@ -338,9 +338,9 @@ class Execution:
     def execute_wf(self, w, wf_id, queue_for_workflow, results_so_far=None):
         try:
             if self.config.EXECUTIONWARE == "PROACTIVE":
-                result = proactive_runner.execute_wf(w, self.exp_id, wf_id, self.runner_folder, self.config, results_so_far)
+                result = proactive_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config, results_so_far)
             elif self.config.EXECUTIONWARE == "LOCAL":
-                result = local_runner.execute_wf(w, self.exp_id, wf_id, self.runner_folder, self.config)
+                result = local_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config)
             else:
                 print("You need to setup an executionware")
                 exit(0)
