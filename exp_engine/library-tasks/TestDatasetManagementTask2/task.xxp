@@ -1,0 +1,7 @@
+task TestDatasetManagementTask2 {
+
+    implementation "TestDatasetManagementTask2/task.py";
+
+    define input data TestDatasetManagementTask2InputFile;
+    define output data TestDatasetManagementTask2OutputFile;
+}

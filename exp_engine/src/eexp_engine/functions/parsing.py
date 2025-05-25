@@ -379,8 +379,13 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
 
                 if e.__class__.__name__ == "ConfigureData":
                     ds = wf.get_dataset(e.alias.name)
-                    dataset_relative_path = os.path.join(CONFIG.DATASET_LIBRARY_RELATIVE_PATH, e.path)
-                    ds.add_path(dataset_relative_path)
+                    if e.path:
+                        dataset_relative_path = os.path.join(CONFIG.DATASET_LIBRARY_RELATIVE_PATH, e.path)
+                        ds.add_path(dataset_relative_path)
+                    else:
+                        ds.add_zenoh_name(e.zenoh_name)
+                        if e.zenoh_project:
+                            ds.add_zenoh_project(e.zenoh_project)
                     if e.dataset_type:
                         ds.set_dataset_type(e.dataset_type)
 

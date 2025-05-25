@@ -3,6 +3,7 @@ from .executionware import proactive_runner as proactive_runner
 from .data_abstraction_layer.data_abstraction_api import set_data_abstraction_config, create_experiment
 import os
 import logging.config
+from . import exceptions
 
 logger = logging.getLogger(__name__)
 
@@ -13,13 +14,23 @@ class Config:
         self.EXPERIMENT_LIBRARY_PATH = config.EXPERIMENT_LIBRARY_PATH
         self.DATASET_LIBRARY_RELATIVE_PATH = config.DATASET_LIBRARY_RELATIVE_PATH
         self.PYTHON_DEPENDENCIES_RELATIVE_PATH = config.PYTHON_DEPENDENCIES_RELATIVE_PATH
+        if 'DATASET_MANAGEMENT' not in dir(config) or len(config.DATASET_MANAGEMENT) == 0:
+            raise exceptions.DatasetManagementNotSet(
+                "Please set the variable DATASET_MANAGEMENT in config.py to either \"LOCAL\" or \"ZENOH\"")
+        else:
+            self.DATASET_MANAGEMENT = config.DATASET_MANAGEMENT
+        if config.DATASET_MANAGEMENT == "ZENOH":
+            if 'DATASET_MANAGEMENT_URL' not in dir(config) or len(config.DATASET_MANAGEMENT_URL) == 0:
+                raise exceptions.DatasetManagementSetToZenohButNoURLProvided(
+                    "Please set the variable DATASET_MANAGEMENT_URL in config.py")
+        self.DATASET_MANAGEMENT_URL = config.DATASET_MANAGEMENT_URL if 'DATASET_MANAGEMENT_URL' in dir(config) else None
         self.DATA_ABSTRACTION_BASE_URL = config.DATA_ABSTRACTION_BASE_URL
         self.DATA_ABSTRACTION_ACCESS_TOKEN = config.DATA_ABSTRACTION_ACCESS_TOKEN
         self.EXECUTIONWARE = config.EXECUTIONWARE
         self.PROACTIVE_URL = config.PROACTIVE_URL
         self.PROACTIVE_USERNAME = config.PROACTIVE_USERNAME
         self.PROACTIVE_PASSWORD = config.PROACTIVE_PASSWORD
-        self.PROACTIVE_PYTHON_VERSIONS = config.PROACTIVE_PYTHON_VERSIONS
+        self.PROACTIVE_PYTHON_VERSIONS = config.PROACTIVE_PYTHON_VERSIONS if 'PROACTIVE_PYTHON_VERSIONS' in dir(config) else None
         self.PYTHON_CONDITIONS = config.PYTHON_CONDITIONS if 'PYTHON_CONDITIONS' in dir(config) else None
         self.PYTHON_CONFIGURATIONS = config.PYTHON_CONFIGURATIONS if 'PYTHON_CONFIGURATIONS' in dir(config) else None
         if 'MAX_WORKFLOWS_IN_PARALLEL_PER_NODE' in dir(config):

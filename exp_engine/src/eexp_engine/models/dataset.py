@@ -7,12 +7,20 @@ class Dataset:
     def __init__(self, name):
         self.name = name
         self.path = ""
+        self.zenoh_name = ""
+        self.zenoh_project = ""
         self.dataset_type = ""
         self.name_in_task_signature = None
         self.name_in_generating_task = None
 
     def add_path(self, path):
         self.path = path
+
+    def add_zenoh_name(self, zenoh_name):
+        self.zenoh_name = zenoh_name
+
+    def add_zenoh_project(self, zenoh_project):
+        self.zenoh_project = zenoh_project
 
     def set_dataset_type(self, dataset_type):
         self.dataset_type = dataset_type

@@ -8,9 +8,10 @@ packagedir = os.path.dirname(os.path.abspath(__file__))
 PROACTIVE_HELPER_FULL_PATH = os.path.join(packagedir, "proactive_helper.py")
 interactive_path_folder = os.path.join(packagedir, "user_interaction")
 INTERACTIVE_TASK_PRESCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "prescript.py")
-INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH = os.path.join(interactive_path_folder, "requirements.txt")
+INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH = os.path.join(interactive_path_folder, "user_interaction_requirements.txt")
 INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "postscript.py")
-EXECUTION_ENGINE_MAPPING_FILE_PREFIX = "execution_engine_mapping"
+ZENOH_REQS_PATH = os.path.join(packagedir, "zenoh", "zenoh_requirements.txt")
+EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX = "execution_engine_runtime_config"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
 RESULTS_FILE = "experiment_results.json"
 
@@ -70,23 +71,37 @@ def _create_execution_engine_mapping(tasks):
     return mapping
 
 
-def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environment, mapping, task_impl, requirements_file, python_version, taskType,
+def _create_exp_engine_metadata(exp_id, exp_name, wf_id):
+    exp_engine_metadata = {}
+    exp_engine_metadata["exp_id"] = exp_id
+    exp_engine_metadata["exp_name"] = exp_name
+    exp_engine_metadata["wf_id"] = wf_id
+    return exp_engine_metadata
+
+
+def _get_requirements_from_file(reqs_file):
+    with open(reqs_file) as file:
+        user_reqs = [line.rstrip() for line in file]
+    return user_reqs
+
+
+def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environment, mapping, exp_engine_metadata, task_impl, requirements_file, python_version, taskType,
                         input_files=[], output_files=[], dependent_modules=[], dependencies=[]):
     print(f"Creating task {task_name}...")
     gateway = reconnect_if_needed(gateway)
     task = gateway.createPythonTask()
     task.setTaskName(task_name)
-    print(f"setting implementation from file {task_impl}")
+    print(f"Setting implementation from file {task_impl}")
     task.setTaskImplementationFromFile(task_impl)
 
     if taskType=="interactive":
-        print(f"setting pre_script for interactive task {task_name}")
+        print(f"Setting pre_script for interactive task {task_name}")
         gateway = reconnect_if_needed(gateway)
         pre_script = gateway.createPreScript(proactive.ProactiveScriptLanguage().python())
         pre_script.setImplementationFromFile(INTERACTIVE_TASK_PRESCRIPT_FULL_PATH)
         task.setPreScript(pre_script)
 
-        print(f"setting post_script for interactive task {task_name}")
+        print(f"Setting post_script for interactive task {task_name}")
         gateway = reconnect_if_needed(gateway)
         post_script = gateway.createPostScript(proactive.ProactiveScriptLanguage().python())
         post_script.setImplementationFromFile(INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH)
@@ -100,25 +115,35 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
         python_version_path = "/usr/bin/python3.8" # This depends on the Proactive deployment (here in ICOM)
         task.setDefaultPython(python_version_path)
 
-        with open(INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH) as file:
-            requirements = [line.rstrip() for line in file]
+        requirements = _get_requirements_from_file(INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH)
         if requirements_file:
-            print(f"Adding extra requirements from file {requirements_file}")
-            with open(requirements_file) as file:
-                extra_reqs = [line.rstrip() for line in file]
-            requirements += extra_reqs
+            requirements += _get_requirements_from_file(requirements_file)
+        if CONFIG.DATASET_MANAGEMENT == "ZENOH":
+            requirements += _get_requirements_from_file(ZENOH_REQS_PATH)
         task.setVirtualEnv(requirements=requirements)
 
     else:
         if requirements_file:
             if not python_version:
-                print("You need to set a Python version when configuring a virtual environment!")
-                exit(0)
+                print("You need to set a Python version when configuring a virtual environment.")
+                exit(1)
+            if not CONFIG.PROACTIVE_PYTHON_VERSIONS:
+                print(f"You need to add PROACTIVE_PYTHON_VERSIONS to your config.py, and set a path for version {python_version}")
+                exit(1)
+            if python_version not in CONFIG.PROACTIVE_PYTHON_VERSIONS:
+                print(f"You need to set a path for version {python_version} in the PROACTIVE_PYTHON_VERSIONS of your config.py")
+                exit(1)
             python_version_path = CONFIG.PROACTIVE_PYTHON_VERSIONS[python_version]
-            print(f"setting python version to {python_version_path}")
+            print(f"Setting python version to {python_version_path}")
             task.setDefaultPython(python_version_path)
-            print(f"setting venv from file {requirements_file}")
-            task.setVirtualEnvFromFile(requirements_file)
+            requirements = _get_requirements_from_file(requirements_file)
+            if CONFIG.DATASET_MANAGEMENT == "ZENOH":
+                requirements += _get_requirements_from_file(ZENOH_REQS_PATH)
+            task.setVirtualEnv(requirements=requirements)
+        elif python_version:
+            if not requirements_file:
+                print("You need to point to a requirements file (even if it is empty) when setting a Python version.")
+                exit(1)
         else:
             task.setForkEnvironment(fork_environment)
 
@@ -127,25 +152,28 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
             task.addInputFile(input_file.path)
             input_file_path = os.path.dirname(input_file.path) if "**" in input_file.path else input_file.path
             task.addVariable(input_file.name_in_task_signature, input_file_path)
+        if input_file.zenoh_name:
+            task.addVariable(input_file.name_in_task_signature, f"{input_file.zenoh_name}|{input_file.zenoh_project}")
     for output_file in output_files:
         if output_file.path:
+            # take out the '**' or the file name to retrieve the path to the folder
+            output_folder_path = os.path.dirname(output_file.path)
+            output_folder_path_with_wf_id = os.path.join(output_folder_path, wf_id)
             if "**" in output_file.path:
-                # take out the '**' to reveal the actual path to the folder
-                output_file_path = os.path.dirname(output_file.path)
-                final_output_path = os.path.join(output_file_path, wf_id)
-                task.addVariable(output_file.name_in_task_signature, final_output_path)
-                # add back the '**' to ensure that proactive treats it as a folder
-                final_output_path_proactive = os.path.join(final_output_path, "**")
-                task.addOutputFile(final_output_path_proactive)
-                print(f"final_output_path: {final_output_path}")
-                print(f"final_output_path_proactive: {final_output_path_proactive}")
+                task.addVariable(output_file.name_in_task_signature, output_folder_path_with_wf_id)
+                print(f"Adding '{output_file.name_in_task_signature}'->'{output_folder_path_with_wf_id}' to proactive 'variables'")
             else:
-                output_file_path = os.path.dirname(output_file.path)
+                # if this is not a folder path (i.e. it does not end with "**"), append the file name at the end
                 output_file_name = os.path.basename(output_file.path)
-                final_output_path = os.path.join(output_file_path, wf_id, output_file_name)
-                task.addVariable(output_file.name_in_task_signature, final_output_path)
-                task.addOutputFile(final_output_path)
-                print(f"final_output_path: {final_output_path}")
+                output_file_path = os.path.join(output_folder_path, wf_id, output_file_name)
+                task.addVariable(output_file.name_in_task_signature, output_file_path)
+                print(f"Adding '{output_file.name_in_task_signature}'->'{output_file_path}' to proactive 'variables'")
+            # add back the '**' to ensure that proactive treats it as a folder
+            final_output_path_proactive = os.path.join(output_folder_path_with_wf_id, "**")
+            task.addOutputFile(final_output_path_proactive)
+            print(f"Declaring '{final_output_path_proactive}' as output file for task {task_name}")
+        if output_file.zenoh_name:
+            task.addVariable(output_file.name_in_task_signature, output_file.zenoh_name)
 
     dependent_modules_folders = []
     for dependent_module in dependent_modules:
@@ -155,9 +183,16 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
     PROACTIVE_HELPER_RELATIVE_PATH = os.path.relpath(PROACTIVE_HELPER_FULL_PATH)
     task.addInputFile(PROACTIVE_HELPER_RELATIVE_PATH)
 
-    with open(EXECUTION_ENGINE_MAPPING_FILE, 'w') as f:
-        json.dump(mapping, f)
-    task.addInputFile(EXECUTION_ENGINE_MAPPING_FILE)
+    with open(EXECUTION_ENGINE_RUNTIME_CONFIG, 'w') as f:
+        dataset_config = {}
+        dataset_config["DATASET_MANAGEMENT"] = CONFIG.DATASET_MANAGEMENT
+        dataset_config["DATASET_MANAGEMENT_URL"] = CONFIG.DATASET_MANAGEMENT_URL
+        runtime_job_config = {}
+        runtime_job_config["mapping"] = mapping
+        runtime_job_config["exp_engine_metadata"] = exp_engine_metadata
+        runtime_job_config["dataset_config"] = dataset_config
+        json.dump(runtime_job_config, f)
+    task.addInputFile(EXECUTION_ENGINE_RUNTIME_CONFIG)
 
     if results_so_far:
         with open(RESULTS_FILE, 'w') as f:
@@ -218,7 +253,7 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
     print("job_id: " + str(job_id))
     update_workflow(wf_id, {"metadata": {"proactive_job_id": str(job_id)}})
 
-    os.remove(EXECUTION_ENGINE_MAPPING_FILE)
+    os.remove(EXECUTION_ENGINE_RUNTIME_CONFIG)
     if os.path.isfile(RESULTS_FILE):
         os.remove(RESULTS_FILE)
     import time
@@ -292,12 +327,12 @@ def reconnect_if_needed(gateway):
     return create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
 
 
-def execute_wf(w, exp_id, wf_id, runner_folder, config, results_so_far):
-    global RUNNER_FOLDER, CONFIG, EXECUTION_ENGINE_MAPPING_FILE, GATEWAY
+def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far):
+    global RUNNER_FOLDER, CONFIG, EXECUTION_ENGINE_RUNTIME_CONFIG, GATEWAY
     RUNNER_FOLDER = runner_folder
     CONFIG = config
     set_data_abstraction_config(CONFIG)
-    EXECUTION_ENGINE_MAPPING_FILE = f"{EXECUTION_ENGINE_MAPPING_FILE_PREFIX}_{wf_id}.json"
+    EXECUTION_ENGINE_RUNTIME_CONFIG = f"{EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX}_{wf_id}.json"
 
     logger = logging.getLogger(__name__)
     logger.info("****************************")
@@ -312,6 +347,7 @@ def execute_wf(w, exp_id, wf_id, runner_folder, config, results_so_far):
     job = _create_job(gateway, w.name)
     fork_env = _create_fork_env(gateway, job)
     mapping = _create_execution_engine_mapping(sorted_tasks)
+    exp_engine_metadata = _create_exp_engine_metadata(exp_id, exp_name, wf_id)
 
     created_tasks = []
     task_statuses = []
@@ -319,7 +355,7 @@ def execute_wf(w, exp_id, wf_id, runner_folder, config, results_so_far):
     job_params_str = ""
     for t in sorted_tasks:
         dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
-        task_to_execute = _create_python_task(gateway, results_so_far, wf_id, t.name, fork_env, mapping, t.impl_file, t.requirements_file,
+        task_to_execute = _create_python_task(gateway, results_so_far, wf_id, t.name, fork_env, mapping, exp_engine_metadata, t.impl_file, t.requirements_file,
                                               t.python_version, t.taskType, t.input_files, t.output_files, t.dependent_modules,
                                               dependent_tasks)
         if len(t.params) > 0:

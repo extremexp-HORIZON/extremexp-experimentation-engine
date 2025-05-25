@@ -41,3 +41,13 @@ class OutputDataInSubWorkflowDoesNotMatchInputDataOfParentWorkflow(Exception):
 class InteractionTaskDoesNotHaveInteractiveType(Exception):
     "Raised when an interaction of an experiment is not implemented via a task whose type is interactive"
     pass
+
+
+class DatasetManagementNotSet(Exception):
+    "Raised when the DATASET_MANAGEMENT variable in config.py is not set "
+    pass
+
+
+class DatasetManagementSetToZenohButNoURLProvided(Exception):
+    "Raised when the DATASET_MANAGEMENT variable in config.py is set to ZENOH but the DATASET_MANAGEMENT_URL is not set"
+    pass
