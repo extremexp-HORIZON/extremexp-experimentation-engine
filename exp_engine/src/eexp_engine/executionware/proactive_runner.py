@@ -120,6 +120,7 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
             requirements += _get_requirements_from_file(requirements_file)
         if CONFIG.DATASET_MANAGEMENT == "ZENOH":
             requirements += _get_requirements_from_file(ZENOH_REQS_PATH)
+        print(f"Setting virtual environment to {requirements}")
         task.setVirtualEnv(requirements=requirements)
 
     else:
@@ -137,8 +138,8 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
             print(f"Setting python version to {python_version_path}")
             task.setDefaultPython(python_version_path)
             requirements = _get_requirements_from_file(requirements_file)
-            if CONFIG.DATASET_MANAGEMENT == "ZENOH":
-                requirements += _get_requirements_from_file(ZENOH_REQS_PATH)
+            requirements += _get_requirements_from_file(ZENOH_REQS_PATH)
+            print(f"Setting virtual environment to {requirements}")
             task.setVirtualEnv(requirements=requirements)
         elif python_version:
             if not requirements_file:
