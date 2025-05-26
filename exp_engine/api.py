@@ -17,8 +17,13 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 @app.route('/exp/run/<experimentname>', methods=["GET"])
 @cross_origin()
 def run(experimentname):
-    exp_id = apiHandler.run_exp(experimentname)
-    return {"message": f"experiment started with id {exp_id}"}, 201
+    try:
+        print("Running new experiment")
+        exp_id = apiHandler.run_exp(experimentname)
+        return {"message": f"experiment finished with id {exp_id}"}, 201
+    except Exception as e:
+        print(f"Exception: {e}", flush=True)
+        return {"message": f"exception: {e}"}, 500
 
 # @app.route('/exp/run', methods=["POST"])
 # @cross_origin()
