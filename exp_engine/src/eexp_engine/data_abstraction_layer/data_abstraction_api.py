@@ -1,6 +1,7 @@
 import requests
 import logging
 import datetime
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,59 @@ def update_metrics_of_workflow(wf_id, result):
                 add_value_to_metric(m_id, value)
             else:
                 logger.warning(f"No value for metric {name}")
+
+
+def update_outputs_of_workflow(wf_id, result):
+    wf = get_workflow(wf_id)
+    file_keys = [key for key in result if key.startswith("file:")]
+    tasks_updates = {}
+    for k in file_keys:
+        file_metadata = json.loads(result[k])
+        file_keys_parts = k.split(":")
+        task_name = file_keys_parts[1]
+        input_or_output = file_keys_parts[2]
+        file_key = file_keys_parts[3]
+
+        task_dict = tasks_updates.get(task_name, {})
+        tasks_updates[task_name] = task_dict
+        if input_or_output == "input":
+            inputs_or_outputs_dict = task_dict.get("inputs", {})
+            task_dict["inputs"] = inputs_or_outputs_dict
+        else:
+            inputs_or_outputs_dict = task_dict.get("outputs", {})
+            task_dict["outputs"] = inputs_or_outputs_dict
+        inputs_or_outputs_dict[file_key] = file_metadata
+
+    new_tasks = []
+    for task in wf["tasks"]:
+        new_tasks.append(task)
+        task_name = task["name"]
+        print(f"Updating inputs and outputs of task {task_name}...")
+        task_update = tasks_updates.get(task_name, {})
+        new_input_datasets = []
+        for d in task["input_datasets"]:
+            d = _create_new_dataset_entry(d, task_update, "inputs")
+            new_input_datasets.append(d)
+        task["input_datasets"] = new_input_datasets
+        new_output_datasets = []
+        for d in task["output_datasets"]:
+            d = _create_new_dataset_entry(d, task_update, "outputs")
+            new_output_datasets.append(d)
+        task["output_datasets"] = new_output_datasets
+    update_workflow(wf_id, {"tasks": new_tasks})
+
+
+def _create_new_dataset_entry(d, task_update, inputs_or_outputs):
+    file_name = d["name"]
+    updates = task_update[inputs_or_outputs]
+    if file_name in updates:
+        update_metadata = updates[file_name]
+        d["uri"] = update_metadata["file_url"]
+        metadata = d.get("metadata", {})
+        metadata["file_name"] = update_metadata["file_name"]
+        metadata["project_id"] = update_metadata["project_id"]
+        metadata["file_type"] = update_metadata["file_type"]
+    return d
 
 
 def add_value_to_metric(m_id, value):

@@ -10,7 +10,6 @@ from multiprocessing import Process, Queue
 
 logger = logging.getLogger(__name__)
 
-
 class Execution:
 
     def __init__(self, exp_id, exp, assembled_flat_wfs, runner_folder, config):
@@ -246,10 +245,10 @@ class Execution:
                 for f in t.input_files:
                     input_file = {}
                     input_datasets.append(input_file)
-                    input_file["name"] = f.name
+                    input_file["name"] = f.name_in_task_signature
                     input_file["uri"] = f.path
                     metadata = {}
-                    metadata["type"] = f.dataset_type
+                    metadata["name_in_experiment"] = f.name
                     input_file["metadata"] = metadata
             if len(t.output_files) > 0:
                 output_datasets = []
@@ -257,10 +256,10 @@ class Execution:
                 for f in t.output_files:
                     output_file = {}
                     output_datasets.append(output_file)
-                    output_file["name"] = f.name
+                    output_file["name"] = f.name_in_task_signature
                     output_file["uri"] = f.path
                     metadata = {}
-                    metadata["type"] = f.dataset_type
+                    metadata["name_in_experiment"] = f.name
                     output_file["metadata"] = metadata
             for m in t.metrics:
                 if t.name in wf_metrics:
@@ -313,6 +312,7 @@ class Execution:
                 result = results[wf_id]
                 update_workflow(wf_id, {"status": "completed", "end": get_current_time()})
                 update_metrics_of_workflow(wf_id, result)
+                update_outputs_of_workflow(wf_id, result)
                 workflow_results = {}
                 workflow_results["configuration"] = configurations_of_space[wf_id]
                 workflow_results["result"] = result

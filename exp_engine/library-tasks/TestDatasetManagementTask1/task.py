@@ -3,9 +3,9 @@ import proactive_helper as ph
 
 print("Running TestDatasetManagementTask1")
 
-dataset = ph.load_dataset(variables, "TestDatasetManagementTask1InputFile")
+dataset = ph.load_dataset(variables, resultMap, "TestDatasetManagementTask1InputFile")
 
-print("dataset")
-print(dataset)
+# print("dataset")
+# print(dataset)
 
-ph.save_dataset(variables, "TestDatasetManagementTask1OutputFile", dataset)
+ph.save_dataset(variables, resultMap, "TestDatasetManagementTask1OutputFile", dataset)

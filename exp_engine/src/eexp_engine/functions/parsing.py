@@ -386,8 +386,6 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                         ds.add_zenoh_name(e.zenoh_name)
                         if e.zenoh_project:
                             ds.add_zenoh_project(e.zenoh_project)
-                    if e.dataset_type:
-                        ds.set_dataset_type(e.dataset_type)
 
                 if e.__class__.__name__ == "StartAndEndEvent":
                     process_dependencies(task_dependencies, e.nodes, "StartAndEndEvent")
@@ -597,8 +595,6 @@ def parse_experiment_specification(experiment_specification):
                         dataset_relative_path = os.path.join(CONFIG.DATASET_LIBRARY_RELATIVE_PATH, d.path)
                         ds.add_path(dataset_relative_path)
                         ds.set_name_in_task_signature(d.name)
-                        if d.dataset_type:
-                            ds.set_dataset_type(d.dataset_type)
                         input_datasets.append(ds)
                     task.input_files = input_datasets
                     exp.add_task(node.name, wf)
