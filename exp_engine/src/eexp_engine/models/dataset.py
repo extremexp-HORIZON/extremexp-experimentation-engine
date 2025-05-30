@@ -9,7 +9,6 @@ class Dataset:
         self.path = ""
         self.zenoh_name = ""
         self.zenoh_project = ""
-        self.dataset_type = ""
         self.name_in_task_signature = None
         self.name_in_generating_task = None
 
@@ -22,9 +21,6 @@ class Dataset:
     def add_zenoh_project(self, zenoh_project):
         self.zenoh_project = zenoh_project
 
-    def set_dataset_type(self, dataset_type):
-        self.dataset_type = dataset_type
-
     def set_name_in_task_signature(self, name_in_task_signature):
         self.name_in_task_signature = name_in_task_signature
 
@@ -36,4 +32,3 @@ class Dataset:
         logger.debug(f"{tab}\twith dataset name in task signature : {self.name_in_task_signature}")
         logger.debug(f"{tab}\twith dataset name in generating task : {self.name_in_generating_task}")
         logger.debug(f"{tab}\twith dataset path : {self.path}")
-        logger.debug(f"{tab}\twith dataset_type : {self.dataset_type}")

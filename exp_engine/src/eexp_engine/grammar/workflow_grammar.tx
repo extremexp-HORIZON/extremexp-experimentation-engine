@@ -65,7 +65,6 @@ ConfigureTask:
 ConfigureData:
     'configure data' alias=[Data] '{'
         ('path' path=STRING';' | 'zenoh_name' zenoh_name=STRING';' ('zenoh_project' zenoh_project=STRING';')?)
-        ('type' dataset_type=STRING';')?
     '}';
 
 Operator: 'define operator' name=ID ';';
@@ -113,7 +112,6 @@ ExperimentControlInteraction:
 ExperimentData:
     'input data' name=ID '{'
         'path' path=STRING';'
-        ('type' dataset_type=STRING';')?
     '}';
 
 SpaceConfig:
