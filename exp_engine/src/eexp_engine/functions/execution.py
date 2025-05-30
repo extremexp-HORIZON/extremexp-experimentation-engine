@@ -124,7 +124,7 @@ class Execution:
     def execute_task(self, node):
         logger.debug(f"task: {node.name}")
         node.wf.print()
-        wf_id = self.create_executed_workflow_in_db(node.wf)
+        wf_id = self.create_executed_workflow_in_db(node.wf, "exp_task")
         self.run_count += 1
 
         queue_for_workflow = Queue()
@@ -206,13 +206,13 @@ class Execution:
             print(f"Run {self.run_count}")
             print(f"Combination {c}")
             configured_workflow = self.get_workflow_to_run(node, c)
-            wf_id = self.create_executed_workflow_in_db(configured_workflow)
+            wf_id = self.create_executed_workflow_in_db(configured_workflow, "space")
             configured_workflows_of_space[wf_id] = configured_workflow
             configurations_of_space[wf_id] = c
             self.run_count += 1
         return self.run_scheduled_workflows(configured_workflows_of_space, configurations_of_space), self.run_count
 
-    def create_executed_workflow_in_db(self, workflow_to_run):
+    def create_executed_workflow_in_db(self, workflow_to_run, workflow_origin):
         set_data_abstraction_config(self.config)
         task_specifications = []
         wf_metrics = {}
@@ -266,9 +266,14 @@ class Execution:
                     wf_metrics[t.name].append(m)
                 else:
                     wf_metrics[t.name] = [m]
+
+        wf_metadata = {
+            "wf_origin": workflow_origin
+        }
         body = {
             "name": f"{self.exp_id}--w{self.run_count}",
-            "tasks": task_specifications
+            "tasks": task_specifications,
+            "metadata": wf_metadata
         }
         wf_id = create_workflow(self.exp_id, body)
 
