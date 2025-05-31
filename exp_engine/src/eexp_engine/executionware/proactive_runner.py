@@ -153,7 +153,7 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
             task.addInputFile(input_file.path)
             input_file_path = os.path.dirname(input_file.path) if "**" in input_file.path else input_file.path
             task.addVariable(input_file.name_in_task_signature, input_file_path)
-        if input_file.zenoh_name:
+        if input_file.zenoh_name or input_file.zenoh_project:
             task.addVariable(input_file.name_in_task_signature, f"{input_file.zenoh_name}|{input_file.zenoh_project}")
     for output_file in output_files:
         if output_file.path:
@@ -173,8 +173,8 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
             final_output_path_proactive = os.path.join(output_folder_path_with_wf_id, "**")
             task.addOutputFile(final_output_path_proactive)
             print(f"Declaring '{final_output_path_proactive}' as output file for task {task_name}")
-        if output_file.zenoh_name:
-            task.addVariable(output_file.name_in_task_signature, output_file.zenoh_name)
+        if output_file.zenoh_name or output_file.zenoh_project:
+            task.addVariable(output_file.name_in_task_signature, f"{output_file.zenoh_name}|{output_file.zenoh_project}")
 
     dependent_modules_folders = []
     for dependent_module in dependent_modules:

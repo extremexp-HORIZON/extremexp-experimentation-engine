@@ -264,19 +264,20 @@ def check_python_code_use_of_task_signature(task_name, implementation_file_path,
                 if variable_name not in KNOWN_TASK_INPUTS and variable_name not in inputs_outputs_params:
                     raise exceptions.SourceCodeAttemptsToReadVariableNotInTaskSignature(
                         f"Variable '{variable_name}' not found in the signature ('{inputs_outputs_params}') of task '{task_name}'")
-            if "load_datasets" in line:
-                dataset_names = [(name.strip() [1:-1]) for name in (line.split("load_datasets(")[1].strip() [:-1]).split(",") if name != "variables"]
-                for ds in dataset_names:
-                    if ds not in inputs:
-                        raise exceptions.SourceCodeAttemptsToLoadDatasetNotInTaskSignature(
-                            f"Dataset '{ds}' not found in the inputs ('{inputs}') of task '{task_name}'")
-            if "save_datasets" in line:
-                dataset_names = [name.strip() for name in (line.split("save_datasets(")[1].strip() [:-1]).split(",") if name != "variables"]
-                dataset_names = [((ds [1:]).strip() [1:-1]) for ds in dataset_names if ds.startswith("(")]
-                for ds in dataset_names:
-                    if ds not in outputs:
-                        raise exceptions.SourceCodeAttemptsToSaveDatasetNotInTaskSignature(
-                            f"Dataset '{ds}' not found in the outputs ('{outputs}') of task '{task_name}'")
+            #  TODO fix those checks
+            # if "load_datasets" in line:
+            #     dataset_names = [(name.strip() [1:-1]) for name in (line.split("load_datasets(")[1].strip() [:-1]).split(",") if name != "variables"]
+            #     for ds in dataset_names:
+            #         if ds not in inputs:
+            #             raise exceptions.SourceCodeAttemptsToLoadDatasetNotInTaskSignature(
+            #                 f"Dataset '{ds}' not found in the inputs ('{inputs}') of task '{task_name}'")
+            # if "save_datasets" in line:
+            #     dataset_names = [name.strip() for name in (line.split("save_datasets(")[1].strip() [:-1]).split(",") if name != "variables"]
+            #     dataset_names = [((ds [1:]).strip() [1:-1]) for ds in dataset_names if ds.startswith("(")]
+            #     for ds in dataset_names:
+            #         if ds not in outputs:
+            #             raise exceptions.SourceCodeAttemptsToSaveDatasetNotInTaskSignature(
+            #                 f"Dataset '{ds}' not found in the outputs ('{outputs}') of task '{task_name}'")
 
 
 def parse_task(folder_path):

@@ -60,11 +60,13 @@ ConfigureTask:
         ('implementation' filename=STRING';' | 'subworkflow' subworkflow=STRING';')?
     '}';
 
-//DefineTask: 'define task' name=ID ';';
-
 ConfigureData:
     'configure data' alias=[Data] '{'
-        ('path' path=STRING';' | 'zenoh_name' zenoh_name=STRING';' ('zenoh_project' zenoh_project=STRING';')?)
+        ('path' path=STRING';' |
+        'zenoh_name' zenoh_name=STRING';' 'zenoh_project' zenoh_project=STRING';' |
+        'zenoh_name' zenoh_name=STRING';' |
+        'zenoh_project' zenoh_project=STRING';'
+        )
     '}';
 
 Operator: 'define operator' name=ID ';';
