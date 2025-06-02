@@ -1,0 +1,7 @@
+task TestDatasetManagementTaskWriteMultiple {
+
+    implementation "TestDatasetManagementTaskWriteMultiple/task.py";
+
+    define input data TestDatasetManagementTaskWriteMultipleInputFile;
+    define output data TestDatasetManagementTaskWriteMultipleOutputFolder;
+}
