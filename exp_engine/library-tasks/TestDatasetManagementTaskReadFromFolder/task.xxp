@@ -1,0 +1,10 @@
+task TestDatasetManagementTaskReadFromFolder {
+
+    implementation "TestDatasetManagementTaskReadFromFolder/task.py";
+    venv "TestDatasetManagementTaskReadFromFolder/requirements.txt";
+    python_version "3.8";
+
+    define input data TestDatasetManagementTaskReadFromFolderInputFolder;
+
+    define output data TestDatasetManagementTaskReadFromFolderOutputFile;
+}

@@ -1,0 +1,42 @@
+workflow SingleTaskW {
+
+    START -> Task1 -> Task2 -> END;
+
+    task Task1 {
+        implementation "TestDatasetManagementTaskReadFromFolder";
+    }
+
+    task Task2 {
+        implementation "TestDatasetManagementTaskWriteMultiple";
+    }
+
+    define input data InputFile;
+    configure data InputFile {
+        zenoh_project "demo_project_ilias";
+    }
+
+    define output data OutputFile;
+    configure data OutputFile {
+       zenoh_project "titanic_once_more";
+    }
+
+    InputFile --> Task1.TestDatasetManagementTaskReadFromFolderInputFolder;
+    Task1.TestDatasetManagementTaskReadFromFolderOutputFile --> Task2.TestDatasetManagementTaskWriteMultipleInputFile;
+    Task2.TestDatasetManagementTaskWriteMultipleOutputFolder --> OutputFile;
+
+}
+
+workflow SingleTaskAW from SingleTaskW {
+}
+
+experiment TestZenohExpMultipleFiles {
+
+    control {
+          START -> S1 -> END;
+    }
+
+    space S1 of SingleTaskAW {
+        strategy gridsearch;
+    }
+
+}
