@@ -124,7 +124,8 @@ class Execution:
     def execute_task(self, node):
         logger.debug(f"task: {node.name}")
         node.wf.print()
-        wf_id = self.create_executed_workflow_in_db(node.wf, "exp_task")
+        workflow_origin = "exp_interaction" if node.wf.tasks[0].taskType == "interactive" else "exp_task"
+        wf_id = self.create_executed_workflow_in_db(node.wf, workflow_origin)
         self.run_count += 1
 
         queue_for_workflow = Queue()
@@ -315,7 +316,7 @@ class Execution:
                 p.join()
                 self.subprocesses -= 1
                 result = results[wf_id]
-                update_workflow(wf_id, {"status": "completed", "end": get_current_time()})
+                update_workflow(wf_id, {"end": get_current_time()})
                 update_metrics_of_workflow(wf_id, result)
                 update_files_of_workflow(wf_id, result)
                 workflow_results = {}

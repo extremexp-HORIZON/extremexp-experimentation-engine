@@ -286,6 +286,7 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
 
         print(f"Current job status: {job_status}: {seconds}")
         if job_status.upper() in ["FINISHED", "CANCELED", "FAILED", "KILLED"]:
+            update_workflow(wf_id, {"status": job_status.upper()})
             is_finished = True
         else:
             seconds += 1
