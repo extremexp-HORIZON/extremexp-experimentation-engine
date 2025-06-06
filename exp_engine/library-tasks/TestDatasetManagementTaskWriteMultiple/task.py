@@ -6,3 +6,5 @@ print("Running TestDatasetManagementTaskWriteMultiple")
 dataset = ph.load_dataset(variables, resultMap, "TestDatasetManagementTaskWriteMultipleInputFile")
 
 ph.save_datasets(variables, resultMap, "TestDatasetManagementTaskWriteMultipleOutputFolder", [dataset, dataset])
+# One can optionally add a list of files names as an extra arguments, like this:
+# ph.save_datasets(variables, resultMap, "TestDatasetManagementTaskWriteMultipleOutputFolder", [dataset, dataset], ["test_data1", "test_data2"])

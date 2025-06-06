@@ -33,23 +33,23 @@ def get_experiment_results():
     return None
 
 
-def save_datasets(variables, resultMap, key, values):
+def save_datasets(variables, resultMap, key, values, file_names=None):
     if DATASET_MANAGEMENT == "ZENOH":
-        return save_datasets_zenoh(variables, key, values, resultMap)
+        return save_datasets_zenoh(variables, resultMap, key, values, file_names)
     print("save_datasets is only available for zenoh, please update your config.py")
     exit(1)
 
 
 def save_dataset(variables, resultMap, key, value):
     if DATASET_MANAGEMENT == "LOCAL":
-        return save_dataset_local(variables, key, value, resultMap)
+        return save_dataset_local(variables, resultMap, key, value)
     if DATASET_MANAGEMENT == "ZENOH":
-        return save_datasets_zenoh(variables, key, [value], resultMap)
+        return save_datasets_zenoh(variables, resultMap, key, [value])
     print("Cannot load dataset, please setup DATASET_MANAGEMENT in config.py")
     exit(1)
 
 
-def save_dataset_local(variables, key, value, resultMap):
+def save_dataset_local(variables, resultMap, key, value):
     value_size = sys.getsizeof(value)
     print(f"Saving output data of size {value_size} with key {key}")
     if key in variables:
@@ -73,7 +73,7 @@ def save_dataset_local(variables, key, value, resultMap):
         resultMap.put(key, output_file_path)
 
 
-def save_datasets_zenoh(variables, key, values, resultMap):
+def save_datasets_zenoh(variables, resultMap, key, values, file_names=None):
     upload_url = f"{DATASET_MANAGEMENT_URL}/files/upload"
     file_url_template = f"{DATASET_MANAGEMENT_URL}/file/{{}}"
     task_name = variables['PA_TASK_NAME']
@@ -101,7 +101,10 @@ def save_datasets_zenoh(variables, key, values, resultMap):
     for i in range(len(values)):
         value = values[i]
         if len(provided_output_file_name) == 0:
-            output_file_name = f"output_{i}"
+            if file_names:
+                output_file_name = file_names[i]
+            else:
+                output_file_name = f"output_{i}"
         try:
             file_bytes = BytesIO(value)
             upload_files = []
