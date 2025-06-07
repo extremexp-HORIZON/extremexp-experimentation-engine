@@ -264,25 +264,22 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
         gateway = reconnect_if_needed(gateway)
         job_status = gateway.getJobStatus(job_id)
         for ts in task_statuses:
-            previous_task_status = ts["status"].upper()
+            task_previous_status = ts["status"].upper()
             task_name = ts["name"]
             gateway = reconnect_if_needed(gateway)
-            current_task_status = gateway.getTaskStatus(job_id, task_name).upper()
-            ts["status"] = current_task_status
-            if (previous_task_status == "PENDING" or previous_task_status == "SUBMITTED") and current_task_status == "RUNNING":
-                wf = get_workflow(wf_id)
-                completed_task = next(t for t in wf["tasks"] if t["name"] == task_name)
-                current_time  = get_current_time()
-                completed_task["start"] = current_time
-                update_workflow(wf_id, {"tasks": wf["tasks"]})
+            task_current_status = gateway.getTaskStatus(job_id, task_name).upper()
+            ts["status"] = task_current_status
+            wf = get_workflow(wf_id)
+            this_task = next(t for t in wf["tasks"] if t["name"] == task_name)
+            current_time  = get_current_time()
+            if (task_previous_status == "PENDING" or task_previous_status == "SUBMITTED") and task_current_status == "RUNNING":
+                this_task["start"] = current_time
                 print(f"Task {task_name} started at {current_time}")
-            if previous_task_status == "RUNNING" and current_task_status in ["FINISHED", "CANCELED", "FAILED"]:
-                wf = get_workflow(wf_id)
-                completed_task = next(t for t in wf["tasks"] if t["name"] == task_name)
-                current_time  = get_current_time()
-                completed_task["end"] = current_time
-                update_workflow(wf_id, {"tasks": wf["tasks"]})
+            if task_previous_status == "RUNNING" and task_current_status in ["FINISHED", "CANCELED", "FAILED"]:
+                this_task["end"] = current_time
                 print(f"Task {task_name} completed at {current_time}")
+            this_task["metadata"]["status"] = task_current_status
+            update_workflow(wf_id, {"tasks": wf["tasks"]})
 
         print(f"Current job status: {job_status}: {seconds}")
         if job_status.upper() in ["FINISHED", "CANCELED", "FAILED", "KILLED"]:
