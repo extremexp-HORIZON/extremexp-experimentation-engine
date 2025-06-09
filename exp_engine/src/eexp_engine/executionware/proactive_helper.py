@@ -22,7 +22,7 @@ with open(EXECUTION_ENGINE_RUNTIME_CONFIG, 'r') as file:
     exp_engine_metadata = runtime_job_config["exp_engine_metadata"]
     dataset_config = runtime_job_config["dataset_config"]
     DATASET_MANAGEMENT = dataset_config["DATASET_MANAGEMENT"]
-    DATASET_MANAGEMENT_URL = dataset_config["DATASET_MANAGEMENT_URL"]
+    ZENOH_URL = dataset_config["ZENOH_URL"]
 
 
 def get_experiment_results():
@@ -74,8 +74,8 @@ def save_dataset_local(variables, resultMap, key, value):
 
 
 def save_datasets_zenoh(variables, resultMap, key, values, file_names=None):
-    upload_url = f"{DATASET_MANAGEMENT_URL}/files/upload"
-    file_url_template = f"{DATASET_MANAGEMENT_URL}/file/{{}}"
+    upload_url = f"{ZENOH_URL}/files/upload"
+    file_url_template = f"{ZENOH_URL}/file/{{}}"
     task_name = variables['PA_TASK_NAME']
     variables.put("PREVIOUS_TASK_ID", str(task_name))
 
@@ -175,7 +175,7 @@ def load_dataset_local(variables, key):
 
 
 def load_datasets_zenoh(variables, key, resultMap):
-    file_url_template = f"{DATASET_MANAGEMENT_URL}/file/{{}}"
+    file_url_template = f"{ZENOH_URL}/file/{{}}"
     task_name = variables.get("PA_TASK_NAME")
     if key in variables:
         file_type = FILE_TYPE_EXTERNAL
@@ -224,7 +224,7 @@ def _return_file_metadata(file_name, file_url, project_id, file_type):
 
 def _look_up_file_in_catalog(fname, project_id):
     print(f"Looking up {fname} in project {project_id}")
-    catalog_url = f"{DATASET_MANAGEMENT_URL}/catalog"
+    catalog_url = f"{ZENOH_URL}/catalog"
     r = requests.get(
         catalog_url,
         params={

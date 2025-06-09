@@ -318,7 +318,8 @@ class Execution:
                 result = results[wf_id]
                 update_workflow(wf_id, {"end": get_current_time()})
                 update_metrics_of_workflow(wf_id, result)
-                update_files_of_workflow(wf_id, result)
+                if self.config.DATASET_MANAGEMENT == "ZENOH":
+                    update_files_of_workflow(wf_id, result)
                 workflow_results = {}
                 workflow_results["configuration"] = configurations_of_space[wf_id]
                 workflow_results["result"] = result

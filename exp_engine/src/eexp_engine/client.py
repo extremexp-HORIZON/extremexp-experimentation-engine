@@ -20,10 +20,10 @@ class Config:
         else:
             self.DATASET_MANAGEMENT = config.DATASET_MANAGEMENT
         if config.DATASET_MANAGEMENT == "ZENOH":
-            if 'DATASET_MANAGEMENT_URL' not in dir(config) or len(config.DATASET_MANAGEMENT_URL) == 0:
+            if 'ZENOH_URL' not in dir(config) or len(config.ZENOH_URL) == 0:
                 raise exceptions.DatasetManagementSetToZenohButNoURLProvided(
-                    "Please set the variable DATASET_MANAGEMENT_URL in config.py")
-        self.DATASET_MANAGEMENT_URL = config.DATASET_MANAGEMENT_URL if 'DATASET_MANAGEMENT_URL' in dir(config) else None
+                    "Please set the variable ZENOH_URL in config.py")
+        self.ZENOH_URL = config.ZENOH_URL if 'ZENOH_URL' in dir(config) else None
         self.DATA_ABSTRACTION_BASE_URL = config.DATA_ABSTRACTION_BASE_URL
         self.DATA_ABSTRACTION_ACCESS_TOKEN = config.DATA_ABSTRACTION_ACCESS_TOKEN
         self.EXECUTIONWARE = config.EXECUTIONWARE

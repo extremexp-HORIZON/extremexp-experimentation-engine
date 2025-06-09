@@ -1,0 +1,60 @@
+workflow DemoWP5Workflow {
+
+    START -> Task1 -> Task2 -> END;
+
+    task Task1 {
+        implementation "demo_tasks/DemoWP5Task1";
+    }
+
+    task Task2;
+
+    define input data InputFile;
+    configure data InputFile {
+        path "demo_datasets/titanic.json";
+    }
+
+    define output data OutputFile;
+    configure data OutputFile {
+        path "output/test_local/titanic_once_more.json";
+    }
+
+    InputFile --> Task1.DemoWP5Task1InputFile;
+    Task1.DemoWP5Task1OutputFile --> Task2.DemoWP5Task2InputFile;
+    Task2.DemoWP5Task2OutputFile --> OutputFile;
+}
+
+workflow DemoWP5AssembledWorkflow1 from DemoWP5Workflow {
+    task Task2 {
+        implementation "demo_tasks/DemoWP5Task2V1";
+    }
+}
+
+workflow DemoWP5AssembledWorkflow2 from DemoWP5Workflow {
+    task Task2 {
+        implementation "demo_tasks/DemoWP5Task2V2";
+    }
+}
+
+experiment DemoWP5Experiment {
+
+    control {
+          START -> S1 -> S2 -> END;
+    }
+
+    space S1 of DemoWP5AssembledWorkflow1 {
+        strategy gridsearch;
+        param_values demo_param_value = range(4, 6);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+
+    space S2 of DemoWP5AssembledWorkflow2 {
+        strategy randomsearch;
+        runs = 1;
+        param_values demo_param_value = enum(6);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+}
