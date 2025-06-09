@@ -141,10 +141,13 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
             requirements += _get_requirements_from_file(ZENOH_REQS_PATH)
             print(f"Setting virtual environment to {requirements}")
             task.setVirtualEnv(requirements=requirements)
-        elif python_version:
-            if not requirements_file:
-                print("You need to point to a requirements file (even if it is empty) when setting a Python version.")
-                exit(1)
+        elif python_version and not requirements_file:
+                python_version_path = CONFIG.PROACTIVE_PYTHON_VERSIONS[python_version]
+                print(f"Setting python version to {python_version_path}")
+                task.setDefaultPython(python_version_path)
+                requirements = _get_requirements_from_file(ZENOH_REQS_PATH)
+                print(f"Setting virtual environment to {requirements}")
+                task.setVirtualEnv(requirements=requirements)
         else:
             task.setForkEnvironment(fork_environment)
 
@@ -187,7 +190,7 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
     with open(EXECUTION_ENGINE_RUNTIME_CONFIG, 'w') as f:
         dataset_config = {}
         dataset_config["DATASET_MANAGEMENT"] = CONFIG.DATASET_MANAGEMENT
-        dataset_config["DATASET_MANAGEMENT_URL"] = CONFIG.DATASET_MANAGEMENT_URL
+        dataset_config["ZENOH_URL"] = CONFIG.ZENOH_URL
         runtime_job_config = {}
         runtime_job_config["mapping"] = mapping
         runtime_job_config["exp_engine_metadata"] = exp_engine_metadata

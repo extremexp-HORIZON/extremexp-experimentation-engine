@@ -133,7 +133,7 @@ Strategy: 'gridsearch' |  'randomsearch' | 'singlerun';
 
 
 VP:
-    'param' vp_name=ID '=' vp_values=VP_value
+    'param_values' vp_name=ID '=' vp_values=VP_value
 ;
 
 VP_value: ENUM | RANGE;

@@ -1,0 +1,7 @@
+task DemoWP5Task2V2 {
+
+    implementation "demo_tasks/DemoWP5Task2V2/task.py";
+
+    define input data DemoWP5Task2InputFile;
+    define output data DemoWP5Task2OutputFile;
+}
