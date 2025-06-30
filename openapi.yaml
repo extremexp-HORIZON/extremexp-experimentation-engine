@@ -1,0 +1,149 @@
+openapi: 3.0.0
+info:
+  title: Experimentation Engine API
+  version: 1.0.0
+  description: API documentation for managing experiments and workflows in the Experimentation Engine.
+
+servers:
+  - url: http://localhost:5556
+    description: Local development server
+
+paths:
+  /exp/run/{experiment_name}:
+    get:
+      summary: Run an experiment
+      description: Start a new experiment based on the specification with the given name.
+      parameters:
+        - name: experiment_name
+          in: path
+          required: true
+          description: Name of the experiment specification used in creating the new experiment.
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Experiment started successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: object
+                    properties:
+                      experiment_id:
+                        type: string
+                        example: "VFT3678243GYTFRFGJHSDA"
+        '400':
+          description: Invalid request.
+
+
+  /exp/experiment/kill/{experiment_id}:
+    get:
+      summary: Kill an experiment
+      description: Terminate an ongoing experiment by its ID.
+      parameters:
+        - name: experiment_id
+          in: path
+          required: true
+          description: Unique identifier of the experiment.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Experiment terminated successfully.
+        '404':
+          description: Experiment not found.
+
+  /exp/experiment/pause/{experiment_id}:
+    get:
+      summary: Pause an experiment
+      description: Pause an ongoing experiment by its ID.
+      parameters:
+        - name: experiment_id
+          in: path
+          required: true
+          description: Unique identifier of the experiment.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Experiment paused successfully.
+        '404':
+          description: Experiment not found.
+
+  /exp/experiment/resume/{experiment_id}:
+    get:
+      summary: Resume an experiment
+      description: Resume a paused experiment by its ID.
+      parameters:
+        - name: experiment_id
+          in: path
+          required: true
+          description: Unique identifier of the experiment.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Experiment resumed successfully.
+        '404':
+          description: Experiment not found.
+
+  /exp/workflow/kill/{workflow_id}:
+    get:
+      summary: Kill a workflow
+      description: Terminate an ongoing workflow by its ID.
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          description: Unique identifier of the workflow.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Workflow terminated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "workflow with id {workflow_id} is killed"
+        '404':
+          description: Workflow not found.
+
+  /exp/workflow/pause/{workflow_id}:
+    get:
+      summary: Pause a workflow
+      description: Pause an ongoing workflow by its ID.
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          description: Unique identifier of the workflow.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Workflow paused successfully.
+        '404':
+          description: Workflow not found.
+
+  /exp/workflow/resume/{workflow_id}:
+    get:
+      summary: Resume a workflow
+      description: Resume a paused workflow by its ID.
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          description: Unique identifier of the workflow.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Workflow resumed successfully.
+        '404':
+          description: Workflow not found.
