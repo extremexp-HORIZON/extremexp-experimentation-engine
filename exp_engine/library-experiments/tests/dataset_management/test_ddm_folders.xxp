@@ -29,7 +29,7 @@ workflow SingleTaskW {
 workflow SingleTaskAW from SingleTaskW {
 }
 
-experiment TestZenohExpMultipleFiles {
+experiment TestDDMExpMultipleFiles {
 
     control {
           START -> S1 -> END;
