@@ -31,6 +31,8 @@ DATA_ABSTRACTION_ACCESS_TOKEN = ''
 # possible values: DDM (Decentralized Data Management), LOCAL
 DATASET_MANAGEMENT = "DDM"
 DATASET_MANAGEMENT_URL = "https://ddm.extremexp-icom.intracom-telecom.com"
+PORTAL_USERNAME = "" # the same as the one you use to login to the portal, if in doubt ask ICOM
+PORTAL_PASSWORD = "" # the same as the one you use to login to the portal, if in doubt ask ICOM
 
 # logging configuration, optional; if not set, all loggers have INFO level
 LOGGING_CONFIG = {
