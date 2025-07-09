@@ -10,7 +10,7 @@ interactive_path_folder = os.path.join(packagedir, "user_interaction")
 INTERACTIVE_TASK_PRESCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "prescript.py")
 INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH = os.path.join(interactive_path_folder, "user_interaction_requirements.txt")
 INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "postscript.py")
-ZENOH_REQS_PATH = os.path.join(packagedir, "zenoh", "zenoh_requirements.txt")
+DDM_REQS_PATH = os.path.join(packagedir, "ddm", "ddm_requirements.txt")
 EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX = "execution_engine_runtime_config"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
 RESULTS_FILE = "experiment_results.json"
@@ -119,7 +119,7 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
         if requirements_file:
             requirements += _get_requirements_from_file(requirements_file)
         if CONFIG.DATASET_MANAGEMENT == "DDM":
-            requirements += _get_requirements_from_file(ZENOH_REQS_PATH)
+            requirements += _get_requirements_from_file(DDM_REQS_PATH)
         print(f"Setting virtual environment to {requirements}")
         task.setVirtualEnv(requirements=requirements)
 
@@ -138,14 +138,14 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
             print(f"Setting python version to {python_version_path}")
             task.setDefaultPython(python_version_path)
             requirements = _get_requirements_from_file(requirements_file)
-            requirements += _get_requirements_from_file(ZENOH_REQS_PATH)
+            requirements += _get_requirements_from_file(DDM_REQS_PATH)
             print(f"Setting virtual environment to {requirements}")
             task.setVirtualEnv(requirements=requirements)
         elif python_version and not requirements_file:
                 python_version_path = CONFIG.PROACTIVE_PYTHON_VERSIONS[python_version]
                 print(f"Setting python version to {python_version_path}")
                 task.setDefaultPython(python_version_path)
-                requirements = _get_requirements_from_file(ZENOH_REQS_PATH)
+                requirements = _get_requirements_from_file(DDM_REQS_PATH)
                 print(f"Setting virtual environment to {requirements}")
                 task.setVirtualEnv(requirements=requirements)
         else:
