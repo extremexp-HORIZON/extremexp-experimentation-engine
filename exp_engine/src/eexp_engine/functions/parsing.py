@@ -384,9 +384,9 @@ def get_workflow_components(experiments_metamodel, experiment_model, parsed_work
                         dataset_relative_path = os.path.join(CONFIG.DATASET_LIBRARY_RELATIVE_PATH, e.path)
                         ds.add_path(dataset_relative_path)
                     else:
-                        ds.add_zenoh_name(e.zenoh_name)
-                        if e.zenoh_project:
-                            ds.add_zenoh_project(e.zenoh_project)
+                        ds.add_filename(e.name)
+                        if e.project:
+                            ds.add_project(e.project)
 
                 if e.__class__.__name__ == "StartAndEndEvent":
                     process_dependencies(task_dependencies, e.nodes, "StartAndEndEvent")

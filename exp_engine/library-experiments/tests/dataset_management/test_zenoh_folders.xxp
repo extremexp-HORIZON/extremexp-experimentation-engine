@@ -12,12 +12,12 @@ workflow SingleTaskW {
 
     define input data InputFile;
     configure data InputFile {
-        zenoh_project "demo_project_ilias";
+        project "demo_project_ilias";
     }
 
     define output data OutputFile;
     configure data OutputFile {
-       zenoh_project "titanic_once_more";
+       project "titanic_once_more";
     }
 
     InputFile --> Task1.TestDatasetManagementTaskReadFromFolderInputFolder;

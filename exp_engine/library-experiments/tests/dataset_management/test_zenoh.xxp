@@ -12,13 +12,13 @@ workflow SingleTaskW {
 
     define input data InputFile;
     configure data InputFile {
-        zenoh_name "titanic.json";
-        zenoh_project "demo_project_ilias";
+        name "titanic.json";
+        project "demo_project_ilias";
     }
 
     define output data OutputFile;
     configure data OutputFile {
-        zenoh_name "titanic_once_more.json";
+        name "titanic_once_more.json";
     }
 
     InputFile --> Task1.TestDatasetManagementTask1InputFile;

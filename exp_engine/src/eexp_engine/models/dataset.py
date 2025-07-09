@@ -7,19 +7,19 @@ class Dataset:
     def __init__(self, name):
         self.name = name
         self.path = ""
-        self.zenoh_name = ""
-        self.zenoh_project = ""
+        self.filename = ""
+        self.project = ""
         self.name_in_task_signature = None
         self.name_in_generating_task = None
 
     def add_path(self, path):
         self.path = path
 
-    def add_zenoh_name(self, zenoh_name):
-        self.zenoh_name = zenoh_name
+    def add_filename(self, filename):
+        self.filename = filename
 
-    def add_zenoh_project(self, zenoh_project):
-        self.zenoh_project = zenoh_project
+    def add_project(self, project):
+        self.project = project
 
     def set_name_in_task_signature(self, name_in_task_signature):
         self.name_in_task_signature = name_in_task_signature
