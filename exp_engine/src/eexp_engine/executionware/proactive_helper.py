@@ -37,7 +37,7 @@ def get_experiment_results():
 
 def save_datasets(variables, resultMap, key, values, file_names=None):
     if DATASET_MANAGEMENT == "DDM":
-        return save_datasets_zenoh(variables, resultMap, key, values, file_names)
+        return save_datasets_ddm(variables, resultMap, key, values, file_names)
     print("save_datasets is only available for DDM, please update your config.py")
     exit(1)
 
@@ -46,7 +46,7 @@ def save_dataset(variables, resultMap, key, value):
     if DATASET_MANAGEMENT == "LOCAL":
         return save_dataset_local(variables, resultMap, key, value)
     if DATASET_MANAGEMENT == "DDM":
-        return save_datasets_zenoh(variables, resultMap, key, [value])
+        return save_datasets_ddm(variables, resultMap, key, [value])
     print("Cannot load dataset, please setup DATASET_MANAGEMENT in config.py")
     exit(1)
 
@@ -75,7 +75,7 @@ def save_dataset_local(variables, resultMap, key, value):
         resultMap.put(key, output_file_path)
 
 
-def save_datasets_zenoh(variables, resultMap, key, values, file_names=None):
+def save_datasets_ddm(variables, resultMap, key, values, file_names=None):
     upload_url = f"{DDM_URL}/ddm/files/upload"
     file_url_template = f"{DDM_URL}/ddm/file/{{}}"
     task_name = variables['PA_TASK_NAME']
@@ -86,10 +86,10 @@ def save_datasets_zenoh(variables, resultMap, key, values, file_names=None):
                                      exp_engine_metadata["wf_id"])
     if key in variables:
         file_type = FILE_TYPE_EXTERNAL
-        zenoh_value = variables.get(key)
-        zenoh_value_parts = zenoh_value.split("|")
-        output_file_name = zenoh_value_parts[0]
-        project_name = zenoh_value_parts[1]
+        ddm_value = variables.get(key)
+        ddm_value_parts = ddm_value.split("|")
+        output_file_name = ddm_value_parts[0]
+        project_name = ddm_value_parts[1]
         project_id = os.path.join(project_id_prefix, OUTPUT_FILE, task_name)
         if project_name:
             project_id = os.path.join(project_id, project_name)
@@ -145,8 +145,8 @@ def save_datasets_zenoh(variables, resultMap, key, values, file_names=None):
 
 def load_datasets(variables, resultMap, key):
     if DATASET_MANAGEMENT == "DDM":
-        return load_datasets_zenoh(variables, key, resultMap)
-    print("load_datasets is only available for zenoh, please update your config.py")
+        return load_datasets_ddm(variables, key, resultMap)
+    print("load_datasets is only available for DDM, please update your config.py")
     exit(1)
 
 
@@ -154,7 +154,7 @@ def load_dataset(variables, resultMap, key):
     if DATASET_MANAGEMENT == "LOCAL":
         return load_dataset_local(variables, key)
     if DATASET_MANAGEMENT == "DDM":
-        return load_datasets_zenoh(variables, key, resultMap)[0]
+        return load_datasets_ddm(variables, key, resultMap)[0]
     print("Cannot load dataset, please setup DATASET_MANAGEMENT in config.py")
     exit(1)
 
@@ -176,15 +176,15 @@ def load_dataset_local(variables, key):
         return load_pickled_dataset_by_path(input_filename)
 
 
-def load_datasets_zenoh(variables, key, resultMap):
+def load_datasets_ddm(variables, key, resultMap):
     file_url_template = f"{DDM_URL}/ddm/file/{{}}"
     task_name = variables.get("PA_TASK_NAME")
     if key in variables:
         file_type = FILE_TYPE_EXTERNAL
-        zenoh_value = variables.get(key)
-        zenoh_value_parts = zenoh_value.split("|")
-        fname = zenoh_value_parts[0]
-        project_id = zenoh_value_parts[1]
+        ddm_value = variables.get(key)
+        ddm_value_parts = ddm_value.split("|")
+        fname = ddm_value_parts[0]
+        project_id = ddm_value_parts[1]
     else:
         file_type = FILE_TYPE_INTERMEDIATE
         fname = key
