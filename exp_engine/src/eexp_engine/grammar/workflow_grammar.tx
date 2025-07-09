@@ -63,9 +63,9 @@ ConfigureTask:
 ConfigureData:
     'configure data' alias=[Data] '{'
         ('path' path=STRING';' |
-        'zenoh_name' zenoh_name=STRING';' 'zenoh_project' zenoh_project=STRING';' |
-        'zenoh_name' zenoh_name=STRING';' |
-        'zenoh_project' zenoh_project=STRING';'
+        'name' name=STRING';' 'project' project=STRING';' |
+        'name' name=STRING';' |
+        'project' project=STRING';'
         )
     '}';
 
