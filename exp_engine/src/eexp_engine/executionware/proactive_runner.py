@@ -118,7 +118,7 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
         requirements = _get_requirements_from_file(INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH)
         if requirements_file:
             requirements += _get_requirements_from_file(requirements_file)
-        if CONFIG.DATASET_MANAGEMENT == "ZENOH":
+        if CONFIG.DATASET_MANAGEMENT == "DDM":
             requirements += _get_requirements_from_file(ZENOH_REQS_PATH)
         print(f"Setting virtual environment to {requirements}")
         task.setVirtualEnv(requirements=requirements)
@@ -190,7 +190,8 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
     with open(EXECUTION_ENGINE_RUNTIME_CONFIG, 'w') as f:
         dataset_config = {}
         dataset_config["DATASET_MANAGEMENT"] = CONFIG.DATASET_MANAGEMENT
-        dataset_config["ZENOH_URL"] = CONFIG.ZENOH_URL
+        dataset_config["DDM_URL"] = CONFIG.DDM_URL
+        dataset_config["DDM_TOKEN"] = CONFIG.DDM_TOKEN
         runtime_job_config = {}
         runtime_job_config["mapping"] = mapping
         runtime_job_config["exp_engine_metadata"] = exp_engine_metadata

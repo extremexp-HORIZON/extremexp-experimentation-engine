@@ -28,9 +28,9 @@ PROACTIVE_PYTHON_VERSIONS = {"3.8": "/usr/bin/python3.8", "3.9": "/usr/bin/pytho
 DATA_ABSTRACTION_BASE_URL = "http://146.124.106.171:8445/api"
 DATA_ABSTRACTION_ACCESS_TOKEN = ''
 
-# possible values: ZENOH, LOCAL
-DATASET_MANAGEMENT = "ZENOH"
-DATASET_MANAGEMENT_URL = "http://146.124.106.200/api"
+# possible values: DDM (Decentralized Data Management), LOCAL
+DATASET_MANAGEMENT = "DDM"
+DATASET_MANAGEMENT_URL = "https://ddm.extremexp-icom.intracom-telecom.com"
 
 # logging configuration, optional; if not set, all loggers have INFO level
 LOGGING_CONFIG = {

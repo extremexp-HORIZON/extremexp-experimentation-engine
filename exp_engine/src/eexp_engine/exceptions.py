@@ -48,6 +48,21 @@ class DatasetManagementNotSet(Exception):
     pass
 
 
-class DatasetManagementSetToZenohButNoURLProvided(Exception):
-    "Raised when the DATASET_MANAGEMENT variable in config.py is set to ZENOH but the DATASET_MANAGEMENT_URL is not set"
+class DatasetManagementSetToDDMButNoURLProvided(Exception):
+    "Raised when the DATASET_MANAGEMENT variable in config.py is set to DDM but the DATASET_MANAGEMENT_URL is not set"
+    pass
+
+
+class DatasetManagementSetToDDMButNoPortalUserOrPasswordProvided(Exception):
+    "Raised when the DATASET_MANAGEMENT variable in config.py is set to DDM but the PORTAL_USERNAME or the PORTAL_PASSWORD is not set"
+    pass
+
+
+class PortalUserDoesNotExist(Exception):
+    "Raised when the PORTAL_USERNAME variable in config.py is set to a user that does not exist"
+    pass
+
+
+class PortalPasswordDoesNotMatch(Exception):
+    "Raised when the PORTAL_PASSWORD variable in config.py does not much the user in the PORTAL_USERNAME variable"
     pass
