@@ -30,7 +30,7 @@ workflow SingleTaskW {
 workflow SingleTaskAW from SingleTaskW {
 }
 
-experiment TestZenohExp {
+experiment TestDDMExp {
 
     control {
           START -> S1 -> END;
