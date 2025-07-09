@@ -2,10 +2,38 @@ from . import run_experiment
 from .executionware import proactive_runner as proactive_runner
 from .data_abstraction_layer.data_abstraction_api import set_data_abstraction_config, create_experiment
 import os
+import requests
 import logging.config
 from . import exceptions
 
 logger = logging.getLogger(__name__)
+
+
+def get_ddm_token(config):
+    if config.DATASET_MANAGEMENT != "DDM":
+        return None
+    url = f"{config.DDM_URL}/extreme_auth/api/v1/person/login"
+    data = {
+        "username": config.PORTAL_USERNAME,
+        "password": config.PORTAL_PASSWORD
+    }
+    response = requests.post(url, json=data)
+    status_code = response.status_code
+    response_json = response.json()
+    if status_code == 401:
+        logger.error("Portal authentication failed.")
+        error_code = response_json["error_code"]
+        if error_code == 4012:
+            raise exceptions.PortalUserDoesNotExist(
+                "Portal user not found - please check the PORTAL_USERNAME in your configuration")
+        if error_code == 4011:
+            raise exceptions.PortalPasswordDoesNotMatch(
+                "Portal user found, but password does not match - please check PORTAL_PASSWORD in your configuration")
+    if status_code == 200:
+        access_token = response.json()["access_token"]
+        logger.info("portal authentication successful, ddm token retrieved")
+        return f"Bearer {access_token}"
+
 
 class Config:
 
@@ -16,14 +44,21 @@ class Config:
         self.PYTHON_DEPENDENCIES_RELATIVE_PATH = config.PYTHON_DEPENDENCIES_RELATIVE_PATH
         if 'DATASET_MANAGEMENT' not in dir(config) or len(config.DATASET_MANAGEMENT) == 0:
             raise exceptions.DatasetManagementNotSet(
-                "Please set the variable DATASET_MANAGEMENT in config.py to either \"LOCAL\" or \"ZENOH\"")
+                "Please set the variable DATASET_MANAGEMENT in config.py to either \"LOCAL\" or \"DDM\"")
         else:
             self.DATASET_MANAGEMENT = config.DATASET_MANAGEMENT
-        if config.DATASET_MANAGEMENT == "ZENOH":
-            if 'ZENOH_URL' not in dir(config) or len(config.ZENOH_URL) == 0:
-                raise exceptions.DatasetManagementSetToZenohButNoURLProvided(
-                    "Please set the variable ZENOH_URL in config.py")
-        self.ZENOH_URL = config.ZENOH_URL if 'ZENOH_URL' in dir(config) else None
+        if config.DATASET_MANAGEMENT == "DDM":
+            if 'DDM_URL' not in dir(config) or len(config.DDM_URL) == 0:
+                raise exceptions.DatasetManagementSetToDDMButNoURLProvided(
+                    "Please set the variable DDM_URL in config.py")
+            if 'PORTAL_USERNAME' not in dir(config) or len(config.PORTAL_USERNAME) == 0:
+                raise exceptions.DatasetManagementSetToDDMButNoPortalUserOrPasswordProvided(
+                    "Please set the variable PORTAL_USERNAME in config.py")
+            if 'PORTAL_PASSWORD' not in dir(config) or len(config.PORTAL_PASSWORD) == 0:
+                raise exceptions.DatasetManagementSetToDDMButNoPortalUserOrPasswordProvided(
+                    "Please set the variable PORTAL_PASSWORD in config.py")
+        self.DDM_URL = config.DDM_URL if 'DDM_URL' in dir(config) else None
+        self.DDM_TOKEN = get_ddm_token(config)
         self.DATA_ABSTRACTION_BASE_URL = config.DATA_ABSTRACTION_BASE_URL
         self.DATA_ABSTRACTION_ACCESS_TOKEN = config.DATA_ABSTRACTION_ACCESS_TOKEN
         self.EXECUTIONWARE = config.EXECUTIONWARE

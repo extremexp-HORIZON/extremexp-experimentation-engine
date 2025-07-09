@@ -22,8 +22,10 @@ with open(EXECUTION_ENGINE_RUNTIME_CONFIG, 'r') as file:
     exp_engine_metadata = runtime_job_config["exp_engine_metadata"]
     dataset_config = runtime_job_config["dataset_config"]
     DATASET_MANAGEMENT = dataset_config["DATASET_MANAGEMENT"]
-    ZENOH_URL = dataset_config["ZENOH_URL"]
+    DDM_URL = dataset_config["DDM_URL"]
+    DDM_TOKEN = dataset_config["DDM_TOKEN"]
 
+AUTH_HEADERS = {'Authorization': DDM_TOKEN}
 
 def get_experiment_results():
     if os.path.exists(RESULTS_FILE):
@@ -34,16 +36,16 @@ def get_experiment_results():
 
 
 def save_datasets(variables, resultMap, key, values, file_names=None):
-    if DATASET_MANAGEMENT == "ZENOH":
+    if DATASET_MANAGEMENT == "DDM":
         return save_datasets_zenoh(variables, resultMap, key, values, file_names)
-    print("save_datasets is only available for zenoh, please update your config.py")
+    print("save_datasets is only available for DDM, please update your config.py")
     exit(1)
 
 
 def save_dataset(variables, resultMap, key, value):
     if DATASET_MANAGEMENT == "LOCAL":
         return save_dataset_local(variables, resultMap, key, value)
-    if DATASET_MANAGEMENT == "ZENOH":
+    if DATASET_MANAGEMENT == "DDM":
         return save_datasets_zenoh(variables, resultMap, key, [value])
     print("Cannot load dataset, please setup DATASET_MANAGEMENT in config.py")
     exit(1)
@@ -74,8 +76,8 @@ def save_dataset_local(variables, resultMap, key, value):
 
 
 def save_datasets_zenoh(variables, resultMap, key, values, file_names=None):
-    upload_url = f"{ZENOH_URL}/files/upload"
-    file_url_template = f"{ZENOH_URL}/file/{{}}"
+    upload_url = f"{DDM_URL}/ddm/files/upload"
+    file_url_template = f"{DDM_URL}/ddm/file/{{}}"
     task_name = variables['PA_TASK_NAME']
     variables.put("PREVIOUS_TASK_ID", str(task_name))
 
@@ -126,7 +128,7 @@ def save_datasets_zenoh(variables, resultMap, key, values, file_names=None):
         all_files = upload_files + metadata_files
 
         print("Uploading to:", upload_url)
-        response = requests.post(upload_url, files=all_files, data=form_data)
+        response = requests.post(upload_url, headers=AUTH_HEADERS, files=all_files, data=form_data)
         print("Status:", response.status_code)
 
         generated_file_id = response.json()["files"][0]["id"]
@@ -142,7 +144,7 @@ def save_datasets_zenoh(variables, resultMap, key, values, file_names=None):
 
 
 def load_datasets(variables, resultMap, key):
-    if DATASET_MANAGEMENT == "ZENOH":
+    if DATASET_MANAGEMENT == "DDM":
         return load_datasets_zenoh(variables, key, resultMap)
     print("load_datasets is only available for zenoh, please update your config.py")
     exit(1)
@@ -151,7 +153,7 @@ def load_datasets(variables, resultMap, key):
 def load_dataset(variables, resultMap, key):
     if DATASET_MANAGEMENT == "LOCAL":
         return load_dataset_local(variables, key)
-    if DATASET_MANAGEMENT == "ZENOH":
+    if DATASET_MANAGEMENT == "DDM":
         return load_datasets_zenoh(variables, key, resultMap)[0]
     print("Cannot load dataset, please setup DATASET_MANAGEMENT in config.py")
     exit(1)
@@ -175,7 +177,7 @@ def load_dataset_local(variables, key):
 
 
 def load_datasets_zenoh(variables, key, resultMap):
-    file_url_template = f"{ZENOH_URL}/file/{{}}"
+    file_url_template = f"{DDM_URL}/ddm/file/{{}}"
     task_name = variables.get("PA_TASK_NAME")
     if key in variables:
         file_type = FILE_TYPE_EXTERNAL
@@ -203,7 +205,7 @@ def load_datasets_zenoh(variables, key, resultMap):
         file_id = entry.get("id")
         file_url = file_url_template.format(file_id)
         print("Downloading:", file_url)
-        f_response = requests.get(file_url)
+        f_response = requests.get(file_url, headers=AUTH_HEADERS)
         file_metadata = _return_file_metadata(entry.get("upload_filename"), file_url, project_id, file_type)
         result_value.append(file_metadata)
         f_response.raise_for_status()
@@ -224,9 +226,10 @@ def _return_file_metadata(file_name, file_url, project_id, file_type):
 
 def _look_up_file_in_catalog(fname, project_id):
     print(f"Looking up {fname} in project {project_id}")
-    catalog_url = f"{ZENOH_URL}/catalog"
+    catalog_url = f"{DDM_URL}/ddm/catalog/list"
     r = requests.get(
         catalog_url,
+        headers=AUTH_HEADERS,
         params={
             "filename": fname,
             # "sort": "created,desc",
