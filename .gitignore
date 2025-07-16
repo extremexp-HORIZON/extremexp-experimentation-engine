@@ -18,3 +18,4 @@ execution_engine_mapping.json
 results.json
 exec_task.py
 extremexp-experimentation-engine.iml
+.sdkmanrc

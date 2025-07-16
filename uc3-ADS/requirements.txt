@@ -1,6 +1,0 @@
-requests
-torch
-opencv-python
-flask
-numpy
-video.js

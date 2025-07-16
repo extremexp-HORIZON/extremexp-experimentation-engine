@@ -1,0 +1,111 @@
+workflow IDEKO_multi_main {
+
+  // Task CONNECTIONS
+  START -> ReadData -> PrepareData -> TrainModel -> EvaluateModel -> END;
+
+  task TrainModel;
+
+  task ReadData {
+    implementation "IDEKO.ReadData";
+  }
+
+  task EvaluateModel {
+    implementation "IDEKO.EvaluateModel";
+  }
+
+  task PrepareData {
+    subworkflow "IDEKO_DataPreprocessing";
+  }
+
+  // DATA Definition
+  define input data ExternalDataFile;
+  define output data TrainedModelFolder;
+
+  // Data Configuration
+  configure data ExternalDataFile {
+    path "v1/ideko-subset/**";
+  }
+
+  configure data TrainedModelFolder {
+    path "output/trained_model/**";
+    type "generated-ML-model";
+  }
+
+  // INPUT Data
+  ExternalDataFile --> ReadData.FileToRead;
+
+  // DATA FLOW BETWEEN TASKS
+  ReadData.X41 --> PrepareData.X2;
+  ReadData.Y --> PrepareData.Y;
+  ReadData.IndicatorList --> PrepareData.IndicatorList;
+
+  PrepareData.Timestamps42 --> TrainModel.Timestamps;
+  PrepareData.Features --> TrainModel.Features;
+  PrepareData.XTrain --> TrainModel.XTrain;
+  PrepareData.XTest --> TrainModel.XTest;
+  PrepareData.YTrain --> TrainModel.YTrain;
+  PrepareData.YTest --> TrainModel.YTest;
+  PrepareData.XPad --> TrainModel.XPad;
+  PrepareData.YPad --> TrainModel.YPad;
+
+  TrainModel.OutputFolder --> EvaluateModel.OutputFolder;
+  TrainModel.XTest --> EvaluateModel.XTest;
+  TrainModel.YTest --> EvaluateModel.YTest;
+  TrainModel.XPad --> EvaluateModel.XPad;
+  TrainModel.YPad --> EvaluateModel.YPad;
+  TrainModel.Timestamps --> EvaluateModel.Timestamps2;
+  TrainModel.Features --> EvaluateModel.Features;
+
+  // Output Data
+  TrainModel.OutputFolder --> TrainedModelFolder;
+
+}
+
+workflow TrainModelNN from IDEKO_multi_main {
+  task TrainModel {
+    implementation "IDEKO.TrainModelNN";
+  }
+}
+
+workflow TrainModelRNN from IDEKO_multi_main {
+  task TrainModel {
+    implementation "IDEKO.TrainModelRNN";
+  }
+}
+
+experiment IDEKO_example {
+
+  intent FindBestClassifier;
+
+  control {
+    START -> S1 -> S2 -> END;
+  }
+
+  space S1 of TrainModelNN {
+
+    strategy gridsearch;
+    param_values epochs_vp = range(2, 4);
+    param_values batch_size_vp = enum(64);
+
+    task TrainModel {
+      param epochs = epochs_vp;
+      param batch_size = batch_size_vp;
+    }
+
+  }
+
+
+  space S2 of TrainModelRNN {
+
+    strategy gridsearch;
+    param_values epochs_vp = range(2, 4);
+    param_values batch_size_vp = enum(32);
+
+    task TrainModel {
+      param epochs = epochs_vp;
+      param batch_size = batch_size_vp;
+    }
+    
+  }
+
+}
