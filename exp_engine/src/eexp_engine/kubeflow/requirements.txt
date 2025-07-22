@@ -1,0 +1,4 @@
+# Kubeflow Pipelines converter requirements
+kfp>=2.0.0
+click>=8.0.0
+pyyaml>=6.0
