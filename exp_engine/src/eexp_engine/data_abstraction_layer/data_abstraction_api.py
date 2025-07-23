@@ -128,6 +128,7 @@ def update_files_of_workflow(wf_id, result):
     wf = get_workflow(wf_id)
     file_keys = [key for key in result if key.startswith("file:")]
     tasks_updates = {}
+    # TODO refactor this code (split in 2 functions, etc.)
     for k in file_keys:
         file_metadata_list = json.loads(result[k])
         file_keys_parts = k.split(":")
@@ -161,11 +162,17 @@ def update_files_of_workflow(wf_id, result):
             datasets = _create_new_dataset_entry(d, task_update, "outputs")
             new_output_datasets += datasets
         task["output_datasets"] = new_output_datasets
+    print("BEFORE update_workflow")
+    print(f"new_tasks: {new_tasks}")
     update_workflow(wf_id, {"tasks": new_tasks})
+    print("AFTER update_workflow")
 
 
 def _create_new_dataset_entry(d, task_update, inputs_or_outputs):
     file_name = d["name"]
+    if inputs_or_outputs not in task_update:
+        logger.error("Inputs or outputs not found, check specification of experiment.")
+        return []
     updates = task_update[inputs_or_outputs]
     datasets = []
     if file_name in updates:
