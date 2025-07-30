@@ -12,12 +12,12 @@ workflow SingleTaskW {
 
     define input data InputFile;
     configure data InputFile {
-        path "demo_datasets/titanic.json";
+        path "demo_datasets/titanic.csv";
     }
 
     define output data OutputFile;
     configure data OutputFile {
-        path "output/test_local/titanic_once_more.json";
+        path "output/test_local/titanic_once_more.csv";
     }
 
     InputFile --> Task1.TestDatasetManagementTask1InputFile;
