@@ -1,5 +1,11 @@
 import logging
-from .proactive_runner import _create_execution_engine_mapping
+from typing import List
+from venv import logger
+
+from eexp_engine.executionware.proactive_runner import _create_execution_engine_mapping
+
+from ..models.task import Task
+from ..models.workflow import Workflow
 import subprocess
 import os
 
@@ -7,6 +13,7 @@ LOCAL_HELPER_FULL_PATH = os.path.dirname(os.path.abspath(__file__))
 EXECUTION_ENGINE_MAPPING_FILE = "execution_engine_mapping.json"
 VARIABLES = "variables.json"
 RESULT = "results.json"
+LOCAL_ENV_DEPENDENCIES = "numpy pandas openpyxl xlrd pyarrow"
 
 
 def find_and_replace_ResultMapPut(lines):
@@ -20,15 +27,13 @@ def find_and_replace_ResultMapPut(lines):
     return new_lines
 
 
-def execute_wf(w, exp_id, wf_id, runner_folder, config):
+def execute_wf(w: Workflow, exp_id: str, exp_name: str, wf_id: str, runner_folder: str, config: dict):
+    """
+    Executes the workflow using the local runner.
+    """
     global RUNNER_FOLDER, CONFIG
     RUNNER_FOLDER = runner_folder
     CONFIG = config
-
-    import json
-    with open(VARIABLES, 'w') as f:
-        variables = {}
-        json.dump(variables, f)
 
     logger = logging.getLogger(__name__)
     logger.info("****************************")
@@ -39,61 +44,72 @@ def execute_wf(w, exp_id, wf_id, runner_folder, config):
     logger.info(f"RUNNER_FOLDER: {RUNNER_FOLDER}")
     logger.info("****************************")
 
-    sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
+    sorted_tasks: List[Task] = sorted(w.tasks, key=lambda t: t.order)
     mapping = _create_execution_engine_mapping(sorted_tasks)
+    
     import json
+
+    if not os.path.exists("intermediate_files"):
+        os.makedirs("intermediate_files")
     with open(EXECUTION_ENGINE_MAPPING_FILE, 'w') as f:
         json.dump(mapping, f)
+    with open(VARIABLES, 'w') as f:
+        json.dump({}, f)
+    with open(RESULT, 'w') as f:
+        json.dump({}, f)
 
-    for t in sorted_tasks:
+    for index, task in enumerate(sorted_tasks):
         print("----------------------------")
-        print(t.name)
-        print(t.impl_file)
-        # t.print()
+        print(task.name)
+        print(task.impl_file)
+        # task.print()
         new_path = f"{LOCAL_HELPER_FULL_PATH}:"
         print(LOCAL_HELPER_FULL_PATH)
-        for dependency in t.dependent_modules:
+        for dependency in task.dependent_modules:
             dependency = dependency.split("/**")[0] if "/**" in dependency else dependency
             new_path += f"{os.path.join(RUNNER_FOLDER, dependency)}:"
         my_env = os.environ.copy()
         my_env["PYTHONPATH"] = new_path
         print(f"new_path: {new_path}")
-        new_file_path = os.path.join(os.path.dirname(t.impl_file), f"exec_{os.path.basename(t.impl_file)}")
+        new_file_path = os.path.join(os.path.dirname(task.impl_file), f"exec_{os.path.basename(task.impl_file)}")
         print(new_file_path)
-        subprocess.run([f"cp {t.impl_file} {new_file_path}"], shell=True)
+        subprocess.run([f"cp {task.impl_file} {new_file_path}"], shell=True)
+        resultMap = json.loads(open(RESULT, 'r').read())
 
-        variables = f"'task_name': '{t.name}', "
-        for i in t.input_files:
-            if i.path:
-                path = i.path.split("/**")[0] if "/**" in i.path else i.path
-                variables += f"'{i.name_in_task_signature}': '{path}', "
+        variables = {'PREVIOUS_PROCESS_ID': sorted_tasks[index - 1].name if index > 0 else None, 'task_name': task.name, 'workflow_id': wf_id}
+        for input_file in task.input_files:
+            path = input_file.path.split("/**")[0] if "/**" in input_file.path else input_file.path
+            variables[f'{input_file.name_in_task_signature}'] = str(path) if path else None
+        for output_file in task.output_files:
+            path = output_file.path.split("/**")[0] if "/**" in output_file.path else output_file.path
+            variables[f'{output_file.name_in_task_signature}'] = str(path) if path else None
 
-        for o in t.output_files:
-            if o.path:
-                path = o.path.split("/**")[0] if "/**" in o.path else o.path
-                variables += f"'{o.name_in_task_signature}': '{path}', "
-
-        if len(t.params) > 0:
-            for k, v in t.params.items():
-                variables += f"'{k}': '{v}', "
+        if len(task.params) > 0:
+            for k, v in task.params.items():
+                variables[f'{k}'] = f'{v}'
 
         with open(new_file_path, 'r+') as fp:
             lines = fp.readlines()
             fp.seek(0)
             fp.truncate()
             first_line = ["import local_helper as ph\n"]
-            second_line = [f"variables = {{{variables}}}\n"]
-            third_line = ["resultMap = {}\n"]
-            last_line = ["ph.save_result(resultMap)"]
+            second_line = [f"variables = {variables}\n"]
+            third_line = [f"resultMap = {resultMap}\n"]
+            last_line = ["\nph.save_result(resultMap)"]
             filelines = first_line + second_line + third_line + find_and_replace_ResultMapPut(lines[2:]) + last_line
             fp.writelines(filelines)
         subprocess.run(["python -m venv local_env"], shell=True)
-        print(f'configuring vnenv with requirements.txt: {t.requirements_file}')
-        subprocess.run([f"source ./local_env/bin/activate; python -m pip install --upgrade pip --quiet; pip install -r {t.requirements_file} --quiet"], shell=True)
-        subprocess.run([f"source ./local_env/bin/activate; python {new_file_path}"], env=my_env, shell=True)
+        if task.requirements_file is None:
+            subprocess.run([f"source ./local_env/bin/activate; python -m pip install --upgrade pip --quiet; pip install {LOCAL_ENV_DEPENDENCIES} --quiet"], shell=True)
+        else:
+            print(f'configuring vnenv with requirements.txt: {task.requirements_file}')
+            subprocess.run([f"source ./local_env/bin/activate; python -m pip install --upgrade pip --quiet; pip install -r {task.requirements_file} --quiet; pip install {LOCAL_ENV_DEPENDENCIES} --quiet"], shell=True)
+        result = subprocess.run([f"source ./local_env/bin/activate; python {new_file_path}"], env=my_env, shell=True, capture_output=True, text=True)
+        if result.stdout:
+            logger.info(f"Task {task.name} stdout: {result.stdout}")
+        if result.stderr:
+            logger.error(f"Task {task.name} stderr: {result.stderr}")
+        if result.returncode != 0:
+            logger.error(f"Task {task.name} failed with return code {result.returncode}")
 
         print("****************************")
-
-    with open(RESULT, 'r') as file:
-        result = json.load(file)
-        return result
