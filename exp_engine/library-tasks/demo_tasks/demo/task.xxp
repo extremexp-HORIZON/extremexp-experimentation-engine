@@ -1,0 +1,11 @@
+task DemoTask {
+
+    define param demo_param {
+        type Integer;
+        default 10;
+        range (4, 20, 2);
+    }
+
+    implementation "demo_tasks/demo/task.py";
+    python_version "3.9";
+}

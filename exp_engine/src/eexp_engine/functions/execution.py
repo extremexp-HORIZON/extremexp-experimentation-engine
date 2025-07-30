@@ -1,5 +1,5 @@
 from ..data_abstraction_layer.data_abstraction_api import *
-from ..executionware import proactive_runner, local_runner
+from ..executionware import proactive_runner, local_runner, kubeflow_runner
 from ..models.experiment import *
 import pprint
 import itertools
@@ -348,6 +348,8 @@ class Execution:
                 result = proactive_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config, results_so_far)
             elif self.config.EXECUTIONWARE == "LOCAL":
                 result = local_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config)
+            elif self.config.EXECUTIONWARE == "KUBEFLOW":
+                result = kubeflow_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config, results_so_far)
             else:
                 print("You need to setup an executionware")
                 exit(0)
