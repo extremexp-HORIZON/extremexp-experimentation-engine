@@ -84,6 +84,17 @@ def _get_requirements_from_file(reqs_file):
         user_reqs = [line.rstrip() for line in file]
     return user_reqs
 
+def _prepare_proactive_task_code(original_task_code):
+    """Prepare ProActive task code by adding the path setup line if not present"""
+    
+    # The standard first line for ProActive tasks
+    path_setup_line = '[sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]'
+    
+    # Prepend the path setup line
+    prepared_code = path_setup_line + '\n' + original_task_code
+    
+    return prepared_code
+
 
 def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environment, mapping, exp_engine_metadata, task_impl, requirements_file, python_version, taskType,
                         input_files=[], output_files=[], dependent_modules=[], dependencies=[]):
@@ -92,7 +103,8 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
     task = gateway.createPythonTask()
     task.setTaskName(task_name)
     print(f"Setting implementation from file {task_impl}")
-    task.setTaskImplementationFromFile(task_impl)
+    final_task_impl = _prepare_proactive_task_code(task_impl)
+    task.setTaskImplementation(final_task_impl)
 
     if taskType=="interactive":
         print(f"Setting pre_script for interactive task {task_name}")
