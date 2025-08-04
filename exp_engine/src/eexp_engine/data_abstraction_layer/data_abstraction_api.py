@@ -152,16 +152,35 @@ def update_files_of_workflow(wf_id, result):
         task_name = task["name"]
         print(f"Updating inputs and outputs of task {task_name}...")
         task_update = tasks_updates.get(task_name, {})
-        new_input_datasets = []
-        for d in task["input_datasets"]:
-            datasets = _create_new_dataset_entry(d, task_update, "inputs")
-            new_input_datasets += datasets
-        task["input_datasets"] = new_input_datasets
-        new_output_datasets = []
-        for d in task["output_datasets"]:
-            datasets = _create_new_dataset_entry(d, task_update, "outputs")
-            new_output_datasets += datasets
-        task["output_datasets"] = new_output_datasets
+        
+        # Check if task has output updates
+        has_output_updates = "outputs" in task_update
+        # Check if task has input updates  
+        has_input_updates = "inputs" in task_update
+        
+        # Update inputs if there are input updates
+        if has_input_updates:
+            print(f"Updating inputs for task {task_name}")
+            new_input_datasets = []
+            for d in task.get("input_datasets", []):
+                datasets = _create_new_dataset_entry(d, task_update, "inputs")
+                new_input_datasets += datasets
+            task["input_datasets"] = new_input_datasets
+        else:
+            print(f"No input updates for task {task_name}")
+
+        # Update outputs if there are output updates
+        if has_output_updates:
+            print(f"Updating outputs for task {task_name}")
+            new_output_datasets = []
+            for d in task.get("output_datasets", []):
+                datasets = _create_new_dataset_entry(d, task_update, "outputs")
+                new_output_datasets += datasets
+            task["output_datasets"] = new_output_datasets
+        else:
+            print(f"No output updates for task {task_name}")
+
+            
     print("BEFORE update_workflow")
     print(f"new_tasks: {new_tasks}")
     update_workflow(wf_id, {"tasks": new_tasks})
