@@ -1,6 +1,3 @@
-"""
-Kubeflow helper functions - equivalents of proactive_helper for Kubeflow execution
-"""
 import os
 import pickle
 import json

@@ -3,14 +3,19 @@ workflow DemoWorkflow {
     START -> Task1 -> Task2 -> END;
 
     task Task1 {
-        implementation "kubeflow_tests/simple_two_tasks/task1";
+        implementation "kubeflow_tests/simple_two_tasks_input_file/task1";
     }
     
     task Task2 {
-        implementation "kubeflow_tests/simple_two_tasks/task2";
+        implementation "kubeflow_tests/simple_two_tasks_input_file/task2";
     }
 
+    efine input data InputFile;
+    configure data InputFile {
+        path "demo_datasets/titanic.csv";
+    }
 
+    InputFile --> Task1.task1inputfile
 
 }
 

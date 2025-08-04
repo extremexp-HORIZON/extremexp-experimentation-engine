@@ -1,4 +1,6 @@
-task DemoTask {
+task DemoTask1 {
+
+    define input data task1inputfile;
 
     define param demo_param {
         type Integer;
@@ -6,6 +8,6 @@ task DemoTask {
         range (4, 20, 2);
     }
 
-    implementation "demo_tasks/demo/task.py";
+    implementation "kubeflow_tests/simple_two_tasks/task1/task.py";
     python_version "3.9";
 }
