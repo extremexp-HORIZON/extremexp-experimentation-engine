@@ -207,7 +207,7 @@ class Execution:
             print(f"Run {self.run_count}")
             print(f"Combination {c}")
             configured_workflow = self.get_workflow_to_run(node, c)
-            wf_id = self.create_executed_workflow_in_db(configured_workflow, "space")
+            wf_id = self.create_executed_workflow_in_db(configured_workflow, node.name)
             configured_workflows_of_space[wf_id] = configured_workflow
             configurations_of_space[wf_id] = c
             self.run_count += 1
