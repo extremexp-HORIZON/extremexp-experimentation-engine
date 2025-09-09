@@ -232,9 +232,10 @@ def _look_up_file_in_catalog(fname, project_id):
         headers=AUTH_HEADERS,
         params={
             "filename": fname,
+            "project_id": project_id,
             # "sort": "created,desc",
             # "page": 1,
-            "perPage": 1000,
+            "perPage": 5000,
         }
     )
     r.raise_for_status()
