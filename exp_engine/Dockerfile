@@ -14,6 +14,9 @@ RUN pip install --upgrade --pre proactive
 RUN pip install -r requirements-library.txt
 RUN pip install -r requirements-service.txt
 
+# Install the local package so that 'eexp_engine' is importable without relying on relative src paths
+RUN pip install -e .
+
 COPY . .
 
 WORKDIR /exp_engine
