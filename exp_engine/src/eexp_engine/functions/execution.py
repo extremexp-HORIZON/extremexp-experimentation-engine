@@ -11,6 +11,18 @@ from multiprocessing import Process, Queue
 
 logger = logging.getLogger(__name__)
 
+# Uniformly sample exactly k items from a (filtered) stream without knowing its length (reservoir sampling)
+def _reservoir_sample(iterable, k):
+    res = []
+    for i, item in enumerate(iterable, 1):  # 1-based index
+        if i <= k:
+            res.append(item)
+        else:
+            j = random.randint(1, i)
+            if j <= k:
+                res[j - 1] = item
+    return res
+
 class Execution:
 
     def __init__(self, exp_id, exp, assembled_flat_wfs, runner_folder, config, data_client: DataAbstractionClient):
@@ -155,42 +167,35 @@ class Execution:
         return self.run_scheduled_workflows_from_db(node, space_workflow_ids), self.run_count
 
     def run_random_search(self, node):
-        # Streaming random sampling without materializing full cartesian product
-        logger.debug("Using streaming random search without full cartesian materialization")
+        """Randomly sample exactly K configurations from the filtered space (uniformly),
+        without materializing the full cartesian product.
+
+        Uses reservoir sampling over the filtered combination stream produced by
+        _iter_base_combinations(node), so user-defined filters/generators are honored.
+        """
+        logger.debug("Using reservoir-sampled random search over filtered stream")
         vp_value_lists = self._build_vp_value_lists(node)
-        lengths = [len(v) for (_, v) in vp_value_lists]
-        if not lengths:
-            # No variability points -> single empty configuration
-            # Preregister a single workflow, then execute
+        # No variability points -> single empty configuration
+        if not vp_value_lists:
             space_workflow_ids = self._preregister_workflows_streaming(node, iter([{}]))
             return self.run_scheduled_workflows_from_db(node, space_workflow_ids), self.run_count
+
+        # Compute cartesian size upper bound (may be reduced by filters)
         total = 1
-        for l in lengths:
-            total *= l
-        sample_size = min(node.runs, total)
-        # If sample_size is a large fraction of total, just fallback to grid streaming (cheaper than decoding many indices separately)
-        if sample_size / total > 0.6:
-            combo_iter = self._iter_base_combinations(node)
-            space_workflow_ids = self._preregister_workflows_streaming(node, combo_iter)
-            return self.run_scheduled_workflows_from_db(node, space_workflow_ids), self.run_count
-        # Sample unique indices
-        # If total is huge Python's random.sample with range is still memory efficient (range is lazy)
-        sampled_indices = set(random.sample(range(total), sample_size))
-        def decoded_combos():
-            for idx in sampled_indices:
-                k = idx
-                coords = []
-                for l in reversed(lengths):
-                    coords.append(k % l)
-                    k //= l
-                coords.reverse()
-                combo = {}
-                for (vp_name, values), ci in zip(vp_value_lists, coords):
-                    combo[vp_name] = values[ci]
-                yield combo
-        logger.info(f"\nRandom search will run {sample_size} sampled configurations (total space={total}).\n")
-        # Preregister lazily using decoded combos, then execute from DB
-        space_workflow_ids = self._preregister_workflows_streaming(node, decoded_combos())
+        for _, vals in vp_value_lists:
+            total *= len(vals)
+        sample_size = min(getattr(node, "runs", 1), total)
+
+        # Stream filtered combinations and reservoir-sample K of them
+        combo_iter = self._iter_base_combinations(node)
+        sampled_combos = _reservoir_sample(combo_iter, sample_size)
+        logger.info(
+            f"Random search will run {len(sampled_combos)} sampled configuration(s) "
+            f"(requested={sample_size}, max-space={total})."
+        )
+
+        # Preregister lazily from the sampled list and execute from DB
+        space_workflow_ids = self._preregister_workflows_streaming(node, iter(sampled_combos))
         return self.run_scheduled_workflows_from_db(node, space_workflow_ids), self.run_count
 
     # --------- Lazy combination helpers (do not apply filters/generators) ---------
