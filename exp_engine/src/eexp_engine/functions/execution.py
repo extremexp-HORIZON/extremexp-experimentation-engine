@@ -1,4 +1,4 @@
-from ..data_abstraction_layer.data_abstraction_api import *
+from ..data_abstraction_layer.data_abstraction_api import DataAbstractionClient
 from ..executionware import proactive_runner, local_runner
 from ..models.experiment import *
 import pprint
@@ -6,18 +6,20 @@ import itertools
 import random
 import time
 import importlib
+import logging
 from multiprocessing import Process, Queue
 
 logger = logging.getLogger(__name__)
 
 class Execution:
 
-    def __init__(self, exp_id, exp, assembled_flat_wfs, runner_folder, config):
+    def __init__(self, exp_id, exp, assembled_flat_wfs, runner_folder, config, data_client: DataAbstractionClient):
         self.exp_id = exp_id
         self.exp = exp
         self.assembled_flat_wfs = assembled_flat_wfs
         self.runner_folder = runner_folder
         self.config = config
+        self.data = data_client
         self.results = {}
         self.run_count = 1
         self.queues_for_nodes = {}
@@ -47,10 +49,11 @@ class Execution:
                     self.execute_nodes_in_container(next_node)
 
     def start(self):
+        """Entry point to execute the experiment control flow."""
         start_node = next(node for node in self.exp.control_node_containers if not node.is_next)
-        update_experiment(self.exp_id, {"status": "running", "start": get_current_time()})
+        self.data.update_experiment(self.exp_id, {"status": "running", "start": self.data.get_current_time()})
         self.execute_nodes_in_container(start_node)
-        update_experiment(self.exp_id, {"status": "completed", "end": get_current_time()})
+        self.data.update_experiment(self.exp_id, {"status": "completed", "end": self.data.get_current_time()})
 
     def execute_nodes_in_container_sequential_DEPRECATED(self, control_node_container):
         all_control_nodes = self.exp.spaces + self.exp.tasks + self.exp.interactions
@@ -143,78 +146,236 @@ class Execution:
         return node_results
 
     def run_grid_search(self, node):
-        combinations = self.generate_combinations(node)
-        print(f"\nGrid search generated {len(combinations)} configurations to run.\n")
-        for combination in combinations:
-            print(combination)
-        return self.run_combinations(node, combinations)
+        # Streaming (lazy) path
+        logger.debug("Using streaming combination generation for grid search")
+        combo_iter = self._iter_base_combinations(node)
+        # Phase 1: preregister workflows lazily, one by one (no retention)
+        space_workflow_ids = self._preregister_workflows_streaming(node, combo_iter)
+        # Phase 2: execute scheduled workflows reconstructing from DB
+        return self.run_scheduled_workflows_from_db(node, space_workflow_ids), self.run_count
 
     def run_random_search(self, node):
-        combinations = self.generate_combinations(node)
-        random_indexes = [random.randrange(len(combinations)) for i in range(node.runs)]
-        random_combinations = [combinations[ri] for ri in random_indexes]
-        print(f"\nRandom search generated {len(random_combinations)} configurations to run.\n")
-        for c in random_combinations:
-            print(c)
-        return self.run_combinations(node, random_combinations)
+        # Streaming random sampling without materializing full cartesian product
+        logger.debug("Using streaming random search without full cartesian materialization")
+        vp_value_lists = self._build_vp_value_lists(node)
+        lengths = [len(v) for (_, v) in vp_value_lists]
+        if not lengths:
+            # No variability points -> single empty configuration
+            # Preregister a single workflow, then execute
+            space_workflow_ids = self._preregister_workflows_streaming(node, iter([{}]))
+            return self.run_scheduled_workflows_from_db(node, space_workflow_ids), self.run_count
+        total = 1
+        for l in lengths:
+            total *= l
+        sample_size = min(node.runs, total)
+        # If sample_size is a large fraction of total, just fallback to grid streaming (cheaper than decoding many indices separately)
+        if sample_size / total > 0.6:
+            combo_iter = self._iter_base_combinations(node)
+            space_workflow_ids = self._preregister_workflows_streaming(node, combo_iter)
+            return self.run_scheduled_workflows_from_db(node, space_workflow_ids), self.run_count
+        # Sample unique indices
+        # If total is huge Python's random.sample with range is still memory efficient (range is lazy)
+        sampled_indices = set(random.sample(range(total), sample_size))
+        def decoded_combos():
+            for idx in sampled_indices:
+                k = idx
+                coords = []
+                for l in reversed(lengths):
+                    coords.append(k % l)
+                    k //= l
+                coords.reverse()
+                combo = {}
+                for (vp_name, values), ci in zip(vp_value_lists, coords):
+                    combo[vp_name] = values[ci]
+                yield combo
+        logger.info(f"\nRandom search will run {sample_size} sampled configurations (total space={total}).\n")
+        # Preregister lazily using decoded combos, then execute from DB
+        space_workflow_ids = self._preregister_workflows_streaming(node, decoded_combos())
+        return self.run_scheduled_workflows_from_db(node, space_workflow_ids), self.run_count
 
-    def generate_combinations(self, node):
-        vp_combinations = []
+    # --------- Lazy combination helpers (do not apply filters/generators) ---------
+    def _build_vp_value_lists(self, node):
+        """Return list of tuples (vp_name, [values]) without cartesian expansion."""
+        vp_value_lists = []
         for vp_name, vp in node.variability_points.items():
-            vp_values = []
+            values = []
             for value_generator in vp.value_generators:
                 generator_type = value_generator[0]
                 vp_data = value_generator[1]
                 if generator_type == "enum":
-                    vp_values += vp_data["values"]
+                    values += vp_data["values"]
                 elif generator_type == "range":
                     min_value = vp_data["min"]
                     max_value = vp_data["max"]
                     step_value = vp_data.get("step", 1) if vp_data["step"] != 0 else 1
-                    vp_values += list(range(min_value, max_value, step_value))
-            vp_combinations.append([(vp_name, value) for value in vp_values])
+                    values += list(range(min_value, max_value, step_value))
+            vp_value_lists.append((vp_name, values))
+        return vp_value_lists
 
-        combinations = list(itertools.product(*vp_combinations))
-        combinations = [dict(c) for c in combinations]
+    def _iter_base_combinations(self, node):
+        """Yield combinations as dicts.
+        """
+        vp_value_lists = self._build_vp_value_lists(node)
+        # No variability points: single empty combination. If filters exist we still must run them.
+        if not vp_value_lists:
+            base_iter = [{}]
+        else:
+            names = [n for (n, _) in vp_value_lists]
+            lists = [vals for (_, vals) in vp_value_lists]
+            if node.filter_function or node.generator_function:
+                # Eager materialization required to satisfy user function signature.
+                base_iter = [{n: v for n, v in zip(names, prod)} for prod in itertools.product(*lists)]
+            else:
+                # Pure lazy streaming path.
+                for prod in itertools.product(*lists):
+                    yield {n: v for n, v in zip(names, prod)}
+                return
 
+        # If we reach here we either had no variability points or we need to apply filters/generators.
+        combos = list(base_iter)
+        # Apply filter function if present
         if node.filter_function:
             if not self.config.PYTHON_CONFIGURATIONS:
                 logger.error("Cannot filter configurations, missing PYTHON_CONFIGURATIONS path in eexp_engine")
             else:
-                configuration_filter_str = node.filter_function
-                python_configurations = importlib.import_module(self.config.PYTHON_CONFIGURATIONS)
-                configurations_filter = getattr(python_configurations, configuration_filter_str)
-                logger.info(f"Filtering configurations of space {node.name} using function {configuration_filter_str}()")
-                combinations = configurations_filter(combinations)
-
+                try:
+                    python_configurations = importlib.import_module(self.config.PYTHON_CONFIGURATIONS)
+                    filter_fn = getattr(python_configurations, node.filter_function)
+                    logger.info(f"Filtering configurations of space {node.name} using function {node.filter_function}()")
+                    combos = filter_fn(combos)
+                except Exception as e:
+                    logger.error(f"Error applying filter function {node.filter_function}: {e}")
+        # Apply generator function if present (append generated configs)
         if node.generator_function:
             if not self.config.PYTHON_CONFIGURATIONS:
                 logger.error("Cannot generate configurations, missing PYTHON_CONFIGURATIONS path in eexp_engine")
             else:
-                configuration_generator_str = node.generator_function
-                python_configurations = importlib.import_module(self.config.PYTHON_CONFIGURATIONS)
-                configurations_generator = getattr(python_configurations, configuration_generator_str)
-                logger.info(f"Generating configurations for space {node.name} using function {configuration_generator_str}()")
-                combinations += configurations_generator()
+                try:
+                    python_configurations = importlib.import_module(self.config.PYTHON_CONFIGURATIONS)
+                    gen_fn = getattr(python_configurations, node.generator_function)
+                    logger.info(f"Generating configurations for space {node.name} using function {node.generator_function}()")
+                    generated = gen_fn()
+                    if generated:
+                        combos.extend(generated)
+                except Exception as e:
+                    logger.error(f"Error applying generator function {node.generator_function}: {e}")
+        # Yield final list (still possibly small after filtering)
+        # Deduplicate while preserving order (user may generate overlaps)
+        seen = set()
+        deduped = []
+        for c in combos:
+            key = frozenset(c.items())
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(c)
+        if len(deduped) != len(combos):
+            logger.info(f"Removed {len(combos) - len(deduped)} duplicate configuration(s) for space {node.name}")
+        for c in deduped:
+            yield c
 
-        return combinations
-
-    def run_combinations(self, node, combinations):
-        configured_workflows_of_space = {}
-        configurations_of_space = {}
-
-        for c in combinations:
-            print(f"Run {self.run_count}")
-            print(f"Combination {c}")
+    def _preregister_workflows_streaming(self, node, combo_iter):
+        """Create workflows lazily, one by one, without retaining combinations/workflows in memory."""
+        workflow_ids = []
+        for c in combo_iter:
+            logger.info(f"Run {self.run_count}")
+            logger.info(f"Combination {c}")
             configured_workflow = self.get_workflow_to_run(node, c)
-            wf_id = self.create_executed_workflow_in_db(configured_workflow, node.name)
-            configured_workflows_of_space[wf_id] = configured_workflow
-            configurations_of_space[wf_id] = c
+            workflow_id = self.create_executed_workflow_in_db(configured_workflow, node.name)
+            workflow_ids.append(workflow_id)
             self.run_count += 1
-        return self.run_scheduled_workflows(configured_workflows_of_space, configurations_of_space), self.run_count
+        return workflow_ids
+
+    def run_scheduled_workflows_from_db(self, node, space_workflow_ids):
+        """Execute scheduled workflows for this space by reconstructing each workflow from DB task parameters."""
+        space_results = {}
+        run_count_in_space = 1
+        # Cache configurations per wf_id to avoid recomputation
+        config_by_wf_id = {}
+        while True:
+            if len(space_workflow_ids) == 0:
+                break
+            processes = []
+            launched_ids = []
+            for wf_id in space_workflow_ids:
+                if self.subprocesses == self.config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE:
+                    break
+                configured_workflow = self.get_workflow_configuration(wf_id, node, config_by_wf_id)
+                self.data.update_workflow(wf_id, {"status": "running", "start": self.data.get_current_time()})
+                queue_for_workflow = Queue()
+                self.queues_for_workflows[wf_id] = queue_for_workflow
+                p = Process(target=self.execute_wf, args=(configured_workflow, wf_id, queue_for_workflow))
+                processes.append((wf_id, p))
+                launched_ids.append(wf_id)
+                p.start()
+                self.subprocesses += 1
+                time.sleep(1)
+            results = {}
+            for (wf_id, p) in processes:
+                result = self.queues_for_workflows[wf_id].get()
+                results[wf_id] = result
+            for (wf_id, p) in processes:
+                p.join()
+                self.subprocesses -= 1
+                result = results[wf_id]
+                self.data.update_workflow(wf_id, {"end": self.data.get_current_time()})
+                self.data.update_metrics_of_workflow(wf_id, result)
+                if self.config.DATASET_MANAGEMENT == "DDM":
+                    self.data.update_files_of_workflow(wf_id, result)
+                workflow_results = {}
+                workflow_results["configuration"] = config_by_wf_id.pop(wf_id, {})
+                workflow_results["result"] = result
+                space_results[run_count_in_space] = workflow_results
+                # Free the per-workflow queue to avoid memory growth across many runs
+                try:
+                    del self.queues_for_workflows[wf_id]
+                except KeyError:
+                    pass
+                run_count_in_space += 1
+            # Remove launched ids so we don't reprocess them
+            space_workflow_ids = [wid for wid in space_workflow_ids if wid not in launched_ids]
+        return space_results
+
+    def get_workflow_configuration(self, wf_id, node, config_by_wf_id):
+        """Reconstruct configured workflow for wf_id using persisted task parameters.
+
+        Caches configuration in config_by_wf_id to avoid recomputation.
+        """
+        # Fetch workflow document once
+        wf_doc = self.data.get_workflow(wf_id)
+        # Compute configuration dict from this document and cache it
+        task_params = {}
+        for t in wf_doc.get("tasks", []) or []:
+            params_map = {}
+            for p in t.get("parameters", []) or []:
+                v = p.get("value")
+                if p.get("type") == "integer":
+                    try:
+                        v = int(v)
+                    except Exception:
+                        pass
+                params_map[p.get("name")] = v
+            task_params[t.get("name")] = params_map
+        config = {}
+        for vt in node.variable_tasks:
+            tname = vt.name
+            mapping = vt.param_names_to_vp_names
+            for param_name, vp_name in mapping.items():
+                if tname in task_params and param_name in task_params[tname]:
+                    config[vp_name] = task_params[tname][param_name]
+        config_by_wf_id[wf_id] = config
+        # Reconstruct configured workflow from the same document (no extra DB read)
+        assembled_workflow = next(w for w in self.assembled_flat_wfs if w.name == node.assembled_workflow)
+        configured_workflow = assembled_workflow.clone()
+        for t in configured_workflow.tasks:
+            t.params = {}
+            if t.name in task_params:
+                for k, v in task_params[t.name].items():
+                    t.set_param(k, v)
+        return configured_workflow
 
     def create_executed_workflow_in_db(self, workflow_to_run, workflow_origin):
-        set_data_abstraction_config(self.config)
+        # data client already configured
         task_specifications = []
         wf_metrics = {}
         for t in sorted(workflow_to_run.tasks, key=lambda t: t.order):
@@ -276,21 +437,21 @@ class Execution:
             "tasks": task_specifications,
             "metadata": wf_metadata
         }
-        wf_id = create_workflow(self.exp_id, body)
+        wf_id = self.data.create_workflow(self.exp_id, body)
 
         for task in wf_metrics:
             for m in wf_metrics[task]:
-                create_metric(wf_id, task, m.name, m.semantic_type, m.kind, m.data_type)
+                self.data.create_metric(wf_id, task, m.name, m.semantic_type, m.kind, m.data_type)
 
         return wf_id
 
     def run_scheduled_workflows(self, configured_workflows_of_space, configurations_of_space):
         space_results = {}
-        wf_ids = get_experiment(self.exp_id)["workflow_ids"]
+        wf_ids = self.data.get_experiment(self.exp_id)["workflow_ids"]
         wf_ids_of_this_space = [w for w in wf_ids if w in configured_workflows_of_space.keys()]
         run_count_in_space = 1
         while True:
-            scheduled_wf_ids = [wf_id for wf_id in wf_ids_of_this_space if get_workflow(wf_id)["status"] == "scheduled"]
+            scheduled_wf_ids = [wf_id for wf_id in wf_ids_of_this_space if self.data.get_workflow(wf_id)["status"] == "scheduled"]
             if len(scheduled_wf_ids) == 0:
                 # all workflows have been executed
                 break
@@ -299,7 +460,7 @@ class Execution:
                 if self.subprocesses == self.config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE:
                     # parallelization limit reached
                     break
-                update_workflow(wf_id, {"status": "running", "start": get_current_time()})
+                self.data.update_workflow(wf_id, {"status": "running", "start": self.data.get_current_time()})
                 workflow_to_run = configured_workflows_of_space[wf_id]
                 queue_for_workflow = Queue()
                 self.queues_for_workflows[wf_id] = queue_for_workflow
@@ -316,10 +477,10 @@ class Execution:
                 p.join()
                 self.subprocesses -= 1
                 result = results[wf_id]
-                update_workflow(wf_id, {"end": get_current_time()})
-                update_metrics_of_workflow(wf_id, result)
+                self.data.update_workflow(wf_id, {"end": self.data.get_current_time()})
+                self.data.update_metrics_of_workflow(wf_id, result)
                 if self.config.DATASET_MANAGEMENT == "DDM":
-                    update_files_of_workflow(wf_id, result)
+                    self.data.update_files_of_workflow(wf_id, result)
                 workflow_results = {}
                 workflow_results["configuration"] = configurations_of_space[wf_id]
                 workflow_results["result"] = result

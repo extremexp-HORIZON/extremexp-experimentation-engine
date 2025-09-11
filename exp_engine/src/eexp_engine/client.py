@@ -1,10 +1,11 @@
 from . import run_experiment
 from .executionware import proactive_runner as proactive_runner
-from .data_abstraction_layer.data_abstraction_api import set_data_abstraction_config, create_experiment
+from .data_abstraction_layer.data_abstraction_api import DataAbstractionClient
 import os
 import requests
 import logging.config
 from . import exceptions
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -77,15 +78,25 @@ class Config:
             self.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = default_max_workflows_in_parallel_per_node
 
 
-def run(runner_file, exp_name, config):
+def run(runner_file, exp_name, config, async_execution: bool = False, return_handle: bool = False):
+    mode_str = "async" if async_execution else "sync"
+    logger.info(f"[run] starting experiment creation ({mode_str} mode)")
     logger.info(f"abspath: {os.path.relpath(config.EXPERIMENT_LIBRARY_PATH)}")
-    logger.info(f"os.listdir: {os.listdir(config.EXPERIMENT_LIBRARY_PATH)}")
+    logger.info(f"listing experiment library: {os.listdir(config.EXPERIMENT_LIBRARY_PATH)}")
 
-    with open(os.path.join(config.EXPERIMENT_LIBRARY_PATH, exp_name + ".xxp"), 'r') as file:
+    spec_path = os.path.join(config.EXPERIMENT_LIBRARY_PATH, exp_name + ".xxp")
+    if not os.path.isfile(spec_path):
+        logger.error(f"Specification file not found for experiment '{exp_name}': {spec_path}")
+        raise FileNotFoundError(f"Experiment specification '{exp_name}.xxp' not found")
+
+    with open(spec_path, 'r') as file:
         workflow_specification = file.read()
 
     if 'LOGGING_CONFIG' in dir(config):
-        logging.config.dictConfig(config.LOGGING_CONFIG)
+        try:
+            logging.config.dictConfig(config.LOGGING_CONFIG)
+        except Exception:
+            logger.exception("Failed to apply LOGGING_CONFIG")
 
     new_exp = {
         'name': exp_name,
@@ -93,13 +104,35 @@ def run(runner_file, exp_name, config):
     }
 
     config_obj = Config(config)
-    set_data_abstraction_config(config_obj)
+    data_client = DataAbstractionClient(config_obj)
 
-    exp_id = create_experiment(new_exp, "dummy_user")
+    exp_id = data_client.create_experiment(new_exp, "dummy_user")
+    if not exp_id:
+        # create_experiment already logged details
+        raise RuntimeError("Failed to create experiment")
 
-    run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj)
+    def _execute():
+        try:
+            run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client)
+        except Exception as e:
+            logger.exception(f"Experiment {exp_id} crashed: {e}")
+            try:
+                data_client.update_experiment(exp_id, {"status": "FAILED"})
+            except Exception:
+                logger.exception(f"Could not update experiment {exp_id} status to failed")
 
-    return exp_id
+    if async_execution:
+        t = threading.Thread(target=_execute, name=f"exp-run-{exp_id}", daemon=False)
+        t.start()
+        logger.info(f"Experiment {exp_id} launched asynchronously (thread {t.name}, daemon={t.daemon})")
+        if return_handle:
+            return exp_id, t
+        return exp_id
+    else:
+        logger.info(f"Experiment {exp_id} executing synchronously")
+        _execute()
+        logger.info(f"Experiment {exp_id} finished (synchronous mode)")
+        return exp_id
 
 
 def kill_job(job_id, config):
