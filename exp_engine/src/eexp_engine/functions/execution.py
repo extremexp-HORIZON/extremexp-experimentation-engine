@@ -124,7 +124,7 @@ class Execution:
                 result = self.execute_task(node_to_execute)
             node_queue.put(result)
         except Exception as e:
-            print(f"Exception at subprocess: {e}")
+            logger.error(f"Exception at subprocess: {e}")
             node_queue.put({})
 
     def execute_space(self, node):
@@ -504,7 +504,7 @@ class Execution:
             if len(variable_tasks) == 1:
                 variable_task = variable_tasks[0]
                 for param_name, param_vp in variable_task.param_names_to_vp_names.items():
-                    print(f"Setting param '{param_name}' of task '{t.name}' to '{c_dict[param_vp]}'")
+                    logger.info(f"Setting param '{param_name}' of task '{t.name}' to '{c_dict[param_vp]}'")
                     t.set_param(param_name, c_dict[param_vp])
         return configured_workflow
 
@@ -515,11 +515,11 @@ class Execution:
             elif self.config.EXECUTIONWARE == "LOCAL":
                 result = local_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config)
             else:
-                print("You need to setup an executionware")
+                logger.error("You need to setup an executionware")
                 exit(0)
             queue_for_workflow.put(result)
         except Exception as e:
-            print(f"Exception at subprocess: {e}")
+            logger.error(f"Exception at subprocess: {e}")
             queue_for_workflow.put({})
 
 
