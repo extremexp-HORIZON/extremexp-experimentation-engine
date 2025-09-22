@@ -6,6 +6,8 @@ import requests
 import logging.config
 from . import exceptions
 import threading
+import time
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,41 @@ def get_ddm_token(config):
         access_token = response.json()["access_token"]
         logger.info("portal authentication successful, ddm token retrieved")
         return f"Bearer {access_token}"
+    
+class ErrorLogger:
+    def __init__(self, log_dir="/error_logs", retention_seconds=15*60):
+        self.log_dir = log_dir
+        self.retention_seconds = retention_seconds
+        os.makedirs(self.log_dir, exist_ok=True)
+
+    def cleanup_old_logs(self):
+        now = time.time()
+        for fname in os.listdir(self.log_dir):
+            fpath = os.path.join(self.log_dir, fname)
+            if os.path.isfile(fpath):
+                try:
+                    mtime = os.path.getmtime(fpath)
+                    if now - mtime > self.retention_seconds:
+                        os.remove(fpath)
+                except Exception as e:
+                    print(f"Error cleaning up log file {fpath}: {e}")
+
+    def write_error_log(self, identifier, error, extra_info=None):
+        self.cleanup_old_logs()
+        ts = int(time.time())
+        log_fname = f"error_{identifier}_{ts}.log"
+        log_path = os.path.join(self.log_dir, log_fname)
+        try:
+            with open(log_path, "w") as f:
+                if extra_info:
+                    for k, v in extra_info.items():
+                        f.write(f"{k}: {v}\n")
+                f.write(f"Timestamp: {ts}\n")
+                f.write(f"Exception: {error}\n")
+                f.write("Stack Trace:\n")
+                f.write(traceback.format_exc())
+        except Exception as log_exc:
+            print(f"Failed to write error log: {log_exc}")
 
 
 class Config:
@@ -79,45 +116,60 @@ class Config:
 
 
 def run(runner_file, exp_name, config, async_execution: bool = False, return_handle: bool = False):
+    error_logger = ErrorLogger()
     mode_str = "async" if async_execution else "sync"
     logger.info(f"[run] starting experiment creation ({mode_str} mode)")
     logger.info(f"abspath: {os.path.relpath(config.EXPERIMENT_LIBRARY_PATH)}")
     logger.info(f"listing experiment library: {os.listdir(config.EXPERIMENT_LIBRARY_PATH)}")
 
-    spec_path = os.path.join(config.EXPERIMENT_LIBRARY_PATH, exp_name + ".xxp")
-    if not os.path.isfile(spec_path):
-        logger.error(f"Specification file not found for experiment '{exp_name}': {spec_path}")
-        raise FileNotFoundError(f"Experiment specification '{exp_name}.xxp' not found")
+    try:
+        spec_path = os.path.join(config.EXPERIMENT_LIBRARY_PATH, exp_name + ".xxp")
+        if not os.path.isfile(spec_path):
+            logger.error(f"Specification file not found for experiment '{exp_name}': {spec_path}")
+            raise FileNotFoundError(f"Experiment specification '{exp_name}.xxp' not found")
 
-    with open(spec_path, 'r') as file:
-        workflow_specification = file.read()
+        with open(spec_path, 'r') as file:
+            workflow_specification = file.read()
 
-    if 'LOGGING_CONFIG' in dir(config):
-        try:
-            logging.config.dictConfig(config.LOGGING_CONFIG)
-        except Exception:
-            logger.exception("Failed to apply LOGGING_CONFIG")
+        if 'LOGGING_CONFIG' in dir(config):
+            try:
+                logging.config.dictConfig(config.LOGGING_CONFIG)
+            except Exception:
+                logger.exception("Failed to apply LOGGING_CONFIG")
 
-    new_exp = {
-        'name': exp_name,
-        'model': str(workflow_specification),
-    }
+        new_exp = {
+            'name': exp_name,
+            'model': str(workflow_specification),
+        }
 
-    config_obj = Config(config)
-    data_client = DataAbstractionClient(config_obj)
+        config_obj = Config(config)
+        data_client = DataAbstractionClient(config_obj)
 
-    exp_id = data_client.create_experiment(new_exp, "dummy_user")
-    if not exp_id:
-        # create_experiment already logged details
-        raise RuntimeError("Failed to create experiment")
+        exp_id = data_client.create_experiment(new_exp, "dummy_user")
+        if not exp_id:
+            # create_experiment already logged details
+            raise RuntimeError("Failed to create experiment")
+    except Exception as e:
+        logger.exception(f"Experiment parsing/init failed: {e}")
+        error_logger.write_error_log(
+            identifier=exp_name,
+            error=e,
+            extra_info={"phase": "parsing/init", "experiment_name": exp_name}
+        )
+        raise
 
     def _execute():
         try:
             run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client)
         except Exception as e:
             logger.exception(f"Experiment {exp_id} crashed: {e}")
+            error_logger.write_error_log(
+                identifier=exp_id,
+                error=e,
+                extra_info={"phase": "runtime", "experiment_id": exp_id}
+            )
             try:
-                data_client.update_experiment(exp_id, {"status": "FAILED"})
+                data_client.update_experiment(exp_id, {"status": "failed"})
             except Exception:
                 logger.exception(f"Could not update experiment {exp_id} status to failed")
 
