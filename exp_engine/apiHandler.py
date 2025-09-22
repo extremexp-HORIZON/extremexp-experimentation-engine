@@ -1,9 +1,10 @@
 import eexp_engine.functions as functions
 from eexp_engine import client
 from eexp_engine.data_abstraction_layer.data_abstraction_api import DataAbstractionClient
-import eexp_config
 import logging
 import importlib
+import os
+import glob
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,9 +16,54 @@ class ApiHandler:
         self.config = importlib.import_module("eexp_config")
         self.data = DataAbstractionClient(self.config)
 
-    def run_exp(self, exp_name, async_execution=False):
-        return client.run(__file__, exp_name, self.config, async_execution=async_execution)
-
+    def run_exp(self, exp_name):
+        try:
+            exp_id = client.run(__file__, exp_name, self.config, async_execution=True)
+            body = {
+                "experiment": {
+                    "id": exp_id,
+                    "name": exp_name,
+                    "status": "scheduled"
+                },
+                "message": "experiment scheduled."
+            }
+            return body, 202, {'Location': f'/exp/experiment/status/{exp_id}'}
+        except FileNotFoundError as e:
+            return {"error": {"code": "SPEC_NOT_FOUND", "exp_name": exp_name, "message": str(e)}}, 404
+        except Exception as e:
+            return {"error": {"code": "INTERNAL_ERROR", "message": str(e)}}, 500
+    
+    def get_experiment_status(self, exp_id):
+        ERROR_LOG_DIR = "/error_logs"
+        exp = self.data.get_experiment(exp_id)
+        exp_status = exp.get("status", "unknown") if exp else "not_found"
+        if exp_status == "not_found":
+            return {"error": {"code": "NOT_FOUND", "message": f"Experiment with id {exp_id} not found"}}, 404
+        elif exp_status == "failed":
+            # Look for error log file
+            log_pattern = os.path.join(ERROR_LOG_DIR, f"error_{exp_id}_*.log")
+            log_files = glob.glob(log_pattern)
+            if log_files:
+                latest_log = max(log_files, key=os.path.getctime)
+                with open(latest_log, 'r') as f:
+                    # Read the last 100 lines to avoid huge logs
+                    lines = f.readlines()
+                    error_log_content = '\n'.join(lines[-100:])
+                return {
+                    "experiment": {
+                        "id": exp_id,
+                        "status": exp_status,
+                        "error_log": error_log_content
+                    }
+                }, 500
+        else:
+            return {
+                "experiment": {
+                    "id": exp_id,
+                    "status": exp_status
+                }
+            }, 200
+        
     def kill_workflow(self, wf_id):
         wf = self.data.get_workflow(wf_id)
         if not wf:
