@@ -213,7 +213,6 @@ def load_datasets_ddm(variables, key, resultMap):
     resultMap.put(result_key, json.dumps(result_value))
     return contents
 
-
 def _return_file_metadata(file_name, file_url, project_id, file_type):
     file_metadata = {
         "file_name": file_name,
@@ -262,8 +261,7 @@ def load_dataset_by_path(file_path):
 
 def create_dir(variables, key):
     job_id = variables.get("PA_JOB_ID")
-    # TODO Check: shouldn't the next line be PA_TASK_ID instead of PREVIOUS_TASK_ID?
-    task_id = variables.get("PREVIOUS_TASK_ID")
+    task_id = variables.get("PA_TASK_ID")
     folder = os.path.join("/shared", job_id, task_id, key)
     os.makedirs(folder, exist_ok=True)
 
