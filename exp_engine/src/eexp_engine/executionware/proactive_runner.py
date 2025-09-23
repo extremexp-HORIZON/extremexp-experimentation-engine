@@ -1,7 +1,7 @@
 import proactive
 import os
 import json
-from ..data_abstraction_layer.data_abstraction_api import get_workflow, update_workflow, get_current_time, set_data_abstraction_config
+from ..data_abstraction_layer.data_abstraction_api import DataAbstractionClient
 import logging
 
 packagedir = os.path.dirname(os.path.abspath(__file__))
@@ -13,12 +13,11 @@ INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "p
 DDM_REQS_PATH = os.path.join(packagedir, "ddm", "ddm_requirements.txt")
 EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX = "execution_engine_runtime_config"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
-RESULTS_FILE = "experiment_results.json"
 
 
-def create_gateway_and_connect_to_it(username, password):
+def create_gateway_and_connect_to_it(username, password, config):
     print("Logging on proactive-server...")
-    proactive_url  = CONFIG.PROACTIVE_URL
+    proactive_url  = config.PROACTIVE_URL
     print("Creating gateway ")
     gateway = proactive.ProActiveGateway(proactive_url, debug=False)
     print("Gateway created")
@@ -85,8 +84,13 @@ def _get_requirements_from_file(reqs_file):
     return user_reqs
 
 
-def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environment, mapping, exp_engine_metadata, task_impl, requirements_file, python_version, taskType,
-                        input_files=[], output_files=[], dependent_modules=[], dependencies=[]):
+def _create_python_task(gateway, config, data_client, results_so_far, wf_id, task_name, fork_environment, mapping, exp_engine_metadata, task_impl, requirements_file, python_version, taskType,
+                        runtime_config_path, results_file_path,
+                        input_files=None, output_files=None, dependent_modules=None, dependencies=None):
+    if input_files is None: input_files = []
+    if output_files is None: output_files = []
+    if dependent_modules is None: dependent_modules = []
+    if dependencies is None: dependencies = []
     print(f"Creating task {task_name}...")
     gateway = reconnect_if_needed(gateway)
     task = gateway.createPythonTask()
@@ -109,32 +113,31 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
 
         task.addVariable("wf_id", wf_id)
         task.addVariable("task_name", task_name)
-        task.addVariable("data_abstraction_base_url", CONFIG.DATA_ABSTRACTION_BASE_URL)
-        task.addVariable("data_abstraction_access_token", CONFIG.DATA_ABSTRACTION_ACCESS_TOKEN)
+        task.addVariable("data_abstraction_base_url", config.DATA_ABSTRACTION_BASE_URL)
+        task.addVariable("data_abstraction_access_token", config.DATA_ABSTRACTION_ACCESS_TOKEN)
 
-        python_version_path = "/usr/bin/python3.8" # This depends on the Proactive deployment (here in ICOM)
+        python_version_path = "/usr/bin/python3.8"  # Depends on deployment
         task.setDefaultPython(python_version_path)
 
         requirements = _get_requirements_from_file(INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH)
         if requirements_file:
             requirements += _get_requirements_from_file(requirements_file)
-        if CONFIG.DATASET_MANAGEMENT == "DDM":
+        if config.DATASET_MANAGEMENT == "DDM":
             requirements += _get_requirements_from_file(DDM_REQS_PATH)
         print(f"Setting virtual environment to {requirements}")
         task.setVirtualEnv(requirements=requirements)
-
     else:
         if requirements_file:
             if not python_version:
                 print("You need to set a Python version when configuring a virtual environment.")
                 exit(1)
-            if not CONFIG.PROACTIVE_PYTHON_VERSIONS:
+            if not config.PROACTIVE_PYTHON_VERSIONS:
                 print(f"You need to add PROACTIVE_PYTHON_VERSIONS to your config.py, and set a path for version {python_version}")
                 exit(1)
-            if python_version not in CONFIG.PROACTIVE_PYTHON_VERSIONS:
+            if python_version not in config.PROACTIVE_PYTHON_VERSIONS:
                 print(f"You need to set a path for version {python_version} in the PROACTIVE_PYTHON_VERSIONS of your config.py")
                 exit(1)
-            python_version_path = CONFIG.PROACTIVE_PYTHON_VERSIONS[python_version]
+            python_version_path = config.PROACTIVE_PYTHON_VERSIONS[python_version]
             print(f"Setting python version to {python_version_path}")
             task.setDefaultPython(python_version_path)
             requirements = _get_requirements_from_file(requirements_file)
@@ -142,12 +145,12 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
             print(f"Setting virtual environment to {requirements}")
             task.setVirtualEnv(requirements=requirements)
         elif python_version and not requirements_file:
-                python_version_path = CONFIG.PROACTIVE_PYTHON_VERSIONS[python_version]
-                print(f"Setting python version to {python_version_path}")
-                task.setDefaultPython(python_version_path)
-                requirements = _get_requirements_from_file(DDM_REQS_PATH)
-                print(f"Setting virtual environment to {requirements}")
-                task.setVirtualEnv(requirements=requirements)
+            python_version_path = config.PROACTIVE_PYTHON_VERSIONS[python_version]
+            print(f"Setting python version to {python_version_path}")
+            task.setDefaultPython(python_version_path)
+            requirements = _get_requirements_from_file(DDM_REQS_PATH)
+            print(f"Setting virtual environment to {requirements}")
+            task.setVirtualEnv(requirements=requirements)
         else:
             task.setForkEnvironment(fork_environment)
 
@@ -187,22 +190,22 @@ def _create_python_task(gateway, results_so_far, wf_id, task_name, fork_environm
     PROACTIVE_HELPER_RELATIVE_PATH = os.path.relpath(PROACTIVE_HELPER_FULL_PATH)
     task.addInputFile(PROACTIVE_HELPER_RELATIVE_PATH)
 
-    with open(EXECUTION_ENGINE_RUNTIME_CONFIG, 'w') as f:
+    with open(runtime_config_path, 'w') as f:
         dataset_config = {}
-        dataset_config["DATASET_MANAGEMENT"] = CONFIG.DATASET_MANAGEMENT
-        dataset_config["DDM_URL"] = CONFIG.DDM_URL
-        dataset_config["DDM_TOKEN"] = CONFIG.DDM_TOKEN
+        dataset_config["DATASET_MANAGEMENT"] = config.DATASET_MANAGEMENT
+        dataset_config["DDM_URL"] = config.DDM_URL
+        dataset_config["DDM_TOKEN"] = config.DDM_TOKEN
         runtime_job_config = {}
         runtime_job_config["mapping"] = mapping
         runtime_job_config["exp_engine_metadata"] = exp_engine_metadata
         runtime_job_config["dataset_config"] = dataset_config
         json.dump(runtime_job_config, f)
-    task.addInputFile(EXECUTION_ENGINE_RUNTIME_CONFIG)
+    task.addInputFile(runtime_config_path)
 
     if results_so_far:
-        with open(RESULTS_FILE, 'w') as f:
+        with open(results_file_path, 'w') as f:
             json.dump(results_so_far, f)
-        task.addInputFile(RESULTS_FILE)
+        task.addInputFile(results_file_path)
 
     proactive_helper_folder = os.path.dirname(PROACTIVE_HELPER_RELATIVE_PATH)
     dependent_modules_folders.append(proactive_helper_folder)
@@ -250,17 +253,18 @@ else:
     return flow_script
 
 
-def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statuses):
+def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statuses, data_client, config, runtime_config_path, results_file_path):
     print("Submitting the job to the scheduler...")
 
     gateway = reconnect_if_needed(gateway)
     job_id = gateway.submitJobWithInputsAndOutputsPaths(job, debug=False)
     print("job_id: " + str(job_id))
-    update_workflow(wf_id, {"metadata": {"proactive_job_id": str(job_id)}})
+    data_client.update_workflow(wf_id, {"metadata": {"proactive_job_id": str(job_id)}})
 
-    os.remove(EXECUTION_ENGINE_RUNTIME_CONFIG)
-    if os.path.isfile(RESULTS_FILE):
-        os.remove(RESULTS_FILE)
+    if os.path.isfile(runtime_config_path):
+        os.remove(runtime_config_path)
+    if os.path.isfile(results_file_path):
+        os.remove(results_file_path)
     import time
     is_finished = False
     seconds = 0
@@ -273,9 +277,9 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
             gateway = reconnect_if_needed(gateway)
             task_current_status = gateway.getTaskStatus(job_id, task_name).upper()
             ts["status"] = task_current_status
-            wf = get_workflow(wf_id)
+            wf = data_client.get_workflow(wf_id)
             this_task = next(t for t in wf["tasks"] if t["name"] == task_name)
-            current_time  = get_current_time()
+            current_time  = data_client.get_current_time()
             if (task_previous_status == "PENDING" or task_previous_status == "SUBMITTED") and task_current_status == "RUNNING":
                 this_task["start"] = current_time
                 print(f"Task {task_name} started at {current_time}")
@@ -283,11 +287,11 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
                 this_task["end"] = current_time
                 print(f"Task {task_name} completed at {current_time}")
             this_task["metadata"]["status"] = task_current_status
-            update_workflow(wf_id, {"tasks": wf["tasks"]})
+            data_client.update_workflow(wf_id, {"tasks": wf["tasks"]})
 
         print(f"Current job status: {job_status}: {seconds}")
         if job_status.upper() in ["FINISHED", "CANCELED", "FAILED", "KILLED"]:
-            update_workflow(wf_id, {"status": job_status.upper()})
+            data_client.update_workflow(wf_id, {"status": job_status.upper()})
             is_finished = True
         else:
             seconds += 1
@@ -324,18 +328,19 @@ def _teardown(gateway):
             print("Finished")
 
 
-def reconnect_if_needed(gateway):
+def reconnect_if_needed(gateway, config=None):
     if gateway and gateway.isConnected():
         return gateway
-    return create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
+    if config is None:
+        raise RuntimeError("Config required to (re)connect when gateway is not connected")
+    return create_gateway_and_connect_to_it(config.PROACTIVE_USERNAME, config.PROACTIVE_PASSWORD, config)
 
 
 def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far):
-    global RUNNER_FOLDER, CONFIG, EXECUTION_ENGINE_RUNTIME_CONFIG, GATEWAY
-    RUNNER_FOLDER = runner_folder
-    CONFIG = config
-    set_data_abstraction_config(CONFIG)
-    EXECUTION_ENGINE_RUNTIME_CONFIG = f"{EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX}_{wf_id}.json"
+    """Execute a workflow on ProActive."""
+    data_client = DataAbstractionClient(config)
+    runtime_config_path = f"{EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX}_{wf_id}.json"
+    results_file_path = f"experiment_results_{wf_id}.json"
 
     logger = logging.getLogger(__name__)
     logger.info("****************************")
@@ -346,44 +351,77 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
 
     sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
 
-    gateway = create_gateway_and_connect_to_it(CONFIG.PROACTIVE_USERNAME, CONFIG.PROACTIVE_PASSWORD)
-    job = _create_job(gateway, w.name)
-    fork_env = _create_fork_env(gateway, job)
-    mapping = _create_execution_engine_mapping(sorted_tasks)
-    exp_engine_metadata = _create_exp_engine_metadata(exp_id, exp_name, wf_id)
-
-    created_tasks = []
-    task_statuses = []
-
+    gateway = None
+    job_result_map = {}
     job_params_str = ""
-    for t in sorted_tasks:
-        dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
-        task_to_execute = _create_python_task(gateway, results_so_far, wf_id, t.name, fork_env, mapping, exp_engine_metadata, t.impl_file, t.requirements_file,
-                                              t.python_version, t.taskType, t.input_files, t.output_files, t.dependent_modules,
-                                              dependent_tasks)
-        if len(t.params) > 0:
-            job_params_str += _configure_task(task_to_execute, t.params)
-            job_params_str += ", "
-        if t.is_condition_task():
-            task_to_execute.setFlowScript(
-                _create_flow_script(gateway, t.name, t.if_task_name, t.else_task_name, t.continuation_task_name, t.condition)
+    try:
+        gateway = create_gateway_and_connect_to_it(config.PROACTIVE_USERNAME, config.PROACTIVE_PASSWORD, config)
+        job = _create_job(gateway, w.name)
+        fork_env = _create_fork_env(gateway, job)
+        mapping = _create_execution_engine_mapping(sorted_tasks)
+        exp_engine_metadata = _create_exp_engine_metadata(exp_id, exp_name, wf_id)
+
+        created_tasks = []
+        task_statuses = []
+
+        for t in sorted_tasks:
+            dependent_tasks = [ct for ct in created_tasks if ct.getTaskName() in t.dependencies]
+            task_to_execute = _create_python_task(
+                gateway,
+                config,
+                data_client,
+                results_so_far,
+                wf_id,
+                t.name,
+                fork_env,
+                mapping,
+                exp_engine_metadata,
+                t.impl_file,
+                t.requirements_file,
+                t.python_version,
+                t.taskType,
+                runtime_config_path,
+                results_file_path,
+                input_files=t.input_files,
+                output_files=t.output_files,
+                dependent_modules=t.dependent_modules,
+                dependencies=dependent_tasks,
             )
-        job.addTask(task_to_execute)
-        task_statuses.append({"name": t.name, "status": "Pending"})
-        created_tasks.append(task_to_execute)
-    print("Tasks added.")
-    job_params_str = job_params_str[:-2]
-    job.addVariable(f"params", job_params_str)
-    job.addVariable(f"wf_id", wf_id)
-    job.addVariable(f"exp_id", exp_id)
+            if len(t.params) > 0:
+                job_params_str += _configure_task(task_to_execute, t.params)
+                job_params_str += ", "
+            if t.is_condition_task():
+                task_to_execute.setFlowScript(
+                    _create_flow_script(gateway, t.name, t.if_task_name, t.else_task_name, t.continuation_task_name, t.condition)
+                )
+            job.addTask(task_to_execute)
+            task_statuses.append({"name": t.name, "status": "Pending"})
+            created_tasks.append(task_to_execute)
+        print("Tasks added.")
+        if job_params_str.endswith(", "):
+            job_params_str = job_params_str[:-2]
+        job.addVariable(f"params", job_params_str)
+        job.addVariable(f"wf_id", wf_id)
+        job.addVariable(f"exp_id", exp_id)
 
-    job_id, job_result_map, job_outputs = _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statuses)
-    _teardown(gateway)
-
-    print("****************************")
-    print(f"Finished executing workflow {w.name}")
-    print(job_params_str)
-    print(job_result_map)
-    print("****************************")
-
-    return job_result_map
+        _, job_result_map, _ = _submit_job_and_retrieve_results_and_outputs(
+            wf_id, gateway, job, task_statuses, data_client, config, runtime_config_path, results_file_path
+        )
+        print("****************************")
+        print(f"Finished executing workflow {w.name}")
+        print(job_params_str)
+        print(job_result_map)
+        print("****************************")
+        return job_result_map
+    finally:
+        try:
+            if gateway:
+                _teardown(gateway)
+        except Exception:
+            pass
+        for path in (runtime_config_path, results_file_path):
+            try:
+                if path and os.path.isfile(path):
+                    os.remove(path)
+            except Exception:
+                pass

@@ -14,6 +14,8 @@ RUN pip install --upgrade --pre proactive
 RUN pip install -r requirements-library.txt
 RUN pip install -r requirements-service.txt
 
+RUN pip install -e .
+
 COPY . .
 
 WORKDIR /exp_engine
