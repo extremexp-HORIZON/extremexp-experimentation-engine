@@ -27,9 +27,9 @@ with open(EXECUTION_ENGINE_RUNTIME_CONFIG, 'r') as file:
 
 AUTH_HEADERS = {'Authorization': DDM_TOKEN}
 
-def get_experiment_results():
-    if os.path.exists(RESULTS_FILE):
-        with open(RESULTS_FILE, 'r') as file:
+def get_experiment_results(variables):
+    if os.path.exists(f"experiment_results_{variables.get('wf_id')}.json"):
+        with open(f"experiment_results_{variables.get('wf_id')}.json", 'r') as file:
             return json.load(file)
     print("results file does not exist")
     return None
