@@ -5,5 +5,3 @@ print("I'm Testcase_task1")
 param1 = variables.get("param1")
 print(f"and here is my param1: {param1}")
 resultMap.put("output", int(param1) * 10)
-
-ph.save_dataset(variables, "Task1OutputFile", "contents of file Task1OutputFile", resultMap)

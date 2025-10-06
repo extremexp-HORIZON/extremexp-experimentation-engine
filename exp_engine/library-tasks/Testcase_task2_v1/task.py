@@ -2,5 +2,3 @@
 import proactive_helper as ph
 
 print("I'm Testcase_task2_v1")
-
-ph.save_dataset(variables, "Task2v1OutputFile", "contents of file Task2v1OutputFile", resultMap)

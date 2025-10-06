@@ -11,6 +11,9 @@ import traceback
 
 logger = logging.getLogger(__name__)
 
+# Global registry for tracking running experiment threads and their cancellation flags
+_running_experiments = {}  # {exp_id: {"thread": thread_obj, "cancel_flag": threading.Event()}}
+
 
 def get_ddm_token(config):
     if config.DATASET_MANAGEMENT != "DDM":
@@ -162,7 +165,8 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
 
     def _execute():
         try:
-            run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client)
+            cancel_flag = _running_experiments.get(exp_id, {}).get("cancel_flag")
+            run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client, cancel_flag)
         except Exception as e:
             logger.exception(f"Experiment {exp_id} crashed: {e}")
             if async_execution:
@@ -175,9 +179,16 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
                 data_client.update_experiment(exp_id, {"status": "failed"})
             except Exception:
                 logger.exception(f"Could not update experiment {exp_id} status to failed")
+        finally:
+            # Clean up from registry when done
+            if exp_id in _running_experiments:
+                del _running_experiments[exp_id]
+                logger.info(f"Removed experiment {exp_id} from running experiments registry")
 
     if async_execution:
+        cancel_flag = threading.Event()
         t = threading.Thread(target=_execute, name=f"exp-run-{exp_id}", daemon=False)
+        _running_experiments[exp_id] = {"thread": t, "cancel_flag": cancel_flag}
         t.start()
         logger.info(f"Experiment {exp_id} launched asynchronously (thread {t.name}, daemon={t.daemon})")
         return exp_id
@@ -188,21 +199,38 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
         return exp_id
 
 
+def kill_experiment_thread(exp_id):
+    """
+    Sets the cancellation flag for a running experiment, signaling it to stop.
+    Returns True if the experiment was found and flagged, False otherwise.
+    """
+    if exp_id in _running_experiments:
+        logger.info(f"Setting cancellation flag for experiment {exp_id}")
+        _running_experiments[exp_id]["cancel_flag"].set()
+        return True
+    else:
+        logger.warning(f"Experiment {exp_id} not found in running experiments registry")
+        return False
+
+
 def kill_job(job_id, config):
-    gateway = proactive_runner.create_gateway_and_connect_to_it(config.PROACTIVE_USERNAME, config.PROACTIVE_PASSWORD)
+    gateway = proactive_runner.create_gateway_and_connect_to_it(config)
     gateway.killJob(job_id)
 
 
 def pause_job(job_id, config):
-    gateway = proactive_runner.create_gateway_and_connect_to_it(config.PROACTIVE_USERNAME, config.PROACTIVE_PASSWORD)
+    gateway = proactive_runner.create_gateway_and_connect_to_it(config)
     gateway.pauseJob(job_id)
 
 
 def resume_job(job_id, config):
-    gateway = proactive_runner.create_gateway_and_connect_to_it(config.PROACTIVE_USERNAME, config.PROACTIVE_PASSWORD)
-    gateway.resumeJob(job_id)
+    gateway = proactive_runner.create_gateway_and_connect_to_it(config)
+    try:
+        gateway.resumeJob(job_id)
+    except Exception as e:
+        logger.exception(f"Failed to resume job {job_id}: {e}")
 
 
 def kill_task(job_id, task_name, config):
-    gateway = proactive_runner.create_gateway_and_connect_to_it(config.PROACTIVE_USERNAME, config.PROACTIVE_PASSWORD)
+    gateway = proactive_runner.create_gateway_and_connect_to_it(config)
     gateway.killTask(job_id, task_name)
