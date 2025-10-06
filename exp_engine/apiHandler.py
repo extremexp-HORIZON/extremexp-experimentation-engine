@@ -67,42 +67,58 @@ class ApiHandler:
     def kill_workflow(self, wf_id):
         wf = self.data.get_workflow(wf_id)
         if not wf:
-            return
+            return {"message": f"workflow with id {wf_id} not found"}, 404
         status = wf.get("status")
-        if status == "running":
+        if status == "running" or status == "pending_input" or status == "paused":
             job_id = wf.get("metadata", {}).get("proactive_job_id")
             if job_id:
                 client.kill_job(job_id, self.config)
+            else:
+                return {"message": f"Job ID not found for workflow {wf_id}"}, 500
             self.data.update_workflow(wf_id, {"status": "killed"})
         elif status == "scheduled":
             self.data.update_workflow(wf_id, {"status": "cancelled"})
+        return {"message": f"workflow with id {wf_id} is killed"}, 204
 
     def pause_workflow(self, wf_id):
         wf = self.data.get_workflow(wf_id)
         if not wf:
-            return
-        if wf.get("status") == "running":
+            return {"message": f"workflow with id {wf_id} not found"}, 404
+        if wf.get("status") == "running" or wf.get("status") == "pending_input":
             job_id = wf.get("metadata", {}).get("proactive_job_id")
             if job_id:
                 client.pause_job(job_id, self.config)
+            else:
+                return {"message": f"Job ID not found for workflow {wf_id}"}, 500
             self.data.update_workflow(wf_id, {"status": "paused"})
+            return {"message": f"workflow with id {wf_id} is paused"}, 204
 
     def resume_workflow(self, wf_id):
         wf = self.data.get_workflow(wf_id)
         if not wf:
-            return
-        if wf.get("status") == "resumed":
+            return {"message": f"workflow with id {wf_id} not found"}, 404
+        if wf.get("status") == "paused":
             job_id = wf.get("metadata", {}).get("proactive_job_id")
             if job_id:
                 client.resume_job(job_id, self.config)
-            self.data.update_workflow(wf_id, {"status": "resumed"})
+            else:
+                return {"message": f"Job ID not found for workflow {wf_id}"}, 500
+            self.data.update_workflow(wf_id, {"status": "running"})
+            return {"message": f"workflow with id {wf_id} is resumed"}, 204
 
     def kill_experiment(self, exp_id):
         exp = self.data.get_experiment(exp_id)
         if not exp:
-            return
+            return {"message": f"experiment with id {exp_id} not found"}, 404
         if exp.get("status") == "killed":
-            return
+            return {"message": f"experiment with id {exp_id} is already killed"}, 204
+
+        # Kill the experiment execution thread
+        thread_killed = client.kill_experiment_thread(exp_id)
+        if not thread_killed:
+            logger.warning(f"Experiment thread {exp_id} not found in registry (may have already completed)")
+
+        # Kill all running/scheduled workflows
         for wf_id in exp.get("workflow_ids", []):
             wf = self.data.get_workflow(wf_id)
             if not wf:
@@ -110,19 +126,23 @@ class ApiHandler:
             status = wf.get("status")
             if status == "completed":
                 continue
-            if status == "running":
+            if status == "running" or status == "pending_input" or status == "paused":
+                # Find and kill the ProActive job
                 job_id = wf.get("metadata", {}).get("proactive_job_id")
                 if job_id:
                     client.kill_job(job_id, self.config)
                 self.data.update_workflow(wf_id, {"status": "killed"})
             elif status == "scheduled":
                 self.data.update_workflow(wf_id, {"status": "cancelled"})
+
+        # Update experiment status in database
         self.data.update_experiment(exp_id, {"status": "killed"})
+        return {"message": f"experiment with id {exp_id} is killed"}, 204
 
     def pause_experiment(self, exp_id):
         exp = self.data.get_experiment(exp_id)
         if not exp:
-            return
+            return {"message": f"experiment with id {exp_id} not found"}, 404
         for wf_id in exp.get("workflow_ids", []):
             wf = self.data.get_workflow(wf_id)
             if not wf:
@@ -130,17 +150,18 @@ class ApiHandler:
             status = wf.get("status")
             if status in ("scheduled", "completed"):
                 continue
-            if status == "running":
+            if status == "running" or status == "pending_input":
                 job_id = wf.get("metadata", {}).get("proactive_job_id")
                 if job_id:
                     client.pause_job(job_id, self.config)
                 self.data.update_workflow(wf_id, {"status": "paused"})
         self.data.update_experiment(exp_id, {"status": "paused"})
+        return {"message": f"experiment with id {exp_id} is paused"}, 204
 
     def resume_experiment(self, exp_id):
         exp = self.data.get_experiment(exp_id)
         if not exp:
-            return
+            return {"message": f"experiment with id {exp_id} not found"}, 404
         for wf_id in exp.get("workflow_ids", []):
             wf = self.data.get_workflow(wf_id)
             if not wf:
@@ -153,7 +174,8 @@ class ApiHandler:
                 if job_id:
                     client.resume_job(job_id, self.config)
                 self.data.update_workflow(wf_id, {"status": "scheduled"})
-        self.data.update_experiment(exp_id, {"status": "resumed"})
+        self.data.update_experiment(exp_id, {"status": "running"})
+        return {"message": f"experiment with id {exp_id} is resumed"}, 204
 
 
 apiHandler = ApiHandler()

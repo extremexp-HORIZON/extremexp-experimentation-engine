@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def run_experiment(exp_id, experiment_specification, runner_folder, config, data_client):
+def run_experiment(exp_id, experiment_specification, runner_folder, config, data_client, cancel_flag=None):
     parsing.CONFIG = config
 
     logger.info("*********************************************************")
@@ -41,5 +41,5 @@ def run_experiment(exp_id, experiment_specification, runner_folder, config, data
     logger.info("*********************************************************")
     logger.info("***************** RUNNING WORKFLOWS *********************")
     logger.info("*********************************************************")
-    execution = Execution(exp_id, exp, assembled_flat_wfs, runner_folder, config, data_client)
+    execution = Execution(exp_id, exp, assembled_flat_wfs, runner_folder, config, data_client, cancel_flag)
     execution.start()

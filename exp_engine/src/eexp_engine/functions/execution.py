@@ -25,7 +25,7 @@ def _reservoir_sample(iterable, k):
 
 class Execution:
 
-    def __init__(self, exp_id, exp, assembled_flat_wfs, runner_folder, config, data_client: DataAbstractionClient):
+    def __init__(self, exp_id, exp, assembled_flat_wfs, runner_folder, config, data_client: DataAbstractionClient, cancel_flag=None):
         self.exp_id = exp_id
         self.exp = exp
         self.assembled_flat_wfs = assembled_flat_wfs
@@ -37,6 +37,16 @@ class Execution:
         self.queues_for_nodes = {}
         self.queues_for_workflows = {}
         self.subprocesses = 0
+        self.cancel_flag = cancel_flag
+
+    def _check_cancellation(self, context=""):
+        """Check if experiment has been cancelled and raise exception if so."""
+        if self.cancel_flag and self.cancel_flag.is_set():
+            msg = f"Experiment {self.exp_id} cancelled"
+            if context:
+                msg += f" {context}"
+            logger.info(msg)
+            raise RuntimeError("Experiment cancelled by user")
 
     def evaluate_condition(self, condition_str):
         if condition_str == "True":
@@ -88,9 +98,15 @@ class Execution:
             return self.execute_task(node_to_execute)
 
     def execute_nodes_in_container(self, control_node_container):
+        # Check for cancellation before executing nodes
+        self._check_cancellation("before executing node container")
+
         all_control_nodes = self.exp.spaces + self.exp.tasks
         processes = []
         for node_name in control_node_container.parallel_node_names:
+            # Check cancellation before each node
+            self._check_cancellation(f"before executing node {node_name}")
+
             node_to_execute = next(n for n in all_control_nodes if n.name==node_name)
             node_queue = Queue()
             self.queues_for_nodes[node_name] = node_queue
@@ -297,6 +313,9 @@ class Execution:
         # Cache configurations per wf_id to avoid recomputation
         config_by_wf_id = {}
         while True:
+            # Check for cancellation in the workflow execution loop
+            self._check_cancellation("during workflow execution")
+
             if len(space_workflow_ids) == 0:
                 break
             processes = []
@@ -449,49 +468,50 @@ class Execution:
 
         return wf_id
 
-    def run_scheduled_workflows(self, configured_workflows_of_space, configurations_of_space):
-        space_results = {}
-        wf_ids = self.data.get_experiment(self.exp_id)["workflow_ids"]
-        wf_ids_of_this_space = [w for w in wf_ids if w in configured_workflows_of_space.keys()]
-        run_count_in_space = 1
-        while True:
-            scheduled_wf_ids = [wf_id for wf_id in wf_ids_of_this_space if self.data.get_workflow(wf_id)["status"] == "scheduled"]
-            if len(scheduled_wf_ids) == 0:
-                # all workflows have been executed
-                break
-            processes = []
-            for wf_id in scheduled_wf_ids:
-                if self.subprocesses == self.config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE:
-                    # parallelization limit reached
-                    break
-                self.data.update_workflow(wf_id, {"status": "running", "start": self.data.get_current_time()})
-                workflow_to_run = configured_workflows_of_space[wf_id]
-                queue_for_workflow = Queue()
-                self.queues_for_workflows[wf_id] = queue_for_workflow
-                p = Process(target=self.execute_wf, args=(workflow_to_run, wf_id, queue_for_workflow))
-                processes.append((wf_id, p))
-                p.start()
-                self.subprocesses += 1
-                time.sleep(1)
-            results = {}
-            for (wf_id, p) in processes:
-                result = self.queues_for_workflows[wf_id].get()
-                results[wf_id] = result
-            for (wf_id, p) in processes:
-                p.join()
-                self.subprocesses -= 1
-                result = results[wf_id]
-                self.data.update_workflow(wf_id, {"end": self.data.get_current_time()})
-                self.data.update_metrics_of_workflow(wf_id, result)
-                if self.config.DATASET_MANAGEMENT == "DDM":
-                    self.data.update_files_of_workflow(wf_id, result)
-                workflow_results = {}
-                workflow_results["configuration"] = configurations_of_space[wf_id]
-                workflow_results["result"] = result
-                space_results[run_count_in_space] = workflow_results
-                # TODO fix this count in case of reordering
-                run_count_in_space += 1
-        return space_results
+    # TODO: Check if we can get rid of this method
+    # def run_scheduled_workflows(self, configured_workflows_of_space, configurations_of_space):
+    #     space_results = {}
+    #     wf_ids = self.data.get_experiment(self.exp_id)["workflow_ids"]
+    #     wf_ids_of_this_space = [w for w in wf_ids if w in configured_workflows_of_space.keys()]
+    #     run_count_in_space = 1
+    #     while True:
+    #         scheduled_wf_ids = [wf_id for wf_id in wf_ids_of_this_space if self.data.get_workflow(wf_id)["status"] == "scheduled"]
+    #         if len(scheduled_wf_ids) == 0:
+    #             # all workflows have been executed
+    #             break
+    #         processes = []
+    #         for wf_id in scheduled_wf_ids:
+    #             if self.subprocesses == self.config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE:
+    #                 # parallelization limit reached
+    #                 break
+    #             self.data.update_workflow(wf_id, {"status": "running", "start": self.data.get_current_time()})
+    #             workflow_to_run = configured_workflows_of_space[wf_id]
+    #             queue_for_workflow = Queue()
+    #             self.queues_for_workflows[wf_id] = queue_for_workflow
+    #             p = Process(target=self.execute_wf, args=(workflow_to_run, wf_id, queue_for_workflow))
+    #             processes.append((wf_id, p))
+    #             p.start()
+    #             self.subprocesses += 1
+    #             time.sleep(1)
+    #         results = {}
+    #         for (wf_id, p) in processes:
+    #             result = self.queues_for_workflows[wf_id].get()
+    #             results[wf_id] = result
+    #         for (wf_id, p) in processes:
+    #             p.join()
+    #             self.subprocesses -= 1
+    #             result = results[wf_id]
+    #             self.data.update_workflow(wf_id, {"end": self.data.get_current_time()})
+    #             self.data.update_metrics_of_workflow(wf_id, result)
+    #             if self.config.DATASET_MANAGEMENT == "DDM":
+    #                 self.data.update_files_of_workflow(wf_id, result)
+    #             workflow_results = {}
+    #             workflow_results["configuration"] = configurations_of_space[wf_id]
+    #             workflow_results["result"] = result
+    #             space_results[run_count_in_space] = workflow_results
+    #             # TODO fix this count in case of reordering
+    #             run_count_in_space += 1
+    #     return space_results
 
     def get_workflow_to_run(self, node, c_dict):
         assembled_workflow = next(w for w in self.assembled_flat_wfs if w.name == node.assembled_workflow)

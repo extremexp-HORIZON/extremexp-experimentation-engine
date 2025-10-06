@@ -15,15 +15,17 @@ EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX = "execution_engine_runtime_config"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
 
 
-def create_gateway_and_connect_to_it(username, password, config):
+def create_gateway_and_connect_to_it(config):
     print("Logging on proactive-server...")
     proactive_url  = config.PROACTIVE_URL
+    proactive_username = config.PROACTIVE_USERNAME
+    proactive_password = config.PROACTIVE_PASSWORD
     print("Creating gateway ")
     gateway = proactive.ProActiveGateway(proactive_url, debug=False)
     print("Gateway created")
 
     print("Connecting on: " + proactive_url)
-    gateway.connect(username=username, password=password)
+    gateway.connect(username=proactive_username, password=proactive_password)
     assert gateway.isConnected() is True
     print("Connected")
     return gateway
@@ -333,7 +335,7 @@ def reconnect_if_needed(gateway, config=None):
         return gateway
     if config is None:
         raise RuntimeError("Config required to (re)connect when gateway is not connected")
-    return create_gateway_and_connect_to_it(config.PROACTIVE_USERNAME, config.PROACTIVE_PASSWORD, config)
+    return create_gateway_and_connect_to_it(config)
 
 
 def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far):
@@ -355,7 +357,7 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
     job_result_map = {}
     job_params_str = ""
     try:
-        gateway = create_gateway_and_connect_to_it(config.PROACTIVE_USERNAME, config.PROACTIVE_PASSWORD, config)
+        gateway = create_gateway_and_connect_to_it(config)
         job = _create_job(gateway, w.name)
         fork_env = _create_fork_env(gateway, job)
         mapping = _create_execution_engine_mapping(sorted_tasks)

@@ -1,12 +1,12 @@
 workflow ComplexControlW {
 
+    START -> Task1 -> Task2 -> END;
+
     task Task1 {
         implementation "Testcase_task1";
     }
 
     task Task2;
-
-     START -> Task1 -> Task2 -> END;
 
 }
 
@@ -32,7 +32,7 @@ experiment ComplexControlExp1 {
     space S1 of ComplexControlAW1 {
         strategy randomsearch;
         runs = 1;
-        param_values param1_vp = enum(2, 5, 7);
+        param_values param1_vp = enum(2);
         task Task1 {
             param param1 = param1_vp;
         }
