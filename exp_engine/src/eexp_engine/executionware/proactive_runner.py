@@ -417,11 +417,11 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
         try:
             if gateway:
                 _teardown(gateway)
-        except Exception:
-            pass
+        except Exception as e:
+            logging.error(f"Error during gateway teardown: {e}")
         for path in (runtime_config_path, results_file_path):
             try:
                 if path and os.path.isfile(path):
                     os.remove(path)
-            except Exception:
-                pass
+            except Exception as e:
+                logging.error(f"Error removing file {path}: {e}")

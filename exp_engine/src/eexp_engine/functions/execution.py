@@ -308,7 +308,7 @@ class Execution:
                 self.data.update_workflow(wf_id, {"status": "running", "start": self.data.get_current_time()})
                 queue_for_workflow = Queue()
                 self.queues_for_workflows[wf_id] = queue_for_workflow
-                p = Process(target=self.execute_wf, args=(configured_workflow, wf_id, queue_for_workflow))
+                p = Process(target=self.execute_wf, args=(configured_workflow, wf_id, queue_for_workflow, self.results))
                 processes.append((wf_id, p))
                 launched_ids.append(wf_id)
                 p.start()
@@ -516,9 +516,24 @@ class Execution:
             else:
                 logger.error("You need to setup an executionware")
                 exit(0)
-            queue_for_workflow.put(result)
+            # Convert result to a picklable format by creating a clean copy
+            try:
+                import json
+                # Serialize and deserialize to create a clean, picklable copy
+                clean_result = json.loads(json.dumps(result, default=str))
+                queue_for_workflow.put(clean_result)
+                print(f"Successfully put clean result in queue for {wf_id}")
+            except Exception as json_e:
+                print(f"JSON serialization failed for {wf_id}: {json_e}, trying direct put")
+                try:
+                    queue_for_workflow.put(result)
+                    print(f"Successfully put original result in queue for {wf_id}")
+                except Exception as pickle_e:
+                    print(f"Pickling failed for {wf_id}: {pickle_e}, putting empty dict")
+                    queue_for_workflow.put({})
         except Exception as e:
             logger.error(f"Exception at subprocess: {e}")
+            print(f"Exception occurred, putting empty dict in queue for {wf_id}")
             queue_for_workflow.put({})
 
 

@@ -115,8 +115,9 @@ class Config:
             self.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = default_max_workflows_in_parallel_per_node
 
 
-def run(runner_file, exp_name, config, async_execution: bool = False, return_handle: bool = False):
-    error_logger = ErrorLogger()
+def run(runner_file, exp_name, config, async_execution: bool = False):
+    if async_execution:
+        error_logger = ErrorLogger()
     mode_str = "async" if async_execution else "sync"
     logger.info(f"[run] starting experiment creation ({mode_str} mode)")
     logger.info(f"abspath: {os.path.relpath(config.EXPERIMENT_LIBRARY_PATH)}")
@@ -151,11 +152,12 @@ def run(runner_file, exp_name, config, async_execution: bool = False, return_han
             raise RuntimeError("Failed to create experiment")
     except Exception as e:
         logger.exception(f"Experiment parsing/init failed: {e}")
-        error_logger.write_error_log(
-            identifier=exp_name,
-            error=e,
-            extra_info={"phase": "parsing/init", "experiment_name": exp_name}
-        )
+        if async_execution:
+            error_logger.write_error_log(
+                identifier=exp_name,
+                error=e,
+                extra_info={"phase": "parsing/init", "experiment_name": exp_name}
+            )
         raise
 
     def _execute():
@@ -163,11 +165,12 @@ def run(runner_file, exp_name, config, async_execution: bool = False, return_han
             run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client)
         except Exception as e:
             logger.exception(f"Experiment {exp_id} crashed: {e}")
-            error_logger.write_error_log(
-                identifier=exp_id,
-                error=e,
-                extra_info={"phase": "runtime", "experiment_id": exp_id}
-            )
+            if async_execution:
+                error_logger.write_error_log(
+                    identifier=exp_id,
+                    error=e,
+                    extra_info={"phase": "runtime", "experiment_id": exp_id}
+                )
             try:
                 data_client.update_experiment(exp_id, {"status": "failed"})
             except Exception:
@@ -177,8 +180,6 @@ def run(runner_file, exp_name, config, async_execution: bool = False, return_han
         t = threading.Thread(target=_execute, name=f"exp-run-{exp_id}", daemon=False)
         t.start()
         logger.info(f"Experiment {exp_id} launched asynchronously (thread {t.name}, daemon={t.daemon})")
-        if return_handle:
-            return exp_id, t
         return exp_id
     else:
         logger.info(f"Experiment {exp_id} executing synchronously")
