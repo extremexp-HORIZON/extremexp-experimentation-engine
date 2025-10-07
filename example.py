@@ -7,10 +7,9 @@ import eexp_config
 # exp_name = 'moby-exp1'
 # exp_name = 'user_interaction_in_experiment'
 # exp_name = 'user_interaction_in_workflow'
-exp_name = 'demo'
+exp_name = 'user_interaction_in_experiment'
 # exp_name = 'test_ddm_folders'
 # exp_name = 'test_local'
 
-if __name__ == '__main__':
-    print(f"Running experiment: {exp_name}")
+if __name__ == "__main__":
     client.run(__file__, exp_name, eexp_config)

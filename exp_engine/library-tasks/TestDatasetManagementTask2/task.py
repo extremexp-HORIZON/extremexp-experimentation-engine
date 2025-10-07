@@ -5,4 +5,4 @@ print("Running TestDatasetManagementTask2")
 
 dataset = ph.load_dataset(variables, resultMap, "TestDatasetManagementTask2InputFile")
 
-ph.save_dataset(variables, resultMap, "TestDatasetManagementTask2OutputFile", dataset.to_csv(index=False))
+ph.save_dataset(variables, resultMap, "TestDatasetManagementTask2OutputFile", dataset)

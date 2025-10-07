@@ -5,7 +5,7 @@ import ctypes
 from flask import Flask, request, render_template_string
 
 print("I'm ExpInteraction1")
-results = ph.get_experiment_results()
+results = ph.get_experiment_results(variables)
 print(f"and here the results so far: {results}")
 
 class StoppableThread(threading.Thread):

@@ -1,12 +1,12 @@
 workflow ComplexControlW {
 
+    START -> Task1 -> Task2 -> END;
+
     task Task1 {
         implementation "Testcase_task1";
     }
 
     task Task2;
-
-     START -> Task1 -> Task2 -> END;
 
 }
 
@@ -26,13 +26,13 @@ experiment ComplexControlExp1 {
     intent testComplexControl;
 
     control {
-        START -> S1 -> I1 -> END;
+        START -> S1 -> I1 -> S2 -> END;
     }
 
     space S1 of ComplexControlAW1 {
         strategy randomsearch;
         runs = 1;
-        param_values param1_vp = enum(2, 5, 7);
+        param_values param1_vp = enum(2);
         task Task1 {
             param param1 = param1_vp;
         }
@@ -40,7 +40,7 @@ experiment ComplexControlExp1 {
 
     space S2 of ComplexControlAW2 {
         strategy gridsearch;
-        param_values param1_vp = range(3, 4);
+        param_values param1_vp = enum(3);
         task Task1 {
             param param1 = param1_vp;
         }

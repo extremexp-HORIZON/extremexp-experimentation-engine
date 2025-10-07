@@ -1,6 +1,4 @@
 task Task1 {
-    implementation "Testcase_task1/task.py";
-
     define output data Task1OutputFile;
 
     define param param1 {
@@ -8,4 +6,6 @@ task Task1 {
         default 10;
         range (1,20);
     }
+
+    implementation "Testcase_task1/task.py";
 }
