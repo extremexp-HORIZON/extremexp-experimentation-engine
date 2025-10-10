@@ -50,3 +50,8 @@ def resume_experiment(experiment_id):
 @cross_origin()
 def experiment_status(experiment_id):
     return apiHandler.get_experiment_status(experiment_id)
+
+@app.route("/exp/queue/status", methods=["GET"])
+@cross_origin()
+def queue_status():
+    return apiHandler.get_queue_status()

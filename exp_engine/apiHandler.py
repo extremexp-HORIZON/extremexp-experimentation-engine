@@ -4,10 +4,14 @@ from eexp_engine.data_abstraction_layer.data_abstraction_api import DataAbstract
 import logging
 import importlib
 import os
+import sys
 import glob
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Ensure experiment_queue module path is available
+sys.path.insert(0, os.path.dirname(__file__))
 
 
 class ApiHandler:
@@ -37,6 +41,18 @@ class ApiHandler:
         ERROR_LOG_DIR = "/error_logs"
         exp = self.data.get_experiment(exp_id)
         exp_status = exp.get("status", "unknown") if exp else "not_found"
+
+        # Get queue position if experiment is scheduled or running (only if queue is initialized)
+        queue_position = None
+        if exp_status in ("scheduled", "running"):
+            try:
+                # Check if queue exists without initializing it
+                from experiment_queue import _experiment_queue
+                if _experiment_queue is not None:
+                    queue_position = _experiment_queue.get_experiment_position(exp_id)
+            except Exception as e:
+                logger.warning(f"Failed to get queue position for experiment {exp_id}: {e}")
+
         if exp_status == "not_found":
             return {"error": {"code": "NOT_FOUND", "message": f"Experiment with id {exp_id} not found"}}, 404
         elif exp_status == "failed":
@@ -57,12 +73,18 @@ class ApiHandler:
                     }
                 }, 500
         else:
-            return {
-                "experiment": {
-                    "id": exp_id,
-                    "status": exp_status
-                }
-            }, 200
+            response_data = {
+                "id": exp_id,
+                "status": exp_status
+            }
+            if queue_position is not None:
+                if queue_position == 0:
+                    response_data["queue_status"] = "running"
+                else:
+                    response_data["queue_status"] = "queued"
+                    response_data["queue_position"] = queue_position
+
+            return {"experiment": response_data}, 200
         
     def kill_workflow(self, wf_id):
         wf = self.data.get_workflow(wf_id)
@@ -176,6 +198,27 @@ class ApiHandler:
                 self.data.update_workflow(wf_id, {"status": "scheduled"})
         self.data.update_experiment(exp_id, {"status": "running"})
         return {"message": f"experiment with id {exp_id} is resumed"}, 204
+
+    def get_queue_status(self):
+        """Get the current status of the experiment queue."""
+        try:
+            # Check if queue exists without initializing it
+            from experiment_queue import _experiment_queue
+            if _experiment_queue is not None:
+                status = _experiment_queue.get_queue_status()
+                return {
+                    "queue": status
+                }, 200
+            else:
+                return {
+                    "queue": {
+                        "status": "not_initialized",
+                        "message": "Queue is only initialized for async execution (Docker/service mode)"
+                    }
+                }, 200
+        except Exception as e:
+            logger.exception(f"Failed to get queue status: {e}")
+            return {"error": {"code": "INTERNAL_ERROR", "message": str(e)}}, 500
 
 
 apiHandler = ApiHandler()
