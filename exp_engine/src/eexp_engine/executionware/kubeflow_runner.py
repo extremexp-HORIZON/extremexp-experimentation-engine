@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import time
-from ..data_abstraction_layer.data_abstraction_api import (update_workflow, set_data_abstraction_config)
+from ..data_abstraction_layer.data_abstraction_api import DataAbstractionClient
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +11,7 @@ CONFIG = None
 RUNNER_FOLDER = None
 EXECUTION_ENGINE_RUNTIME_CONFIG = None
 KFP_CLIENT = None
+DATA_CLIENT = None
 
 # Constants
 packagedir = os.path.dirname(os.path.abspath(__file__))
@@ -302,7 +303,10 @@ def _convert_workflow_to_pipeline(workflow, mapping, exp_engine_metadata, result
             
             # Set task name
             task_op.set_display_name(task.name)
-            
+            task_op.set_memory_limit("2Gi")  # Maximum memory
+            task_op.set_memory_request("1Gi")  # Minimum memory to request
+            task_op.set_cpu_limit("2")  # Maximum CPU cores
+            task_op.set_cpu_request("500m")
             # Add dependencies
             for dep_name in task.dependencies:
                 if dep_name in task_outputs:
@@ -341,7 +345,7 @@ def _submit_pipeline_and_monitor(exp_id, wf_id, client, pipeline_func, task_stat
         print(f"Pipeline run submitted with ID: {run_id}")
         
         # Update workflow metadata
-        update_workflow(wf_id, {"metadata": {"kubeflow_run_id": run_id}})
+        DATA_CLIENT.update_workflow(wf_id, {"metadata": {"kubeflow_run_id": run_id}})
         
         # Monitor the run
         _monitor_pipeline_run(wf_id, client, run_id, task_statuses)
@@ -382,7 +386,7 @@ def _monitor_pipeline_run(wf_id, client, run_id, task_statuses):
             
             # Update workflow status
             if run_status in ["SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED", "COMPLETED"]:
-                update_workflow(wf_id, {"status": run_status})
+                DATA_CLIENT.update_workflow(wf_id, {"status": run_status})
                 is_finished = True
             
             time.sleep(5)  # Poll every 5 seconds
@@ -408,16 +412,15 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
     Returns:
         Dictionary with execution results
     """
-    global RUNNER_FOLDER, CONFIG, EXECUTION_ENGINE_RUNTIME_CONFIG, KFP_CLIENT
-    
+    global RUNNER_FOLDER, CONFIG, EXECUTION_ENGINE_RUNTIME_CONFIG, KFP_CLIENT, DATA_CLIENT
     if not KFP_AVAILABLE:
         raise ImportError("Kubeflow Pipelines SDK is required. Install with: pip install kfp")
     
     # Set global variables
     RUNNER_FOLDER = runner_folder
-    CONFIG = config
-    set_data_abstraction_config(CONFIG)
     EXECUTION_ENGINE_RUNTIME_CONFIG = f"{EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX}_{wf_id}.json"
+    DATA_CLIENT = DataAbstractionClient(config)
+    CONFIG = config
     
     logger.info("****************************")
     logger.info(f"Executing workflow {w.name} using Kubeflow Pipelines")
@@ -467,7 +470,7 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
         
     except Exception as e:
         logger.error(f"Pipeline execution failed: {e}")
-        update_workflow(wf_id, {"status": "FAILED"})
+        DATA_CLIENT.update_workflow(wf_id, {"status": "FAILED"})
         raise
     
     finally:
