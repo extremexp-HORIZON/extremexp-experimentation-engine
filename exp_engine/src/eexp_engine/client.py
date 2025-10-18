@@ -39,7 +39,36 @@ def get_ddm_token(config):
         access_token = response.json()["access_token"]
         logger.info("portal authentication successful, ddm token retrieved")
         return f"Bearer {access_token}"
-    
+
+
+def get_final_experiment_spec(config, exp_name):
+    exp_spec_file = os.path.join(config.EXPERIMENT_LIBRARY_PATH, exp_name + ".xxp")
+    if not os.path.isfile(exp_spec_file):
+        logger.error(f"Specification file not found for experiment '{exp_name}': {exp_spec_file}")
+        raise FileNotFoundError(f"Experiment specification '{exp_name}.xxp' not found")
+
+    with open(exp_spec_file, 'r') as file:
+        experiment_specification = file.readlines()
+
+    workflows_to_import = []
+    final_exp_spec = ""
+    for line in experiment_specification:
+        if line.startswith("import"):
+            if "\'" in line:
+                workflows_to_import.append(line.split("\'")[1])
+            elif "\"" in line:
+                workflows_to_import.append(line.split("\"")[1])
+        else:
+            final_exp_spec += line
+
+    for wf_file in workflows_to_import:
+        file_path = os.path.join(config.WORKFLOW_LIBRARY_PATH, wf_file)
+        with open(file_path, 'r') as file:
+            final_exp_spec += file.read()
+
+    return final_exp_spec
+
+
 class ErrorLogger:
     def __init__(self, log_dir="/error_logs", retention_seconds=15*60):
         self.log_dir = log_dir
@@ -81,6 +110,7 @@ class Config:
     def __init__(self, config):
         self.TASK_LIBRARY_PATH = config.TASK_LIBRARY_PATH
         self.EXPERIMENT_LIBRARY_PATH = config.EXPERIMENT_LIBRARY_PATH
+        self.WORKFLOW_LIBRARY_PATH = config.WORKFLOW_LIBRARY_PATH
         self.DATASET_LIBRARY_RELATIVE_PATH = config.DATASET_LIBRARY_RELATIVE_PATH
         self.PYTHON_DEPENDENCIES_RELATIVE_PATH = config.PYTHON_DEPENDENCIES_RELATIVE_PATH
         if 'DATASET_MANAGEMENT' not in dir(config) or len(config.DATASET_MANAGEMENT) == 0:
@@ -123,17 +153,11 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
         error_logger = ErrorLogger()
     mode_str = "async" if async_execution else "sync"
     logger.info(f"[run] starting experiment creation ({mode_str} mode)")
-    logger.info(f"abspath: {os.path.relpath(config.EXPERIMENT_LIBRARY_PATH)}")
+    logger.info(f"relpath: {os.path.relpath(config.EXPERIMENT_LIBRARY_PATH)}")
     logger.info(f"listing experiment library: {os.listdir(config.EXPERIMENT_LIBRARY_PATH)}")
 
     try:
-        spec_path = os.path.join(config.EXPERIMENT_LIBRARY_PATH, exp_name + ".xxp")
-        if not os.path.isfile(spec_path):
-            logger.error(f"Specification file not found for experiment '{exp_name}': {spec_path}")
-            raise FileNotFoundError(f"Experiment specification '{exp_name}.xxp' not found")
-
-        with open(spec_path, 'r') as file:
-            workflow_specification = file.read()
+        final_exp_spec = get_final_experiment_spec(config, exp_name)
 
         if 'LOGGING_CONFIG' in dir(config):
             try:
@@ -143,7 +167,7 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
 
         new_exp = {
             'name': exp_name,
-            'model': str(workflow_specification),
+            'model': final_exp_spec,
         }
 
         config_obj = Config(config)
@@ -166,7 +190,7 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
     def _execute():
         try:
             cancel_flag = _running_experiments.get(exp_id, {}).get("cancel_flag")
-            run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client, cancel_flag)
+            run_experiment(exp_id, final_exp_spec, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client, cancel_flag)
         except Exception as e:
             logger.exception(f"Experiment {exp_id} crashed: {e}")
             if async_execution:
