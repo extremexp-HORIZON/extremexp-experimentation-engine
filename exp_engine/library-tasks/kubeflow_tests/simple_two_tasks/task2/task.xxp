@@ -1,4 +1,5 @@
 task DemoTask2 {
+    define input data input2;
     implementation "kubeflow_tests/simple_two_tasks/task2/task.py";
     python_version "3.9";
 }

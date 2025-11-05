@@ -12,7 +12,7 @@ workflow DemoWorkflow {
 
 }
 
-workflow DemoWP5AssembledWorkflow1 from DemoWorkflow {
+workflow DemoConditionCheck from DemoWorkflow {
 
 }
 
@@ -22,7 +22,7 @@ experiment DemoWP5Experiment {
         S1 ?-> S2 {condition "check_results 100"};
     }
 
-    space S1 of DemoWP5AssembledWorkflow1 {
+    space S1 of DemoConditionCheck {
         strategy gridsearch;
         param_values demo_param_value = enum(4);
         task Task1 {
@@ -30,7 +30,7 @@ experiment DemoWP5Experiment {
         }
     }
     
-    space S2 of DemoWP5AssembledWorkflow1 {
+    space S2 of DemoConditionCheck {
         strategy gridsearch;
         param_values demo_param_value = enum(4);
         task Task1 {

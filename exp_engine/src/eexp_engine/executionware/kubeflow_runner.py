@@ -22,6 +22,7 @@ RESULTS_FILE = "experiment_results.json"
 try:
     import kfp
     from kfp.v2.dsl import component, pipeline
+    from kfp import kubernetes
     KFP_AVAILABLE = True
 except ImportError:
     logger.warning("Kubeflow Pipelines SDK not found. Please install with: pip install kfp")
@@ -51,12 +52,22 @@ def create_kfp_client():
 def _create_execution_engine_mapping(tasks):
     """Create mapping for execution engine"""
     mapping = {}
+    output_to_task = {}
+    
+    for t in tasks:
+        for ds in t.output_files:
+            output_to_task[ds.name_in_task_signature] = t.name
+    
     for t in tasks:
         map = {}
         mapping[t.name] = map
         for ds in t.input_files:
             if ds.name_in_generating_task:
-                map[ds.name_in_task_signature] = ds.name_in_generating_task
+                # Store both the output name AND the source task
+                map[ds.name_in_task_signature] = {
+                    "file_name": ds.name_in_generating_task,
+                    "source_task": output_to_task.get(ds.name_in_generating_task)
+                }
     print("EXECUTION ENGINE MAPPING")
     print("*****************")
     import pprint
@@ -73,6 +84,16 @@ def _create_exp_engine_metadata(exp_id, exp_name, wf_id):
     exp_engine_metadata["wf_id"] = wf_id
     return exp_engine_metadata
 
+def _create_dataset_config(config):
+    """Create experiment engine metadata"""
+    dataset_config = {}
+    dataset_config["DATASET_MANAGEMENT"] = getattr(config, 'DATASET_MANAGEMENT', None)
+    dataset_config["DDM_URL"] = getattr(config, 'DDM_URL', None)
+    dataset_config["DDM_TOKEN"] = getattr(config, 'DDM_TOKEN', None)
+    dataset_config["DATA_ABSTRACTION_BASE_URL"] = getattr(config, 'DATA_ABSTRACTION_BASE_URL', None)
+    dataset_config["DATA_ABSTRACTION_ACCESS_TOKEN"] = getattr(config, 'DATA_ABSTRACTION_ACCESS_TOKEN', None)
+    return dataset_config
+
 
 def _get_requirements_from_file(reqs_file):
     """Get requirements from file"""
@@ -85,10 +106,18 @@ def _get_requirements_from_file(reqs_file):
 
 def _get_task_dependencies(task):
     """Get task dependencies from the task object as a dictionary with relative paths and file contents"""
-    if not hasattr(task, 'dependent_modules'):
-        return {}
-    
     dependencies = {}
+
+    # Always include kubeflow_helper.py (similar to proactive_helper.py in ProActive)
+    if os.path.exists(KUBEFLOW_HELPER_FULL_PATH):
+        try:
+            with open(KUBEFLOW_HELPER_FULL_PATH, 'r', encoding='utf-8') as f:
+                dependencies['kubeflow_helper.py'] = f.read()
+        except Exception as e:
+            logger.warning(f"Could not read kubeflow_helper.py: {e}")
+
+    if not hasattr(task, 'dependent_modules'):
+        return dependencies
     
     for dep in task.dependent_modules:
         if dep.endswith('**'):
@@ -148,7 +177,6 @@ def _get_task_dependencies(task):
 def _create_kubeflow_component(task):
     """Create a Kubeflow component from a task"""
     print(f"Creating Kubeflow component for task {task.name}...")
-    print(f"task dependencies: {_get_task_dependencies(task)}")
     # Base image for the component
     if task.python_version:
         base_image = f"python:{task.python_version}"
@@ -169,25 +197,16 @@ def _create_kubeflow_component(task):
     )
     def task_component(
         task_name: str,
-        config_json: str,
-        mapping_json: str,
-        metadata_json: str,
-        task_code_param: str,
-        dependency_files_json: str,
-        results_json: str = "{}"
-    ) -> str:
+        variables: dict,
+        resultMap: dict,
+        task_code: str,
+        dependency_files: dict,
+        results_so_far: dict = {}
+    ) -> dict:
         """Kubeflow component that wraps the original task implementation"""
-        import json
         import sys
         import os
-        
-        # Parse inputs
-        config = json.loads(config_json)
-        mapping = json.loads(mapping_json)
-        metadata = json.loads(metadata_json)
-        results = json.loads(results_json)
-        dependency_files = json.loads(dependency_files_json)
-        
+
         # ===========================
         # Dependency handling
         # ===========================
@@ -224,23 +243,23 @@ def _create_kubeflow_component(task):
         # Make variables available in execution context
         exec_globals = {
             '__name__': '__main__',
-            'config': config,
-            'mapping': mapping,
-            'metadata': metadata,
-            'results': results,
+            'variables': variables,
+            'resultMap': resultMap,
+            'results_so_far': results_so_far,
             'task_name': task_name
         }
         
-        # Execute the task code (now imports will work)
+        # Execute the task code
         print(f"Executing task code for {task_name}...")
-        exec(task_code_param, exec_globals)
-        
-        return "completed"
+        exec(task_code, exec_globals)
+
+        # Return the mutated variables and resultMap as a dict
+        return resultMap
     
     return task_component
 
 
-def _convert_workflow_to_pipeline(workflow, mapping, exp_engine_metadata, results_so_far):
+def _convert_workflow_to_pipeline(workflow, exp_engine_runtime_config, results_so_far):
     """Convert a workflow to a Kubeflow pipeline"""
     print(f"Converting workflow {workflow.name} to Kubeflow pipeline...")
     
@@ -258,9 +277,8 @@ def _convert_workflow_to_pipeline(workflow, mapping, exp_engine_metadata, result
         with open(task.impl_file, 'r') as f:
             task_codes[task.name] = f.read()
 
-        # Get dependencies as dictionary and convert to JSON
-        dependencies_dict = _get_task_dependencies(task)
-        task_dependencies[task.name] = json.dumps(dependencies_dict)
+        # Get dependencies as dictionary
+        task_dependencies[task.name] = _get_task_dependencies(task)
     
     @pipeline(
         name=workflow.name.lower().replace(' ', '-'),
@@ -269,52 +287,79 @@ def _convert_workflow_to_pipeline(workflow, mapping, exp_engine_metadata, result
     def workflow_pipeline():
         """The main pipeline function"""
         task_outputs = {}
-        mapping_json = json.dumps(mapping)
-        metadata_json = json.dumps(exp_engine_metadata)
-        results_json = json.dumps(results_so_far) if results_so_far else "{}"
-        
+        variables = exp_engine_runtime_config
+        resultMap = {}
+
+        # Create a dynamic PVC for this workflow
+        # Using pvc_name_suffix to create a unique PVC per workflow run
+        pvc_name_suffix = f"-{workflow.name.lower().replace(' ', '-')}-pvc"
+
+        create_shared = kubernetes.CreatePVC(
+            pvc_name_suffix=pvc_name_suffix,
+            access_modes=['ReadWriteOnce'],
+            size='5Gi',
+            storage_class_name='standard',
+        )
+
         for task in sorted_tasks:
             print(f"Adding task {task.name} to pipeline...")
-            
+            print(f"Task {task.name} dependencies: {task.dependencies}")
+
             # Get the component function
             component_func = task_components[task.name]
-            
-            # Prepare task-specific config including parameters
-            task_config = {
-                "DATASET_MANAGEMENT": CONFIG.DATASET_MANAGEMENT,
-                "DDM_URL": getattr(CONFIG, 'DDM_URL', None),
-                "DDM_TOKEN": getattr(CONFIG, 'DDM_TOKEN', None),
-                "DATA_ABSTRACTION_BASE_URL": getattr(CONFIG, 'DATA_ABSTRACTION_BASE_URL', None),
-                "DATA_ABSTRACTION_ACCESS_TOKEN": getattr(CONFIG, 'DATA_ABSTRACTION_ACCESS_TOKEN', None),
-                "task_params": dict(task.params) if hasattr(task, 'params') else {}
-            }
-            task_config_json = json.dumps(task_config)
-            
+
+            # Create task-specific variables
+            task_variables = dict(variables)
+            task_variables.update(dict(task.params) if hasattr(task, 'params') else {})
+            task_variables.update({"task_name": task.name})
+
+            # Determine resultMap input: use previous task's output if it has dependencies
+            if task.dependencies and len(task.dependencies) > 0:
+                dep_task_name = task.dependencies[0]
+                if dep_task_name in task_outputs:
+                    # Pass the previous task's output directly (KFP will resolve at runtime)
+                    task_resultMap_input = task_outputs[dep_task_name].output
+                else:
+                    task_resultMap_input = resultMap
+            else:
+                # First task - use initial resultMap
+                task_resultMap_input = resultMap
+
             # Create the task in the pipeline
             task_op = component_func(
                 task_name=task.name,
-                config_json=task_config_json,
-                mapping_json=mapping_json,
-                metadata_json=metadata_json,
-                task_code_param=task_codes[task.name],  # Pass the task code
-                dependency_files_json=task_dependencies[task.name],  # Pass dependencies
-                results_json=results_json
+                variables=task_variables,
+                resultMap=task_resultMap_input,
+                task_code=task_codes[task.name],
+                dependency_files=task_dependencies[task.name],
+                results_so_far=results_so_far if results_so_far else {}
             )
-            
+
             # Set task name
             task_op.set_display_name(task.name)
-            task_op.set_memory_limit("2Gi")  # Maximum memory
-            task_op.set_memory_request("1Gi")  # Minimum memory to request
-            task_op.set_cpu_limit("2")  # Maximum CPU cores
-            task_op.set_cpu_request("500m")
+
+            # Mount at /shared so tasks can exchange data via the volume
+            kubernetes.mount_pvc(
+                task_op,
+                pvc_name=create_shared.outputs['name'],
+                mount_path='/shared',
+            )
+
             # Add dependencies
             for dep_name in task.dependencies:
                 if dep_name in task_outputs:
                     task_op.after(task_outputs[dep_name])
-            
+
             # Store task output for dependencies
             task_outputs[task.name] = task_op
-    
+
+        # Get the last task from sorted list
+        last_task = sorted_tasks[-1]
+
+        # Delete the PVC after the last task completes
+        delete_shared = kubernetes.DeletePVC(pvc_name=create_shared.outputs['name'])
+        delete_shared.after(task_outputs[last_task.name])
+
     return workflow_pipeline
 
 
@@ -434,12 +479,19 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
     # Prepare execution data
     mapping = _create_execution_engine_mapping(w.tasks)
     exp_engine_metadata = _create_exp_engine_metadata(exp_id, exp_name, wf_id)
+    dataset_config = _create_dataset_config(CONFIG)
+
+    exp_engine_runtime_config = {
+        "mapping": mapping,
+        "exp_engine_metadata": exp_engine_metadata,
+        "dataset_config": dataset_config
+    }
     
     # Create task status tracking
     task_statuses = [{"name": task.name, "status": "Pending"} for task in w.tasks]
     
     # Convert workflow to pipeline
-    pipeline_func = _convert_workflow_to_pipeline(w, mapping, exp_engine_metadata, results_so_far)
+    pipeline_func = _convert_workflow_to_pipeline(w, exp_engine_runtime_config, results_so_far)
 
     print("Pipeline function created successfully.")
     print("****************************")
