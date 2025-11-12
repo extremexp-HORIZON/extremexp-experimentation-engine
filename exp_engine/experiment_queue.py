@@ -1,7 +1,3 @@
-"""
-Experiment Queue Manager
-Manages a queue of experiments with a maximum number of concurrent executions.
-"""
 import threading
 import queue
 import logging
