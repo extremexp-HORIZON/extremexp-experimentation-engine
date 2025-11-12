@@ -4,7 +4,10 @@ import pandas as pd
 import os
 
 print("hello world")
-print("variables", variables)
+MINIO_USERNAME = os.getenv("KUBEFLOW_MINIO_USERNAME")
+MINIO_PASSWORD = os.getenv("KUBEFLOW_MINIO_PASSWORD")
+print("Minio username:", MINIO_USERNAME)
+print("Minio password:", MINIO_PASSWORD)
 
 # Read S3 csv via pandas
 file_obj = kh.load_dataset_local(variables, "task1inputfile")

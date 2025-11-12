@@ -45,8 +45,8 @@ def create_kfp_client():
     print("Creating Kubeflow Pipelines client...")
 
     # Use configuration to connect to KFP
-    if hasattr(CONFIG, "KUBEFLOW_PIPELINES_ENDPOINT"):
-        endpoint = CONFIG.KUBEFLOW_PIPELINES_ENDPOINT
+    if hasattr(CONFIG, "KUBEFLOW_URL"):
+        endpoint = CONFIG.KUBEFLOW_URL
     else:
         endpoint = "http://localhost:8080"  # Default for development
 
@@ -84,7 +84,7 @@ def _create_kubeflow_component(task):
 
     # Create the component function
     @component(
-        base_image=base_image, packages_to_install=["pandas", "minio", "fsspec", "s3fs", "requests"]
+        base_image=base_image, packages_to_install=["fsspec", "s3fs", "requests"] + requirements,
     )
     def task_component(
         task_name: str,
@@ -160,7 +160,6 @@ def _convert_workflow_to_pipeline(workflow, exp_engine_runtime_config, secrets: 
     task_dependencies = {}
     sorted_tasks = sorted(workflow.tasks, key=lambda t: t.order)
     exp_engine_runtime_config = _create_execution_engine_mapping(sorted_tasks, exp_engine_runtime_config)
-
     for task in sorted_tasks:
 
         # Store task code
@@ -397,7 +396,6 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
     pipeline_func = _convert_workflow_to_pipeline(
         w, exp_engine_runtime_config, secrets, results_so_far,
     )
-    print("secrets", secrets)
     print("Pipeline function created successfully.")
     print("****************************")
 

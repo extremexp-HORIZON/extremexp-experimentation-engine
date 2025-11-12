@@ -11,5 +11,6 @@ task DemoTask1 {
 
     implementation "kubeflow_tests/simple_two_tasks/task1/task.py";
     python_version "3.9";
+    venv "kubeflow_tests/simple_two_tasks/task1/requirements.txt";
     dependency "kubeflow/**";
 }

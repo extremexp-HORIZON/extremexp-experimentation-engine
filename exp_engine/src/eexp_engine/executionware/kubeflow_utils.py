@@ -138,7 +138,7 @@ def _create_execution_engine_mapping(tasks, exp_engine_runtime_config):
                 # Find the task that generates this input by looking up the output variable name
                 source_task = output_to_task.get(ds.name_in_generating_task)
                 mapping[t.name]["inputs"][ds.name_in_task_signature] = {
-                    "file_name": ds.name,
+                    "file_name": ds.name_in_generating_task,
                     "file_type": "intermediate",
                     "source_task": source_task,
                 }
@@ -196,6 +196,12 @@ def _create_dataset_config(config):
     )
     dataset_config["DATA_ABSTRACTION_ACCESS_TOKEN"] = getattr(
         config, "DATA_ABSTRACTION_ACCESS_TOKEN", None
+    )
+    dataset_config["KUBEFLOW_MINIO_USERNAME"] = getattr(
+        config, "KUBEFLOW_MINIO_USERNAME", None
+    )
+    dataset_config["KUBEFLOW_MINIO_PASSWORD"] = getattr(
+        config, "KUBEFLOW_MINIO_PASSWORD", None
     )
     return dataset_config
 

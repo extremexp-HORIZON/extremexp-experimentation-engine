@@ -107,6 +107,10 @@ class Config:
         self.PROACTIVE_USERNAME = config.PROACTIVE_USERNAME
         self.PROACTIVE_PASSWORD = config.PROACTIVE_PASSWORD
         self.PROACTIVE_PYTHON_VERSIONS = config.PROACTIVE_PYTHON_VERSIONS if 'PROACTIVE_PYTHON_VERSIONS' in dir(config) else None
+        self.KUBEFLOW_URL = config.KUBEFLOW_URL if 'KUBEFLOW_URL' in dir(config) else None
+        self.KUBEFLOW_MINIO_ENDPOINT = config.KUBEFLOW_MINIO_ENDPOINT if 'KUBEFLOW_MINIO_ENDPOINT' in dir(config) else None
+        self.KUBEFLOW_MINIO_USERNAME = config.KUBEFLOW_MINIO_USERNAME if 'KUBEFLOW_MINIO_USERNAME' in dir(config) else None
+        self.KUBEFLOW_MINIO_PASSWORD = config.KUBEFLOW_MINIO_PASSWORD if 'KUBEFLOW_MINIO_PASSWORD' in dir(config) else None
         self.PYTHON_CONDITIONS = config.PYTHON_CONDITIONS if 'PYTHON_CONDITIONS' in dir(config) else None
         self.PYTHON_CONFIGURATIONS = config.PYTHON_CONFIGURATIONS if 'PYTHON_CONFIGURATIONS' in dir(config) else None
         if 'MAX_WORKFLOWS_IN_PARALLEL_PER_NODE' in dir(config):

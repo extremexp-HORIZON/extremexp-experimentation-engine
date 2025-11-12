@@ -4,7 +4,6 @@ import sys
 import pickle
 import requests
 import json
-import minio
 import fsspec
 
 METRICS_FILES_KEY = "file"
@@ -20,6 +19,7 @@ try:
     DATA_ABSTRACTION_ACCESS_TOKEN = os.getenv("DATA_ABSTRACTION_ACCESS_TOKEN")
     MINIO_USERNAME = os.getenv("KUBEFLOW_MINIO_USERNAME")
     MINIO_PASSWORD = os.getenv("KUBEFLOW_MINIO_PASSWORD")
+    MINIO_ENDPOINT = os.getenv("KUBEFLOW_MINIO_ENDPOINT", "http://minio-service.kubeflow:9000")
     AUTH_HEADERS = {"Authorization": DDM_TOKEN}
 except Exception as e:
     print(f"Error loading configuration: {e}")
@@ -302,14 +302,12 @@ def open_minio_file(s3_path: str):
 
     try:
         # Create MinIO client using environment variables
-        minio_endpoint = os.getenv("KUBEFLOW_MINIO_ENDPOINT", "http://minio-service.kubeflow:9000")
-
         # Create fsspec filesystem for S3/MinIO
         fs = fsspec.filesystem('s3',
             key=MINIO_USERNAME,
             secret=MINIO_PASSWORD,
             client_kwargs={
-                'endpoint_url': minio_endpoint,
+                'endpoint_url': MINIO_ENDPOINT,
                 'use_ssl': False
             }
         )
