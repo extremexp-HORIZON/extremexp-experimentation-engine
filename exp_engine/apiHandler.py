@@ -4,14 +4,10 @@ from eexp_engine.data_abstraction_layer.data_abstraction_api import DataAbstract
 import logging
 import importlib
 import os
-import sys
 import glob
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Ensure experiment_queue module path is available
-sys.path.insert(0, os.path.dirname(__file__))
 
 
 class ApiHandler:
@@ -47,7 +43,7 @@ class ApiHandler:
         if exp_status in ("scheduled", "running"):
             try:
                 # Check if queue exists without initializing it
-                from experiment_queue import _experiment_queue
+                from eexp_engine.experiment_queue import _experiment_queue
                 if _experiment_queue is not None:
                     queue_position = _experiment_queue.get_experiment_position(exp_id)
             except Exception as e:
@@ -203,7 +199,7 @@ class ApiHandler:
         """Get the current status of the experiment queue."""
         try:
             # Check if queue exists without initializing it
-            from experiment_queue import _experiment_queue
+            from eexp_engine.experiment_queue import _experiment_queue
             if _experiment_queue is not None:
                 status = _experiment_queue.get_queue_status()
                 return {

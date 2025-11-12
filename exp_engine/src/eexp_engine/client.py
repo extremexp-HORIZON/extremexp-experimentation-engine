@@ -14,16 +14,14 @@ logger = logging.getLogger(__name__)
 # Import experiment queue - will be initialized on first async execution
 _experiment_queue = None
 
-def _get_queue():
+def _get_queue(config):
     """Lazy initialization of experiment queue for async execution only."""
     global _experiment_queue
+    max_concurrent_config = config.MAX_EXPERIMENTS_IN_PARALLEL if config.MAX_EXPERIMENTS_IN_PARALLEL is not None else 4
     if _experiment_queue is None:
         # Import here to avoid circular dependencies
-        import sys
-        queue_module_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '..')
-        sys.path.insert(0, queue_module_path)
-        from experiment_queue import get_experiment_queue
-        _experiment_queue = get_experiment_queue(max_concurrent=4)
+        from .experiment_queue import get_experiment_queue
+        _experiment_queue = get_experiment_queue(max_concurrent=max_concurrent_config)
         logger.info("Experiment queue initialized for async execution")
     return _experiment_queue
 
@@ -121,6 +119,7 @@ class Config:
         self.PROACTIVE_PYTHON_VERSIONS = config.PROACTIVE_PYTHON_VERSIONS if 'PROACTIVE_PYTHON_VERSIONS' in dir(config) else None
         self.PYTHON_CONDITIONS = config.PYTHON_CONDITIONS if 'PYTHON_CONDITIONS' in dir(config) else None
         self.PYTHON_CONFIGURATIONS = config.PYTHON_CONFIGURATIONS if 'PYTHON_CONFIGURATIONS' in dir(config) else None
+        self.MAX_EXPERIMENTS_IN_PARALLEL = config.MAX_EXPERIMENTS_IN_PARALLEL if 'MAX_EXPERIMENTS_IN_PARALLEL' in dir(config) else None
         if 'MAX_WORKFLOWS_IN_PARALLEL_PER_NODE' in dir(config):
             logger.debug(f"Setting MAX_WORKFLOWS_IN_PARALLEL_PER_NODE to {config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE}")
             self.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE
@@ -194,7 +193,7 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
                     logger.exception(f"Could not update experiment {exp_id} status to failed")
 
         # Enqueue the experiment (queue manages cancel_flag and lifecycle)
-        queue = _get_queue()
+        queue = _get_queue(config)
         queue.enqueue(exp_id, _execute_async, cancel_flag)
 
         logger.info(f"Experiment {exp_id} enqueued for execution")
