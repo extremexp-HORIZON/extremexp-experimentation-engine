@@ -1,0 +1,36 @@
+workflow DemoWP5Workflow {
+
+    START -> Task1 -> Task2 -> END;
+
+    task Task1 {
+        implementation "demo_tasks/DemoWP5Task1";
+    }
+
+    task Task2;
+
+    define input data InputFile;
+    configure data InputFile {
+        path "demo_datasets/titanic.csv";
+    }
+
+    define output data OutputFile;
+    configure data OutputFile {
+        path "output/test_local/titanic_once_more.csv";
+    }
+
+    InputFile --> Task1.DemoWP5Task1InputFile;
+    Task1.DemoWP5Task1OutputFile --> Task2.DemoWP5Task2InputFile;
+    Task2.DemoWP5Task2OutputFile --> OutputFile;
+}
+
+workflow DemoWP5AssembledWorkflow1 from DemoWP5Workflow {
+    task Task2 {
+        implementation "demo_tasks/DemoWP5Task2V1";
+    }
+}
+
+workflow DemoWP5AssembledWorkflow2 from DemoWP5Workflow {
+    task Task2 {
+        implementation "demo_tasks/DemoWP5Task2V2";
+    }
+}
