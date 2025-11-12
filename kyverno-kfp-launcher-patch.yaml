@@ -1,0 +1,41 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: patch-kfp-launcher-resources
+  annotations:
+    policies.kyverno.io/title: Patch KFP Launcher Resources
+    policies.kyverno.io/category: Kubeflow
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      This policy patches init containers named 'kfp-launcher' in Kubeflow Pipeline
+      pods to increase memory limits from 128Mi to 1Gi to prevent OOMKilled errors.
+spec:
+  admission: true
+  background: false
+  validationFailureAction: Audit
+  rules:
+    - name: increase-kfp-launcher-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - kubeflow
+      preconditions:
+        all:
+          - key: "{{ request.object.spec.initContainers[] | [?name=='kfp-launcher'] | length(@) }}"
+            operator: GreaterThanOrEquals
+            value: 1
+      mutate:
+        patchStrategicMerge:
+          spec:
+            initContainers:
+              - name: kfp-launcher
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 512Mi
+                  limits:
+                    cpu: "1"
+                    memory: 1Gi

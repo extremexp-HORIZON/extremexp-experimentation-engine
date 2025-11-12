@@ -24,6 +24,10 @@ PROACTIVE_PASSWORD=""
 # You need to specify the path to the Python version you want to explicitly use (ask ICOM)
 PROACTIVE_PYTHON_VERSIONS = {"3.8": "/usr/bin/python3.8", "3.9": "/usr/bin/python3.9"}
 
+KUBEFLOW_URL = ""
+KUBEFLOW_MINIO_USERNAME = ""
+KUBEFLOW_MINIO_PASSWORD = ""
+
 # Data abstraction credentials (mandatory - ask ICOM)
 DATA_ABSTRACTION_BASE_URL = "http://146.124.106.171:8445/api"
 DATA_ABSTRACTION_ACCESS_TOKEN = ''

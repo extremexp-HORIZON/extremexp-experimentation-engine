@@ -1,6 +1,7 @@
 task DemoTask1 {
 
-    define output data output1; 
+    define input data task1inputfile; 
+    define output data output1;
 
     define param demo_param {
         type Integer;
