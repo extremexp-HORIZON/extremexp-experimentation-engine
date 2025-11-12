@@ -12,15 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class ExperimentQueue:
-    """Thread-safe experiment queue with concurrent execution limit."""
 
     def __init__(self, max_concurrent_experiments: int = 4):
-        """
-        Initialize the experiment queue.
-
-        Args:
-            max_concurrent_experiments: Maximum number of experiments that can run concurrently
-        """
         self.max_concurrent_experiments = max_concurrent_experiments
         self._queue = queue.Queue()
         self._running_experiments: Dict[str, dict] = {}  # {exp_id: {"thread": thread, "cancel_flag": Event}}
@@ -72,7 +65,7 @@ class ExperimentQueue:
         """
         Get current queue status.
 
-        Returns:
+        Returns: 
             Dictionary with queue statistics
         """
         with self._lock:
@@ -88,7 +81,7 @@ class ExperimentQueue:
         Get position of experiment in queue.
 
         Args:
-            exp_id: Experiment identifier
+           exp_id = Experiment identifier
 
         Returns:
             Queue position (1-indexed) or None if not in queue, 0 if running
