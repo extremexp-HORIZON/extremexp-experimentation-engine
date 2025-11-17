@@ -35,7 +35,29 @@ def execute_wf(w: Workflow, exp_id: str, exp_name: str, wf_id: str, runner_folde
     RUNNER_FOLDER = runner_folder
     CONFIG = config
 
+    from pprint import pprint
+
+    def recursive_to_dict(obj):
+        if isinstance(obj, dict):
+            return {k: recursive_to_dict(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [recursive_to_dict(i) for i in obj]
+        elif hasattr(obj, "__dict__"):
+            return {k: recursive_to_dict(v) for k, v in obj.__dict__.items()}
+        else:
+            return obj
+
+    # Convert Workflow object to a nested dict
+    workflow_dict = recursive_to_dict(w)
+
+    # Pretty print everything
+    pprint(workflow_dict, width=120)
+    print("banaan")
+    # print(vars(w))
+    # print("banaan")
+
     logger = logging.getLogger(__name__)
+    logger.info("banaan")
     logger.info("****************************")
     logger.info(f"Executing workflow {w.name} with id {wf_id}")
     logger.info("****************************")
@@ -71,7 +93,7 @@ def execute_wf(w: Workflow, exp_id: str, exp_name: str, wf_id: str, runner_folde
         my_env = os.environ.copy()
         my_env["PYTHONPATH"] = new_path
         print(f"new_path: {new_path}")
-        new_file_path = os.path.join(os.path.dirname(task.impl_file), f"exec_{os.path.basename(task.impl_file)}")
+        new_file_path = os.path.join(os.path.dirname(task.impl_file), f"{os.path.basename(task.impl_file)}")
         print(new_file_path)
         subprocess.run([f"cp {task.impl_file} {new_file_path}"], shell=True)
         resultMap = json.loads(open(RESULT, 'r').read())
@@ -98,9 +120,26 @@ def execute_wf(w: Workflow, exp_id: str, exp_name: str, wf_id: str, runner_folde
             last_line = ["\nph.save_result(resultMap)"]
             filelines = first_line + second_line + third_line + find_and_replace_ResultMapPut(lines[2:]) + last_line
             fp.writelines(filelines)
-        subprocess.run(["python -m venv local_env"], shell=True)
+        # subprocess.run(["python -m venv local_env"], shell=True)
+        subprocess.run(["python", "-m", "venv", "local_env"], check=True)
+
         if task.requirements_file is None:
-            subprocess.run([f"source ./local_env/bin/activate; python -m pip install --upgrade pip --quiet; pip install {LOCAL_ENV_DEPENDENCIES} --quiet"], shell=True)
+            # Determine correct Python path inside the virtual environment
+            venv_python = (
+                os.path.join("local_env", "Scripts", "python.exe")
+                if os.name == "nt"
+                else os.path.join("local_env", "bin", "python")
+            )
+
+            # Split dependencies (string like "numpy pandas openpyxl xlrd pyarrow")
+            deps = LOCAL_ENV_DEPENDENCIES.split()
+
+            # Upgrade pip
+            subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip", "--quiet"], check=True)
+
+            # Install dependencies
+            subprocess.run([venv_python, "-m", "pip", "install", *deps, "--quiet"], check=True)
+            # subprocess.run([f"source ./local_env/bin/activate; python -m pip install --upgrade pip --quiet; pip install {LOCAL_ENV_DEPENDENCIES} --quiet"], shell=True)
         else:
             print(f'configuring vnenv with requirements.txt: {task.requirements_file}')
             subprocess.run([f"source ./local_env/bin/activate; python -m pip install --upgrade pip --quiet; pip install -r {task.requirements_file} --quiet; pip install {LOCAL_ENV_DEPENDENCIES} --quiet"], shell=True)

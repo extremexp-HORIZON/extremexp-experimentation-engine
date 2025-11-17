@@ -17,4 +17,4 @@ resultMap.put(metric_name, int(demo_param) + increment)
 # print("dataset")
 # print(dataset)
 
-ph.save_dataset(variables, resultMap, "DemoWP5Task1OutputFile", dataset)
+ph.save_dataset(variables, resultMap, "DemoWP5Task1OutputFile", dataset.to_csv(index=False))
