@@ -40,7 +40,7 @@ except ImportError:
 def create_kfp_client():
     """Create and return Kubeflow Pipelines client"""
 
-    print("Creating Kubeflow Pipelines client...")
+    logger.info("Creating Kubeflow Pipelines client...")
 
     # Use configuration to connect to KFP
     if hasattr(CONFIG, "KUBEFLOW_URL"):
@@ -50,7 +50,7 @@ def create_kfp_client():
 
     try:
         client = kfp.Client(host=endpoint)
-        print(f"Connected to Kubeflow Pipelines at: {endpoint}")
+        logger.info(f"Connected to Kubeflow Pipelines at: {endpoint}")
         return client
     except Exception as e:
         logger.error(f"Failed to connect to Kubeflow Pipelines: {e}")
@@ -59,7 +59,7 @@ def create_kfp_client():
 
 def _create_kubeflow_component(task):
     """Create a Kubeflow component from a task"""
-    print(f"Creating Kubeflow component for task {task.name}...")
+    logger.info(f"Creating Kubeflow component for task {task.name}...")
     # Base image for the component
     if task.python_version:
         base_image = f"python:{task.python_version}"
@@ -71,14 +71,9 @@ def _create_kubeflow_component(task):
     if task.requirements_file:
         requirements.extend(_get_requirements_from_file(task.requirements_file))
     else:
-        print(
+        logger.info(
             "No requirements file specified for this task. Continuing without additional requirements."
         )
-    print("requirements", requirements)
-    # Always add minio SDK if input datasets are provided
-    # This will be available for tasks that need to read from S3
-    # if "minio" not in [req.split("==")[0].lower() for req in requirements]:
-    #     requirements.append("minio")
 
     # Create the component function
     @component(
@@ -204,7 +199,7 @@ def _create_exit_handler_component():
                 content_type='application/json'
             )
 
-            print(f"✓ Final output saved to: s3://{bucket_name}/{object_name}")
+            print(f"Final output saved to: s3://{bucket_name}/{object_name}")
 
         except Exception as e:
             raise RuntimeError(f"ERROR saving to MinIO: {e}")
@@ -214,7 +209,7 @@ def _create_exit_handler_component():
 
 def _convert_workflow_to_pipeline(workflow, exp_engine_runtime_config, secrets: dict, results_so_far):
     """Convert a workflow to a Kubeflow pipeline"""
-    print(f"Converting workflow {workflow.name} to Kubeflow pipeline...")
+    logger.info(f"Converting workflow {workflow.name} to Kubeflow pipeline...")
 
     # Create components for each task and store task codes
     task_components = {}
@@ -336,7 +331,7 @@ def _convert_workflow_to_pipeline(workflow, exp_engine_runtime_config, secrets: 
 
 def _submit_pipeline_and_monitor(exp_id, wf_id, client, pipeline_func, task_statuses):
     """Submit pipeline and monitor execution"""
-    print("Compiling and submitting pipeline...")
+    logger.info("Compiling and submitting pipeline...")
 
     # Submit pipeline run
     experiment_name = exp_id
@@ -358,7 +353,7 @@ def _submit_pipeline_and_monitor(exp_id, wf_id, client, pipeline_func, task_stat
         )
 
         run_id = run.run_id
-        print(f"Pipeline run submitted with ID: {run_id}")
+        logger.info(f"Pipeline run submitted with ID: {run_id}")
 
         # Update workflow metadata
         DATA_CLIENT.update_workflow(wf_id, {"metadata": {"kubeflow_run_id": run_id}})
@@ -375,40 +370,66 @@ def _submit_pipeline_and_monitor(exp_id, wf_id, client, pipeline_func, task_stat
         logger.error(f"Failed to submit or monitor pipeline: {e}")
         raise
 
+def _update_workflow_task_statuses(wf_id, task_statuses):
+    """Update workflow task statuses in the data abstraction layer"""
+    wf = DATA_CLIENT.get_workflow(wf_id)
+    if not wf:
+        return
+    new_tasks = []
+    for task in wf.get("tasks", []):
+        task_name = task["name"]
+        status_update = next((ts for ts in task_statuses if ts["name"] == task_name), {})
+        if status_update.get("start") is not None:
+            task["start"] = status_update.get("start")
+        if status_update.get("end") is not None:
+            task["end"] = status_update.get("end")
+        new_tasks.append(task)
+    DATA_CLIENT.update_workflow(wf_id, {"tasks": new_tasks})
+
 
 def _monitor_pipeline_run(wf_id, client, run_id, task_statuses):
     """Monitor pipeline run and update task statuses"""
-    print(f"Monitoring pipeline run {run_id}...")
+    import copy
 
+    logger.info(f"Monitoring pipeline run {run_id}...")
+    default_timestamp = "0001-01-01T00:00:00+00:00"
     is_finished = False
+    current_task_statuses = copy.deepcopy(task_statuses)
     while not is_finished:
         try:
-            run_details = client.get_run(run_id)
-
-            # Handle different KFP API versions
-            if hasattr(run_details, "run"):
-                run_status = run_details.run.status
-            elif hasattr(run_details, "status"):
-                run_status = run_details.status
-            elif hasattr(run_details, "state"):
-                run_status = run_details.state
-            else:
-                # Fallback - check attributes
-                print(f"Run details type: {type(run_details)}")
-                print(f"Run details attributes: {dir(run_details)}")
-                run_status = "UNKNOWN"
-
-            print(f"Pipeline status: {run_status}")
-
+            run_info = client.get_run(run_id)
+            run_state = run_info.state
+            if hasattr(run_info.run_details, "task_details") and run_info.run_details.task_details:
+                task_details = run_info.run_details.task_details
+                task_metadata = [x for x in task_details if str(x.display_name).startswith("task-component") and not str(x.display_name).endswith("driver")]
+                for index in range(1, len(task_statuses) + 1):
+                    if index == 1:
+                        task_statuses[index - 1].update({
+                            "start": next((x.start_time.isoformat() if x.start_time.isoformat() != default_timestamp else None 
+                                           for x in task_metadata if str(index) not in x.display_name), None),
+                            "end": next((x.end_time.isoformat() if x.end_time.isoformat() != default_timestamp else None 
+                                         for x in task_metadata if str(index) not in x.display_name), None),
+                        })
+                    else:
+                        task_statuses[index - 1].update({
+                            "start": next((x.start_time.isoformat() if x.start_time.isoformat() != default_timestamp else None 
+                                           for x in task_metadata if str(index) in x.display_name), None),
+                            "end": next((x.end_time.isoformat() if x.end_time.isoformat() != default_timestamp else None 
+                                         for x in task_metadata if str(index) in x.display_name), None),
+                        })
+            if current_task_statuses != task_statuses:
+                _update_workflow_task_statuses(wf_id, task_statuses)
+                current_task_statuses = copy.deepcopy(task_statuses)
+            logger.info(f"Current run state: {run_state}")
             # Update workflow status
-            if run_status in [
+            if run_state in [
                 "SUCCEEDED",
                 "FAILED",
                 "CANCELLED",
                 "SKIPPED",
                 "COMPLETED",
             ]:
-                DATA_CLIENT.update_workflow(wf_id, {"status": "COMPLETED" if run_status == "SUCCEEDED" else run_status})
+                DATA_CLIENT.update_workflow(wf_id, {"status": "COMPLETED" if run_state == "SUCCEEDED" else run_state})
                 is_finished = True
 
             time.sleep(5)  # Poll every 5 seconds
@@ -466,14 +487,14 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
     }
 
     # Create task status tracking
-    task_statuses = [{"name": task.name, "status": "Pending"} for task in w.tasks]
+    task_statuses = [{"name": task.name, "start": None, "end": None} for task in w.tasks]
 
     # Convert workflow to pipeline
     pipeline_func = _convert_workflow_to_pipeline(
         w, exp_engine_runtime_config, secrets, results_so_far,
     )
-    print("Pipeline function created successfully.")
-    print("****************************")
+    logger.info("Pipeline function created successfully.")
+    logger.info("****************************")
 
     # # Submit and monitor pipeline
     try:
@@ -487,15 +508,15 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
 
         # Retrieve final workflow output from MinIO if workflow succeeded
         if final_status in ["SUCCEEDED", "COMPLETED"]:
-            print("Retrieving final workflow output from MinIO...")
+            logger.info("Retrieving final workflow output from MinIO...")
             experiment_result_map = _fetch_result_map_from_last_exit_handler(wf_id, CONFIG, logger)
 
-        print("****************************")
-        print(f"Finished executing workflow {w.name}")
-        print(f"Kubeflow Run ID: {run_id}")
-        print(f"Final Status: {final_status}")
-        print(f"Experiment Result Map: {experiment_result_map}")
-        print("****************************")
+        logger.info("****************************")
+        logger.info(f"Finished executing workflow {w.name}")
+        logger.info(f"Kubeflow Run ID: {run_id}")
+        logger.info(f"Final Status: {final_status}")
+        logger.info(f"Experiment Result Map: {experiment_result_map}")
+        logger.info("****************************")
 
         return experiment_result_map
 
