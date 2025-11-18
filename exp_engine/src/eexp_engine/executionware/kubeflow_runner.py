@@ -3,11 +3,9 @@ import logging
 import time
 from ..data_abstraction_layer.data_abstraction_api import DataAbstractionClient
 from .kubeflow_utils import (
-    _upload_with_minio_client,
+    _fetch_result_map_from_last_exit_handler,
     _get_requirements_from_file,
     _get_task_dependencies,
-    _has_local_input_files,
-    _get_local_input_files_paths,
     _create_execution_engine_mapping,
     _create_exp_engine_metadata,
     _create_dataset_config,
@@ -84,7 +82,7 @@ def _create_kubeflow_component(task):
 
     # Create the component function
     @component(
-        base_image=base_image, packages_to_install=["fsspec", "s3fs", "requests"] + requirements,
+        base_image=base_image, packages_to_install=["fsspec", "s3fs", "requests", "minio"] + requirements,
     )
     def task_component(
         task_name: str,
@@ -150,6 +148,70 @@ def _create_kubeflow_component(task):
     return task_component
 
 
+def _create_exit_handler_component():
+    """Create an exit handler component to collect and persist final workflow output"""
+
+    @component(
+        base_image="python:3.9",
+        packages_to_install=["minio", "requests"]
+    )
+    def exit_handler(
+        final_resultMap: dict,
+        workflow_id: str,
+    ):
+        """Exit handler that saves final workflow output to MinIO"""
+        import json
+        import os
+        from minio import Minio
+        from io import BytesIO
+
+        # Get MinIO configuration from environment
+        minio_endpoint = "minio-service.kubeflow:9000"
+        minio_access_key = os.environ.get("KUBEFLOW_MINIO_USERNAME")
+        minio_secret_key = os.environ.get("KUBEFLOW_MINIO_PASSWORD")
+
+        if not all([minio_endpoint, minio_access_key, minio_secret_key]):
+            raise ValueError(
+                "MinIO credentials not found in environment. "
+                "Required: MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY"
+            )
+
+        try:
+            # Initialize MinIO client
+            client = Minio(
+                minio_endpoint,
+                access_key=minio_access_key,
+                secret_key=minio_secret_key,
+                secure=False  # Set to True if using HTTPS
+            )
+
+            # Define storage location
+            bucket_name = "workflow-outputs"
+            object_name = f"{workflow_id}/final_output.json"
+
+            # Create bucket if it doesn't exist
+            if not client.bucket_exists(bucket_name):
+                client.make_bucket(bucket_name)
+                print(f"Created bucket: {bucket_name}")
+
+            # Upload the resultMap as JSON
+            result_bytes = json.dumps(final_resultMap, default=str).encode('utf-8')
+            client.put_object(
+                bucket_name=bucket_name,
+                object_name=object_name,
+                data=BytesIO(result_bytes),
+                length=len(result_bytes),
+                content_type='application/json'
+            )
+
+            print(f"✓ Final output saved to: s3://{bucket_name}/{object_name}")
+
+        except Exception as e:
+            raise RuntimeError(f"ERROR saving to MinIO: {e}")
+
+    return exit_handler
+
+
 def _convert_workflow_to_pipeline(workflow, exp_engine_runtime_config, secrets: dict, results_so_far):
     """Convert a workflow to a Kubeflow pipeline"""
     print(f"Converting workflow {workflow.name} to Kubeflow pipeline...")
@@ -159,7 +221,7 @@ def _convert_workflow_to_pipeline(workflow, exp_engine_runtime_config, secrets: 
     task_codes = {}
     task_dependencies = {}
     sorted_tasks = sorted(workflow.tasks, key=lambda t: t.order)
-    exp_engine_runtime_config = _create_execution_engine_mapping(sorted_tasks, exp_engine_runtime_config)
+    exp_engine_runtime_config = _create_execution_engine_mapping(sorted_tasks, exp_engine_runtime_config, secrets)
     for task in sorted_tasks:
 
         # Store task code
@@ -173,12 +235,18 @@ def _convert_workflow_to_pipeline(workflow, exp_engine_runtime_config, secrets: 
         component_func = _create_kubeflow_component(task)
         task_components[task.name] = component_func
 
+    # Create the exit handler component
+    exit_handler_func = _create_exit_handler_component()
+
     @pipeline(
         name=workflow.name.lower().replace(" ", "-"),
         description=f"Generated pipeline for workflow {workflow.name}",
     )
     def workflow_pipeline():
-        """The main pipeline function"""
+        """The main pipeline function with exit handler"""
+        # Get workflow ID for exit handler
+        wf_id = exp_engine_runtime_config["exp_engine_metadata"]["wf_id"]
+
         task_outputs = {}
         variables = exp_engine_runtime_config
         resultMap = {}
@@ -250,9 +318,18 @@ def _convert_workflow_to_pipeline(workflow, exp_engine_runtime_config, secrets: 
         # Get the last task from sorted list
         last_task = sorted_tasks[-1]
 
-        # Delete the PVC after the last task completes
+        # Create exit handler task that receives the final output
+        exit_task = exit_handler_func(
+            final_resultMap=task_outputs[last_task.name].output,
+            workflow_id=wf_id
+        )
+        exit_task.set_display_name("save-final-output")
+        exit_task = _pass_environment_variables_to_task(exit_task, secrets)
+        exit_task.after(task_outputs[last_task.name])
+
+        # Delete the PVC after the exit handler completes
         delete_shared = kubernetes.DeletePVC(pvc_name=create_shared.outputs["name"])
-        delete_shared.after(task_outputs[last_task.name])
+        delete_shared.after(exit_task)
 
     return workflow_pipeline
 
@@ -331,7 +408,7 @@ def _monitor_pipeline_run(wf_id, client, run_id, task_statuses):
                 "SKIPPED",
                 "COMPLETED",
             ]:
-                DATA_CLIENT.update_workflow(wf_id, {"status": run_status})
+                DATA_CLIENT.update_workflow(wf_id, {"status": "COMPLETED" if run_status == "SUCCEEDED" else run_status})
                 is_finished = True
 
             time.sleep(5)  # Poll every 5 seconds
@@ -346,16 +423,16 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
     Main execution function for Kubeflow
 
     Args:
-        w: Workflow object to execute
-        exp_id: Experiment ID
-        exp_name: Experiment name
-        wf_id: Workflow ID
-        runner_folder: Runner folder path
-        config: Configuration object
-        results_so_far: Previous results
+        w = Workflow object to execute
+        exp_id = Experiment ID
+        exp_name = Experiment name
+        wf_id = Workflow ID
+        runner_folder = Runner folder path
+        config = Configuration object
+        results_so_far = Previous results
 
     Returns:
-        Dictionary with execution results
+        Experiment result map
     """
     global RUNNER_FOLDER, CONFIG, EXECUTION_ENGINE_RUNTIME_CONFIG, KFP_CLIENT, DATA_CLIENT
     if not KFP_AVAILABLE:
@@ -385,7 +462,6 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
     secrets = _create_dataset_config(CONFIG)
 
     exp_engine_runtime_config = {
-        # "mapping": mapping,
         "exp_engine_metadata": exp_engine_metadata,
     }
 
@@ -405,25 +481,23 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
             exp_id, wf_id, KFP_CLIENT, pipeline_func, task_statuses
         )
 
-        # Extract results (handle different KFP API versions)
-        if hasattr(run_details, "run"):
-            final_status = run_details.run.status
-        elif hasattr(run_details, "status"):
-            final_status = run_details.status
-        elif hasattr(run_details, "state"):
-            final_status = run_details.state
-        else:
-            final_status = "COMPLETED"
+        # Get final status
+        final_status = run_details.state
+        experiment_result_map = {}
 
-        result_map = {"run_id": run_id, "status": final_status}
+        # Retrieve final workflow output from MinIO if workflow succeeded
+        if final_status in ["SUCCEEDED", "COMPLETED"]:
+            print("Retrieving final workflow output from MinIO...")
+            experiment_result_map = _fetch_result_map_from_last_exit_handler(wf_id, CONFIG, logger)
 
         print("****************************")
         print(f"Finished executing workflow {w.name}")
         print(f"Kubeflow Run ID: {run_id}")
         print(f"Final Status: {final_status}")
+        print(f"Experiment Result Map: {experiment_result_map}")
         print("****************************")
 
-        return result_map
+        return experiment_result_map
 
     except Exception as e:
         logger.error(f"Pipeline execution failed: {e}")

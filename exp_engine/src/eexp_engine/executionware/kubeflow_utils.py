@@ -9,9 +9,9 @@ KUBEFLOW_HELPER_FULL_PATH = os.path.join(packagedir, "kubeflow_helper.py")
 def _upload_with_minio_client(
     local_file_path: str,
     workflow_name: str,
-    minio_endpoint: str = "localhost:9000",
-    minio_access_key: str = "minio",
-    minio_secret_key: str = "minio123",
+    minio_endpoint: str,
+    minio_access_key: str,
+    minio_secret_key: str,
 ) -> list[str]:
     """
     Upload multiple local files to MinIO and return array of uploaded file paths (S3 URIs).
@@ -21,6 +21,10 @@ def _upload_with_minio_client(
     import os
 
     uploaded_path = ""
+    if not all([minio_endpoint, minio_access_key, minio_secret_key]):
+        raise ValueError(
+            "MinIO configuration is incomplete. Please provide minio endpoint, access key, and secret key in the configuration file."
+        )
 
     try:
         # Create MinIO client
@@ -91,10 +95,9 @@ def _pass_environment_variables_to_task(task_op, secrets: dict):
     return task_op
 
 
-def _create_execution_engine_mapping(tasks, exp_engine_runtime_config):
+def _create_execution_engine_mapping(tasks, exp_engine_runtime_config, secrets: dict):
     """Create mapping for execution engine"""
     mapping = {}
-
     # Mapping of output variable names to their generating tasks
     output_to_task = {}
     for t in tasks:
@@ -119,6 +122,9 @@ def _create_execution_engine_mapping(tasks, exp_engine_runtime_config):
                     workflow_name=exp_engine_runtime_config.get(
                         "exp_engine_metadata"
                     ).get("exp_id", "experiment-inputs"),
+                    minio_endpoint=secrets.get("KUBEFLOW_MINIO_ENDPOINT"),
+                    minio_access_key=secrets.get("KUBEFLOW_MINIO_USERNAME"),
+                    minio_secret_key=secrets.get("KUBEFLOW_MINIO_PASSWORD"),
                 )
                 mapping[t.name]["inputs"][ds.name_in_task_signature] = {
                     "file_name": ds.name,
@@ -127,7 +133,7 @@ def _create_execution_engine_mapping(tasks, exp_engine_runtime_config):
                 }
             # DDM case
             elif ds.filename and ds.project:
-                uploaded_path = f"{ds.project}/{ds.filename if ds.filename else ''}"
+                uploaded_path = f"{ds.project}|{ds.filename if ds.filename else ''}"
                 mapping[t.name]["inputs"][ds.name_in_task_signature] = {
                     "file_name": ds.name,
                     "file_type": "external",
@@ -158,7 +164,7 @@ def _create_execution_engine_mapping(tasks, exp_engine_runtime_config):
                 mapping[t.name]["outputs"][ds.name_in_task_signature] = {
                     "file_name": ds.name,
                     "file_type": "external",
-                    "file_path": f"{ds.project}/{ds.filename if ds.filename else ''}",
+                    "file_path": f"{ds.project}|{ds.filename if ds.filename else ''}",
                 }
             # INTERMEDIATE FILE case
             else:
@@ -197,6 +203,9 @@ def _create_dataset_config(config):
     dataset_config["DATA_ABSTRACTION_ACCESS_TOKEN"] = getattr(
         config, "DATA_ABSTRACTION_ACCESS_TOKEN", None
     )
+    dataset_config["KUBEFLOW_MINIO_ENDPOINT"] = getattr(
+        config, "KUBEFLOW_MINIO_ENDPOINT", None
+    )
     dataset_config["KUBEFLOW_MINIO_USERNAME"] = getattr(
         config, "KUBEFLOW_MINIO_USERNAME", None
     )
@@ -216,35 +225,6 @@ def _get_requirements_from_file(reqs_file):
     with open(reqs_file) as file:
         user_reqs = [line.rstrip() for line in file]
     return user_reqs
-
-
-def _has_local_input_files(task):
-    """Check if a task has input files that need to be read from local filesystem"""
-    if not hasattr(task, "input_files"):
-        return False
-
-    for input_file in task.input_files:
-        # Check if this is a local file (not from another task's output)
-        if not input_file.name_in_generating_task:
-            # This is a local input file - use 'path' instead of 'local_path'
-            if input_file.path and not input_file.filename and not input_file.project:
-                print(f"  -> Found local input file: {input_file.path}")
-                return True
-
-    return False
-
-
-def _get_local_input_files_paths(task):
-    """Get the local input file paths for a task"""
-    if not hasattr(task, "input_files"):
-        return []
-
-    local_paths = []
-    for input_file in task.input_files:
-        if input_file.path and not input_file.filename and not input_file.project:
-            local_paths.append(input_file.path)
-
-    return local_paths
 
 
 def _get_task_dependencies(task):
@@ -315,3 +295,61 @@ def _get_task_dependencies(task):
                     logger.warning(f"Could not read file {dep}: {e}")
 
     return dependencies
+
+def _fetch_result_map_from_last_exit_handler(wf_id: str, config: dict, logger: logging.Logger) -> dict:
+    try:
+        from minio import Minio
+        import json
+
+        # Get MinIO configuration
+        minio_endpoint =   config.KUBEFLOW_MINIO_ENDPOINT
+        minio_access_key = config.KUBEFLOW_MINIO_USERNAME
+        minio_secret_key = config.KUBEFLOW_MINIO_PASSWORD
+        downloaded_files = []
+
+        if all([minio_endpoint, minio_access_key, minio_secret_key]):
+            # Initialize MinIO client
+            minio_client = Minio(
+                minio_endpoint,
+                access_key=minio_access_key,
+                secret_key=minio_secret_key,
+                secure=False  # Set to True if using HTTPS
+            )
+
+            objects = minio_client.list_objects("workflow-outputs", prefix=wf_id, recursive=True)
+            # Download and Save locally each object except final_output.json
+            for obj in objects:
+                if obj.object_name != f"final_output.json":
+                    try:
+                        # Get object metadata
+                        stat = minio_client.stat_object("workflow-outputs", obj.object_name)
+                        logger.info(f"Stat metadata for object {obj.object_name}: {stat}")
+                        metadata = stat.metadata
+
+                        # Get the save path from metadata
+                        save_path = metadata.get('X-Amz-Meta-Save-Path')
+
+                        if not save_path:
+                            logger.warning(f"Object {obj.object_name} has no 'X-Amz-Meta-Save-Path' metadata, skipping")
+                            continue
+
+                        # Create directory if it doesn't exist
+                        save_dir = os.path.dirname(save_path)
+                        if save_dir:
+                            os.makedirs(save_dir, exist_ok=True)
+
+                        # Download the file
+                        minio_client.fget_object("workflow-outputs", obj.object_name, save_path)
+                        logger.info(f"Downloaded {obj.object_name} to {save_path}")
+
+                    except Exception as e:
+                        logger.error(f"Error downloading {obj.object_name}: {e}")
+                        continue
+            
+            result_map = minio_client.get_object("workflow-outputs", f"{wf_id}/final_output.json")
+            return json.loads(result_map.read().decode('utf-8'))
+
+    except Exception as e:
+        logger.warning(f"Could not retrieve final output from MinIO: {e}")
+        logger.warning("Workflow completed successfully but final output could not be retrieved.")
+

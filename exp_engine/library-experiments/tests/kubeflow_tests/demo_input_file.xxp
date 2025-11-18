@@ -12,16 +12,17 @@ workflow DemoWorkflow {
 
     define input data InputFile;
     configure data InputFile {
-        path "demo_datasets/titanic.csv";
+        name "titanic.csv";
+        project "test_kubeflow";
     }
     
     define output data OutputFile;
     configure data OutputFile {
-        path "demo_datasets/titanic.csv";
+        name "titanic_once_more.csv";
     }
 
     InputFile --> Task1.task1inputfile;
-    Task1.output1 --> OutputFile;
+    Task1.output2 --> OutputFile;
     Task1.output1 --> Task2.input2;
 
 }
@@ -43,4 +44,5 @@ experiment DemoWP5Experiment {
             param demo_param = demo_param_value;
         }
     }
+
 }

@@ -1,10 +1,13 @@
 from io import BytesIO
+import logging
 import os
 import sys
 import pickle
+from typing import List
 import requests
 import json
 import fsspec
+from minio import Minio
 
 METRICS_FILES_KEY = "file"
 OUTPUT_FILE = "output"
@@ -19,7 +22,10 @@ try:
     DATA_ABSTRACTION_ACCESS_TOKEN = os.getenv("DATA_ABSTRACTION_ACCESS_TOKEN")
     MINIO_USERNAME = os.getenv("KUBEFLOW_MINIO_USERNAME")
     MINIO_PASSWORD = os.getenv("KUBEFLOW_MINIO_PASSWORD")
-    MINIO_ENDPOINT = os.getenv("KUBEFLOW_MINIO_ENDPOINT", "http://minio-service.kubeflow:9000")
+    # MinIO endpoint without protocol (for minio.Minio client)
+    MINIO_ENDPOINT = "minio-service.kubeflow:9000"
+    # MinIO endpoint with protocol (for fsspec/s3fs client)
+    MINIO_ENDPOINT_URL = "http://minio-service.kubeflow:9000"
     AUTH_HEADERS = {"Authorization": DDM_TOKEN}
 except Exception as e:
     print(f"Error loading configuration: {e}")
@@ -88,15 +94,44 @@ def save_dataset_local(variables: dict, resultMap: dict, key: str, value: BytesI
 
     workflow_id = variables.get("exp_engine_metadata").get("wf_id")
     task_id = variables.get("task_name")
+    task_outputs = variables.get("mapping", {}).get(task_id, {}).get("outputs", {})
+    output_file_path = ""
 
-    task_folder = os.path.join("/shared", workflow_id, task_id)
-    os.makedirs(task_folder, exist_ok=True)
-    output_file_path = os.path.join(task_folder, key)
+    # Check if key is in outputs
+    if key not in task_outputs:
+        raise Exception(f"Output key '{key}' not defined in task outputs mapping.")
+    
+    file_type = task_outputs[key].get("file_type", "intermediate")
 
-    with open(output_file_path, "wb") as outfile:
-        pickle.dump(value, outfile)
+    if file_type == "intermediate":
+        task_folder = os.path.join("/shared", workflow_id, task_id)
+        os.makedirs(task_folder, exist_ok=True)
+        output_file_path = os.path.join(task_folder, key)
 
-    print(f"Saved output data to {output_file_path}")
+        with open(output_file_path, "wb") as outfile:
+            pickle.dump(value, outfile)
+
+        print(f"Saved output data to {output_file_path}")
+
+    else:
+        file_path = task_outputs[key].get("file_path", "")
+        client = Minio(
+                    MINIO_ENDPOINT,
+                    access_key=MINIO_USERNAME,
+                    secret_key=MINIO_PASSWORD,
+                    secure=False
+                )
+        # Local external save file handling
+        client.put_object(
+            bucket_name="workflow-outputs",
+            object_name=f"{workflow_id}/{key}",
+            data=value,
+            length=len(value.getvalue()),
+            metadata={"save-path": file_path}
+        )
+        output_file_path = f"s3://workflow-outputs/{workflow_id}/{key}"
+        print(f"Saved output data to s3://workflow-outputs/{workflow_id}/{key}")
+
 
     if resultMap is not None:
         print(f"Adding file {output_file_path} path for file {key} to job results")
@@ -144,31 +179,36 @@ def load_dataset_local(variables: dict, key: str):
 ########## DDM DATASET MANAGEMENT #############
 
 
-def load_datasets_ddm(variables: dict, key: str, resultMap: dict):
+def load_datasets_ddm(variables: dict, key: str, resultMap: dict) -> List[BytesIO]:
     execution_engine_mapping = variables.get("mapping", {})
     exp_engine_metadata = variables.get("exp_engine_metadata", {})
     file_url_template = f"{DDM_URL}/ddm/file/{{}}"
     current_task_name = variables.get("task_name")
+    task_inputs = execution_engine_mapping.get(current_task_name, {}).get("inputs", {})
 
-    if key in variables:
-        file_type = FILE_TYPE_EXTERNAL
-        ddm_value = variables.get(key)
-        ddm_value_parts = ddm_value.split("|")
-        fname = ddm_value_parts[0]
-        project_id = ddm_value_parts[1]
+    if key in task_inputs:
+        if task_inputs[key].get("file_type") == "external":
+            file_type = FILE_TYPE_EXTERNAL
+            ddm_value = task_inputs[key].get("file_path")
+            ddm_value_parts = ddm_value.split("|")
+            project_id = ddm_value_parts[0]
+            fname = ddm_value_parts[1]
+        else:
+            file_type = FILE_TYPE_INTERMEDIATE
+            fname = key
+            source_task_name = task_inputs[key].get("source_task")
+            fname = task_inputs[key].get("file_name")
+            project_id_prefix = os.path.join(
+                exp_engine_metadata["exp_name"],
+                exp_engine_metadata["exp_id"],
+                exp_engine_metadata["wf_id"],
+            )
+            # For intermediate files, look in the OUTPUT_FILE of the source task
+            # This mirrors the save_datasets_ddm pattern
+            project_id = os.path.join(project_id_prefix, OUTPUT_FILE, source_task_name) if source_task_name else os.path.join(project_id_prefix, INPUT_FILE, current_task_name)
     else:
-        file_type = FILE_TYPE_INTERMEDIATE
-        fname = key
-        if current_task_name in execution_engine_mapping:
-            if fname in execution_engine_mapping[current_task_name]:
-                fname = execution_engine_mapping[current_task_name][fname]
-        task_id = variables.get("PREVIOUS_TASK_ID")
-        project_id_prefix = os.path.join(
-            exp_engine_metadata["exp_name"],
-            exp_engine_metadata["exp_id"],
-            exp_engine_metadata["wf_id"],
-        )
-        project_id = os.path.join(project_id_prefix, OUTPUT_FILE, task_id)
+        raise Exception(f"Input key '{key}' not found in task inputs.")
+    
     results = _look_up_file_in_catalog(fname, project_id)
 
     contents = []
@@ -184,41 +224,48 @@ def load_datasets_ddm(variables: dict, key: str, resultMap: dict):
         )
         result_value.append(file_metadata)
         f_response.raise_for_status()
-        contents.append(f_response.content)
+        contents.append(BytesIO(f_response.content))
     resultMap[result_key] = json.dumps(result_value)
     return contents
 
 
 def save_datasets_ddm(
-    variables: dict, resultMap: dict, key: str, values, file_names: list[str] = None
+    variables: dict, resultMap: dict, key: str, values: List[bytes], file_names: list[str] = None
 ):
     upload_url = f"{DDM_URL}/ddm/files/upload"
     file_url_template = f"{DDM_URL}/ddm/file/{{}}"
+    execution_engine_mapping = variables.get("mapping", {})
     current_task_name = variables.get("task_name")
-    variables.put("PREVIOUS_TASK_ID", str(current_task_name))
     exp_engine_metadata = variables.get("exp_engine_metadata", {})
+    task_outputs = execution_engine_mapping.get(current_task_name, {}).get("outputs", {})
 
     project_id_prefix = os.path.join(
         exp_engine_metadata["exp_name"],
         exp_engine_metadata["exp_id"],
         exp_engine_metadata["wf_id"],
     )
-    if key in variables:
-        file_type = FILE_TYPE_EXTERNAL
-        ddm_value = variables.get(key)
-        ddm_value_parts = ddm_value.split("|")
-        output_file_name = ddm_value_parts[0]
-        project_name = ddm_value_parts[1]
-        project_id = os.path.join(project_id_prefix, OUTPUT_FILE, current_task_name)
-        if project_name:
-            project_id = os.path.join(project_id, project_name)
+    if key in task_outputs:
+        if task_outputs[key].get("file_type") == "external":
+            file_type = FILE_TYPE_EXTERNAL
+            ddm_value = variables.get(key)
+            ddm_value_parts = ddm_value.split("|")
+            project_name = ddm_value_parts[0]
+            output_file_name = ddm_value_parts[1]
+            project_id = os.path.join(project_id_prefix, OUTPUT_FILE, current_task_name)
+            if project_name:
+                project_id = os.path.join(project_id, project_name)
+        else:
+            file_type = FILE_TYPE_INTERMEDIATE
+            output_file_name = key
+            project_id = os.path.join(project_id_prefix, OUTPUT_FILE, current_task_name)
     else:
-        file_type = FILE_TYPE_INTERMEDIATE
-        output_file_name = key
-        project_id = os.path.join(project_id_prefix, OUTPUT_FILE, current_task_name)
+        raise Exception(f"Output key '{key}' not found in task outputs.")
+    
     provided_output_file_name = output_file_name
     result_value = []
     result_key = f"file:{current_task_name}:{OUTPUT_FILE}:{key}"
+    upload_files = []
+    metadata_files = []
     for i in range(len(values)):
         value = values[i]
         if len(provided_output_file_name) == 0:
@@ -228,16 +275,14 @@ def save_datasets_ddm(
                 output_file_name = f"output_{i}"
         try:
             file_bytes = BytesIO(value)
-            upload_files = []
             upload_files.append(
                 ("files", (output_file_name, file_bytes, "application/octet-stream"))
             )
 
-            metadata_files = []
             file_metadata = {
                 "dataset_signature": key,
                 "task": current_task_name,
-                "assembled_wf": variables["PA_JOB_NAME"],
+                "assembled_wf": exp_engine_metadata["wf_id"],
             }
             metadata_json = json.dumps(file_metadata)
             metadata_bytes = BytesIO(metadata_json.encode("utf-8"))
@@ -260,6 +305,10 @@ def save_datasets_ddm(
         )
         print("Status:", response.status_code)
 
+        #Check if response is empty
+        if not response.content:
+            raise Exception("Empty response from DDM upload API")
+
         generated_file_id = response.json()["files"][0]["id"]
         file_url = file_url_template.format(generated_file_id)
         file_metadata = _return_file_metadata(
@@ -277,7 +326,7 @@ def save_datasets_ddm(
 ########## HELPER FUNCTIONS #############
 
 
-def open_minio_file(s3_path: str):
+def open_minio_file(s3_path: str) -> BytesIO:
     """
     Open a file from MinIO using fsspec and return a file-like object.
     User can read bytes by calling .read() on the returned object.
@@ -307,7 +356,7 @@ def open_minio_file(s3_path: str):
             key=MINIO_USERNAME,
             secret=MINIO_PASSWORD,
             client_kwargs={
-                'endpoint_url': MINIO_ENDPOINT,
+                'endpoint_url': MINIO_ENDPOINT_URL,
                 'use_ssl': False
             }
         )
