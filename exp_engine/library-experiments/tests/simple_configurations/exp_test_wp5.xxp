@@ -1,0 +1,25 @@
+import "simple_configurations/workflow_test_wp5.xxp";
+
+experiment DemoWP5Experiment {
+
+    control {
+          START -> S1 -> S2 -> END;
+    }
+
+    space S1 of DemoWP5AssembledWorkflow1 {
+        strategy gridsearch;
+        param_values demo_param_value = range(4, 6);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+
+    space S2 of DemoWP5AssembledWorkflow2 {
+        strategy randomsearch;
+        runs = 1;
+        param_values demo_param_value = enum(6);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+}

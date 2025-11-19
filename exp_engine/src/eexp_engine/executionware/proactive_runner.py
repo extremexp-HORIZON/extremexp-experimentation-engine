@@ -16,33 +16,51 @@ PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
 
 
 def create_gateway_and_connect_to_it(config):
-    print("Logging on proactive-server...")
+    import time
+    logger = logging.getLogger(__name__)
+    logger.info("Logging on proactive-server...")
     proactive_url  = config.PROACTIVE_URL
     proactive_username = config.PROACTIVE_USERNAME
     proactive_password = config.PROACTIVE_PASSWORD
-    print("Creating gateway ")
+    logger.info("Creating gateway ")
     gateway = proactive.ProActiveGateway(proactive_url, debug=False)
-    print("Gateway created")
+    logger.info("Gateway created")
 
-    print("Connecting on: " + proactive_url)
-    gateway.connect(username=proactive_username, password=proactive_password)
-    assert gateway.isConnected() is True
-    print("Connected")
-    return gateway
+    max_retries = 3
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            logger.info(f"Connecting to {proactive_url} (attempt {attempt}/{max_retries})...")
+            gateway.connect(username=proactive_username, password=proactive_password)
+
+            if gateway.isConnected():
+                logger.info("Connected successfully")
+                return gateway
+            else:
+                logger.warning(f"Connection attempt {attempt} failed: not connected")
+        except Exception as e:
+            logger.error(f"Connection attempt {attempt} failed: {e}")
+
+        if attempt < max_retries:
+            logger.info(f"Retrying in 2 seconds...")
+            time.sleep(2)
+
+    logger.error(f"Failed to connect after {max_retries} attempts")
+    raise ConnectionError(f"Could not connect to ProActive server at {proactive_url} after {max_retries} attempts")
 
 
-def _create_job(gateway, workflow_name):
+def _create_job(gateway, workflow_name, config):
     print("Creating a proactive job...")
-    gateway = reconnect_if_needed(gateway)
+    gateway = reconnect_if_needed(gateway, config)
     proactive_job = gateway.createJob()
     proactive_job.setJobName(workflow_name)
     print("Job created.")
     return proactive_job
 
 
-def _create_fork_env(gateway, proactive_job):
+def _create_fork_env(gateway, proactive_job, config):
     print("Adding a fork environment to the import task...")
-    gateway = reconnect_if_needed(gateway)
+    gateway = reconnect_if_needed(gateway, config)
     proactive_fork_env = gateway.createForkEnvironment(language="groovy")
 
     groovy_env_path = os.path.join(PROACTIVE_FORK_SCRIPTS_PATH, "fork_env.groovy")
@@ -94,7 +112,7 @@ def _create_python_task(gateway, config, data_client, results_so_far, wf_id, tas
     if dependent_modules is None: dependent_modules = []
     if dependencies is None: dependencies = []
     print(f"Creating task {task_name}...")
-    gateway = reconnect_if_needed(gateway)
+    gateway = reconnect_if_needed(gateway, config)
     task = gateway.createPythonTask()
     task.setTaskName(task_name)
     print(f"Setting implementation from file {task_impl}")
@@ -102,13 +120,13 @@ def _create_python_task(gateway, config, data_client, results_so_far, wf_id, tas
 
     if taskType=="interactive":
         print(f"Setting pre_script for interactive task {task_name}")
-        gateway = reconnect_if_needed(gateway)
+        gateway = reconnect_if_needed(gateway, config)
         pre_script = gateway.createPreScript(proactive.ProactiveScriptLanguage().python())
         pre_script.setImplementationFromFile(INTERACTIVE_TASK_PRESCRIPT_FULL_PATH)
         task.setPreScript(pre_script)
 
         print(f"Setting post_script for interactive task {task_name}")
-        gateway = reconnect_if_needed(gateway)
+        gateway = reconnect_if_needed(gateway, config)
         post_script = gateway.createPostScript(proactive.ProactiveScriptLanguage().python())
         post_script.setImplementationFromFile(INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH)
         task.setPostScript(post_script)
@@ -236,7 +254,7 @@ def _configure_task(task, configurations):
     return task_params_str
 
 
-def _create_flow_script(gateway, condition_task_name, if_task_name, else_task_name, continuation_task_name, condition):
+def _create_flow_script(gateway, config, condition_task_name, if_task_name, else_task_name, continuation_task_name, condition):
     branch_script = """
 if """ + condition + """:
     branch = "if"
@@ -244,7 +262,7 @@ else:
     branch = "else"
     """
     print(f"Creating flow script for condition task {condition_task_name}")
-    gateway = reconnect_if_needed(gateway)
+    gateway = reconnect_if_needed(gateway, config)
     flow_script = gateway.createBranchFlowScript(
         branch_script,
         if_task_name,
@@ -256,11 +274,12 @@ else:
 
 
 def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statuses, data_client, config, runtime_config_path, results_file_path):
-    print("Submitting the job to the scheduler...")
+    logger = logging.getLogger(__name__)
+    logger.info("Submitting the job to the scheduler...")
 
-    gateway = reconnect_if_needed(gateway)
+    gateway = reconnect_if_needed(gateway, config)
     job_id = gateway.submitJobWithInputsAndOutputsPaths(job, debug=False)
-    print("job_id: " + str(job_id))
+    logger.info(f"job_id: {job_id}")
     data_client.update_workflow(wf_id, {"metadata": {"proactive_job_id": str(job_id)}})
 
     if os.path.isfile(runtime_config_path):
@@ -271,33 +290,38 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
     is_finished = False
     seconds = 0
     while not is_finished:
-        gateway = reconnect_if_needed(gateway)
-        job_status = gateway.getJobStatus(job_id)
-        for ts in task_statuses:
-            task_previous_status = ts["status"].upper()
-            task_name = ts["name"]
-            gateway = reconnect_if_needed(gateway)
-            task_current_status = gateway.getTaskStatus(job_id, task_name).upper()
-            ts["status"] = task_current_status
-            wf = data_client.get_workflow(wf_id)
-            this_task = next(t for t in wf["tasks"] if t["name"] == task_name)
-            current_time  = data_client.get_current_time()
-            if (task_previous_status == "PENDING" or task_previous_status == "SUBMITTED") and task_current_status == "RUNNING":
-                this_task["start"] = current_time
-                print(f"Task {task_name} started at {current_time}")
-            if task_previous_status == "RUNNING" and task_current_status in ["FINISHED", "CANCELED", "FAILED"]:
-                this_task["end"] = current_time
-                print(f"Task {task_name} completed at {current_time}")
-            this_task["metadata"]["status"] = task_current_status
-            data_client.update_workflow(wf_id, {"tasks": wf["tasks"]})
+        try:
+            gateway = reconnect_if_needed(gateway, config)
+            job_status = gateway.getJobStatus(job_id)
+            for ts in task_statuses:
+                task_previous_status = ts["status"].upper()
+                task_name = ts["name"]
+                gateway = reconnect_if_needed(gateway, config)
+                task_current_status = gateway.getTaskStatus(job_id, task_name).upper()
+                ts["status"] = task_current_status
+                wf = data_client.get_workflow(wf_id)
+                this_task = next(t for t in wf["tasks"] if t["name"] == task_name)
+                current_time  = data_client.get_current_time()
+                if (task_previous_status == "PENDING" or task_previous_status == "SUBMITTED") and task_current_status == "RUNNING":
+                    this_task["start"] = current_time
+                    logger.info(f"Task {task_name} started at {current_time}")
+                if task_previous_status == "RUNNING" and task_current_status in ["FINISHED", "CANCELED", "FAILED"]:
+                    this_task["end"] = current_time
+                    logger.info(f"Task {task_name} completed at {current_time}")
+                this_task["metadata"]["status"] = task_current_status
+                data_client.update_workflow(wf_id, {"tasks": wf["tasks"]})
 
-        print(f"Current job status: {job_status}: {seconds}")
-        if job_status.upper() in ["FINISHED", "CANCELED", "FAILED", "KILLED"]:
-            data_client.update_workflow(wf_id, {"status": job_status.upper()})
-            is_finished = True
-        else:
-            seconds += 1
-            time.sleep(1)
+            logger.info(f"Current job status: {job_status}: {seconds}")
+            if job_status.upper() in ["FINISHED", "CANCELED", "FAILED", "KILLED"]:
+                data_client.update_workflow(wf_id, {"status": job_status.upper()})
+                is_finished = True
+            else:
+                seconds += 1
+                time.sleep(1)
+        except (ConnectionError, RuntimeError) as e:
+            logger.error(f"Connection error during job monitoring: {e}")
+            data_client.update_workflow(wf_id, {"status": "FAILED"})
+            raise
 
     # print("Getting job results...")
     # job_result = gateway.getJobResult(job_id, 300000)
@@ -309,13 +333,15 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
     # task_result = gateway.getTaskResult(job_id, "TrainModel", 300000)
     # print(task_result)
 
-    print("Getting job result map...")
+    logger.info("Getting job result map...")
+    gateway = reconnect_if_needed(gateway, config)
     result_map = dict(gateway.waitForJob(job_id, 300000).getResultMap())
-    print(result_map)
+    logger.info(result_map)
 
-    print("Getting job outputs...")
+    logger.info("Getting job outputs...")
+    gateway = reconnect_if_needed(gateway, config)
     job_outputs = gateway.printJobOutput(job_id, 300000)
-    print(job_outputs)
+    logger.info(job_outputs)
 
     return job_id, result_map, job_outputs
 
@@ -358,8 +384,8 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
     job_params_str = ""
     try:
         gateway = create_gateway_and_connect_to_it(config)
-        job = _create_job(gateway, w.name)
-        fork_env = _create_fork_env(gateway, job)
+        job = _create_job(gateway, w.name, config)
+        fork_env = _create_fork_env(gateway, job, config)
         mapping = _create_execution_engine_mapping(sorted_tasks)
         exp_engine_metadata = _create_exp_engine_metadata(exp_id, exp_name, wf_id)
 
@@ -394,7 +420,7 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config, results_so_far
                 job_params_str += ", "
             if t.is_condition_task():
                 task_to_execute.setFlowScript(
-                    _create_flow_script(gateway, t.name, t.if_task_name, t.else_task_name, t.continuation_task_name, t.condition)
+                    _create_flow_script(gateway, config, t.name, t.if_task_name, t.else_task_name, t.continuation_task_name, t.condition)
                 )
             job.addTask(task_to_execute)
             task_statuses.append({"name": t.name, "status": "Pending"})

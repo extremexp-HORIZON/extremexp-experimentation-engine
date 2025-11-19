@@ -14,6 +14,7 @@ PYTHON_CONFIGURATIONS = 'exp_engine.library-tasks.experiment_configurations'
 
 # number of workflows that the engine can run in parallel per node at any given moment (if omitted, value is 1)
 MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = 3
+MAX_EXPERIMENTS_IN_PARALLEL = 4
 
 EXECUTIONWARE = "PROACTIVE" # other option: "LOCAL"
 # Proactive details (only needed if EXECUTIONWARE = "PROACTIVE" above)

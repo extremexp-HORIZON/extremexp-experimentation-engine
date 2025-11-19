@@ -11,9 +11,19 @@ import traceback
 
 logger = logging.getLogger(__name__)
 
-# Global registry for tracking running experiment threads and their cancellation flags
-_running_experiments = {}  # {exp_id: {"thread": thread_obj, "cancel_flag": threading.Event()}}
+# Import experiment queue - will be initialized on first async execution
+_experiment_queue = None
 
+def _get_queue(config):
+    """Lazy initialization of experiment queue for async execution only."""
+    global _experiment_queue
+    max_concurrent_config = config.MAX_EXPERIMENTS_IN_PARALLEL if config.MAX_EXPERIMENTS_IN_PARALLEL is not None else 4
+    if _experiment_queue is None:
+        # Import here to avoid circular dependencies
+        from .experiment_queue import get_experiment_queue
+        _experiment_queue = get_experiment_queue(max_concurrent=max_concurrent_config)
+        logger.info("Experiment queue initialized for async execution")
+    return _experiment_queue
 
 def get_ddm_token(config):
     if config.DATASET_MANAGEMENT != "DDM":
@@ -39,7 +49,36 @@ def get_ddm_token(config):
         access_token = response.json()["access_token"]
         logger.info("portal authentication successful, ddm token retrieved")
         return f"Bearer {access_token}"
-    
+
+
+def get_final_experiment_spec(config, exp_name):
+    exp_spec_file = os.path.join(config.EXPERIMENT_LIBRARY_PATH, exp_name + ".xxp")
+    if not os.path.isfile(exp_spec_file):
+        logger.error(f"Specification file not found for experiment '{exp_name}': {exp_spec_file}")
+        raise FileNotFoundError(f"Experiment specification '{exp_name}.xxp' not found")
+
+    with open(exp_spec_file, 'r') as file:
+        experiment_specification = file.readlines()
+
+    workflows_to_import = []
+    final_exp_spec = ""
+    for line in experiment_specification:
+        if line.startswith("import"):
+            if "\'" in line:
+                workflows_to_import.append(line.split("\'")[1])
+            elif "\"" in line:
+                workflows_to_import.append(line.split("\"")[1])
+        else:
+            final_exp_spec += line
+
+    for wf_file in workflows_to_import:
+        file_path = os.path.join(config.WORKFLOW_LIBRARY_PATH, wf_file)
+        with open(file_path, 'r') as file:
+            final_exp_spec += file.read()
+
+    return final_exp_spec
+
+
 class ErrorLogger:
     def __init__(self, log_dir="/error_logs", retention_seconds=15*60):
         self.log_dir = log_dir
@@ -81,6 +120,7 @@ class Config:
     def __init__(self, config):
         self.TASK_LIBRARY_PATH = config.TASK_LIBRARY_PATH
         self.EXPERIMENT_LIBRARY_PATH = config.EXPERIMENT_LIBRARY_PATH
+        self.WORKFLOW_LIBRARY_PATH = config.WORKFLOW_LIBRARY_PATH
         self.DATASET_LIBRARY_RELATIVE_PATH = config.DATASET_LIBRARY_RELATIVE_PATH
         self.PYTHON_DEPENDENCIES_RELATIVE_PATH = config.PYTHON_DEPENDENCIES_RELATIVE_PATH
         if 'DATASET_MANAGEMENT' not in dir(config) or len(config.DATASET_MANAGEMENT) == 0:
@@ -113,6 +153,7 @@ class Config:
         self.KUBEFLOW_MINIO_PASSWORD = config.KUBEFLOW_MINIO_PASSWORD if 'KUBEFLOW_MINIO_PASSWORD' in dir(config) else None
         self.PYTHON_CONDITIONS = config.PYTHON_CONDITIONS if 'PYTHON_CONDITIONS' in dir(config) else None
         self.PYTHON_CONFIGURATIONS = config.PYTHON_CONFIGURATIONS if 'PYTHON_CONFIGURATIONS' in dir(config) else None
+        self.MAX_EXPERIMENTS_IN_PARALLEL = config.MAX_EXPERIMENTS_IN_PARALLEL if 'MAX_EXPERIMENTS_IN_PARALLEL' in dir(config) else None
         if 'MAX_WORKFLOWS_IN_PARALLEL_PER_NODE' in dir(config):
             logger.debug(f"Setting MAX_WORKFLOWS_IN_PARALLEL_PER_NODE to {config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE}")
             self.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE
@@ -127,17 +168,11 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
         error_logger = ErrorLogger()
     mode_str = "async" if async_execution else "sync"
     logger.info(f"[run] starting experiment creation ({mode_str} mode)")
-    logger.info(f"abspath: {os.path.relpath(config.EXPERIMENT_LIBRARY_PATH)}")
+    logger.info(f"relpath: {os.path.relpath(config.EXPERIMENT_LIBRARY_PATH)}")
     logger.info(f"listing experiment library: {os.listdir(config.EXPERIMENT_LIBRARY_PATH)}")
 
     try:
-        spec_path = os.path.join(config.EXPERIMENT_LIBRARY_PATH, exp_name + ".xxp")
-        if not os.path.isfile(spec_path):
-            logger.error(f"Specification file not found for experiment '{exp_name}': {spec_path}")
-            raise FileNotFoundError(f"Experiment specification '{exp_name}.xxp' not found")
-
-        with open(spec_path, 'r') as file:
-            workflow_specification = file.read()
+        final_exp_spec = get_final_experiment_spec(config, exp_name)
 
         if 'LOGGING_CONFIG' in dir(config):
             try:
@@ -147,7 +182,7 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
 
         new_exp = {
             'name': exp_name,
-            'model': str(workflow_specification),
+            'model': final_exp_spec,
         }
 
         config_obj = Config(config)
@@ -167,54 +202,62 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
             )
         raise
 
-    def _execute():
-        try:
-            cancel_flag = _running_experiments.get(exp_id, {}).get("cancel_flag")
-            run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client, cancel_flag)
-        except Exception as e:
-            logger.exception(f"Experiment {exp_id} crashed: {e}")
-            if async_execution:
+    if async_execution:
+        cancel_flag = threading.Event()
+
+        def _execute_async():
+            try:
+                run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client, cancel_flag)
+            except Exception as e:
+                logger.exception(f"Experiment {exp_id} crashed: {e}")
                 error_logger.write_error_log(
                     identifier=exp_id,
                     error=e,
                     extra_info={"phase": "runtime", "experiment_id": exp_id}
                 )
+                try:
+                    data_client.update_experiment(exp_id, {"status": "failed"})
+                except Exception:
+                    logger.exception(f"Could not update experiment {exp_id} status to failed")
+
+        # Enqueue the experiment (queue manages cancel_flag and lifecycle)
+        queue = _get_queue(config)
+        queue.enqueue(exp_id, _execute_async, cancel_flag)
+
+        logger.info(f"Experiment {exp_id} enqueued for execution")
+        return exp_id
+    else:
+        # Sync execution
+        try:
+            logger.info(f"Experiment {exp_id} executing synchronously")
+            run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client)
+            logger.info(f"Experiment {exp_id} finished (synchronous mode)")
+        except Exception as e:
+            logger.exception(f"Experiment {exp_id} crashed: {e}")
             try:
                 data_client.update_experiment(exp_id, {"status": "failed"})
             except Exception:
                 logger.exception(f"Could not update experiment {exp_id} status to failed")
-        finally:
-            # Clean up from registry when done
-            if exp_id in _running_experiments:
-                del _running_experiments[exp_id]
-                logger.info(f"Removed experiment {exp_id} from running experiments registry")
+            raise
 
-    if async_execution:
-        cancel_flag = threading.Event()
-        t = threading.Thread(target=_execute, name=f"exp-run-{exp_id}", daemon=False)
-        _running_experiments[exp_id] = {"thread": t, "cancel_flag": cancel_flag}
-        t.start()
-        logger.info(f"Experiment {exp_id} launched asynchronously (thread {t.name}, daemon={t.daemon})")
-        return exp_id
-    else:
-        logger.info(f"Experiment {exp_id} executing synchronously")
-        _execute()
-        logger.info(f"Experiment {exp_id} finished (synchronous mode)")
         return exp_id
 
 
 def kill_experiment_thread(exp_id):
     """
-    Sets the cancellation flag for a running experiment, signaling it to stop.
+    Sets the cancellation flag for a running or queued async experiment, signaling it to stop.
+    For sync experiments, users should use terminal interrupt (Ctrl+C).
     Returns True if the experiment was found and flagged, False otherwise.
     """
-    if exp_id in _running_experiments:
-        logger.info(f"Setting cancellation flag for experiment {exp_id}")
-        _running_experiments[exp_id]["cancel_flag"].set()
-        return True
-    else:
-        logger.warning(f"Experiment {exp_id} not found in running experiments registry")
-        return False
+    # Cancel via queue (only works for async experiments)
+    global _experiment_queue
+    if _experiment_queue is not None:
+        if _experiment_queue.cancel_experiment(exp_id):
+            logger.info(f"Experiment {exp_id} cancelled via queue")
+            return True
+
+    logger.warning(f"Experiment {exp_id} not found in queue")
+    return False
 
 
 def kill_job(job_id, config):

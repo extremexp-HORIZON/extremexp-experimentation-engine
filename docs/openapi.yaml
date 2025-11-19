@@ -4,13 +4,24 @@ info:
   version: 1.0.0
   description: API documentation for managing experiments and workflows in the Experimentation Engine.
 
-servers:
-  - url: http://localhost:5556
-    description: Local development server
+tags:
+  - name: Run Experiment
+    description: Operations for running experiments
+  - name: Experiment
+    description: Operations for controlling experiment lifecycle
+  - name: Workflow
+    description: Operations for controlling workflow lifecycle
 
 paths:
+  # ====================================
+  # EXPERIMENT MANAGEMENT ENDPOINTS
+  # ====================================
+  
+  # Experiment Execution
   /exp/run/{experiment_name}:
     get:
+      tags:
+        - Run Experiment
       summary: Run an experiment
       description: Start a new experiment based on the specification with the given name.
       parameters:
@@ -29,17 +40,24 @@ paths:
                 type: object
                 properties:
                   message:
-                    type: object
-                    properties:
-                      experiment_id:
-                        type: string
-                        example: "VFT3678243GYTFRFGJHSDA"
+                    type: string
+                    example: "experiment finished with id VFT3678243GYTFRFGJHSDA"
         '400':
           description: Invalid request.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "exception: [error details]"
 
-
+  # Experiment Lifecycle Control
   /exp/experiment/kill/{experiment_id}:
     get:
+      tags:
+        - Experiment
       summary: Kill an experiment
       description: Terminate an ongoing experiment by its ID.
       parameters:
@@ -50,13 +68,23 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        '201':
           description: Experiment terminated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "experiment with id {experiment_id} is killed"
         '404':
           description: Experiment not found.
 
   /exp/experiment/pause/{experiment_id}:
     get:
+      tags:
+        - Experiment
       summary: Pause an experiment
       description: Pause an ongoing experiment by its ID.
       parameters:
@@ -67,13 +95,23 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        '201':
           description: Experiment paused successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "experiment with id {experiment_id} is paused"
         '404':
           description: Experiment not found.
 
   /exp/experiment/resume/{experiment_id}:
     get:
+      tags:
+        - Experiment
       summary: Resume an experiment
       description: Resume a paused experiment by its ID.
       parameters:
@@ -84,13 +122,28 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        '201':
           description: Experiment resumed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "experiment with id {experiment_id} is resumed"
         '404':
           description: Experiment not found.
 
+  # ====================================
+  # WORKFLOW MANAGEMENT ENDPOINTS
+  # ====================================
+  
+  # Workflow Lifecycle Control
   /exp/workflow/kill/{workflow_id}:
     get:
+      tags:
+        - Workflow
       summary: Kill a workflow
       description: Terminate an ongoing workflow by its ID.
       parameters:
@@ -101,7 +154,7 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        '201':
           description: Workflow terminated successfully.
           content:
             application/json:
@@ -116,6 +169,8 @@ paths:
 
   /exp/workflow/pause/{workflow_id}:
     get:
+      tags:
+        - Workflow
       summary: Pause a workflow
       description: Pause an ongoing workflow by its ID.
       parameters:
@@ -126,13 +181,23 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        '201':
           description: Workflow paused successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "workflow with id {workflow_id} is paused"
         '404':
           description: Workflow not found.
 
   /exp/workflow/resume/{workflow_id}:
     get:
+      tags:
+        - Workflow
       summary: Resume a workflow
       description: Resume a paused workflow by its ID.
       parameters:
@@ -143,7 +208,15 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        '201':
           description: Workflow resumed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "workflow with id {workflow_id} is resumed"
         '404':
           description: Workflow not found.

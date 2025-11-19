@@ -19,3 +19,4 @@ results.json
 exec_task.py
 extremexp-experimentation-engine.iml
 .sdkmanrc
+**/.DS_Store

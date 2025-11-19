@@ -1,0 +1,59 @@
+site_name: ExpEngine Documentation
+site_url: https://extremexp-horizon.github.io/extremexp-experimentation-engine-docs/
+theme:
+  name: material
+  custom_dir: docs/overrides
+  extra:
+    generator: false
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - def_list
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search
+  - render_swagger
+
+nav:
+  - Home: index.md
+  - User Guide: guide.md
+  - Configuration: config.md
+  - DSL:
+    - Experiments: dsl/experiments.md
+    - Workflows: dsl/workflows.md
+    - Tasks: dsl/tasks.md
+  - ExecutionWare:
+    - Overview: executionware/overview.md
+    - Local: executionware/local.md
+    - Proactive: executionware/proactive.md
+  - ExpEngine as a Service: expengine_service.md
