@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask
 from flask_cors import CORS, cross_origin
 from apiHandler import apiHandler
 import logging
@@ -55,3 +55,7 @@ def experiment_status(experiment_id):
 @cross_origin()
 def queue_status():
     return apiHandler.get_queue_status()
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5556, debug=False)

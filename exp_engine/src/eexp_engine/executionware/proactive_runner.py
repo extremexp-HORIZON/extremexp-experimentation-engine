@@ -5,12 +5,12 @@ from ..data_abstraction_layer.data_abstraction_api import DataAbstractionClient
 import logging
 
 packagedir = os.path.dirname(os.path.abspath(__file__))
-PROACTIVE_HELPER_FULL_PATH = os.path.join(packagedir, "proactive_helper.py")
-interactive_path_folder = os.path.join(packagedir, "user_interaction")
+interactive_path_folder = os.path.join(packagedir, "scripts", "user_interaction")
+TASK_PRESCRIPT_FULL_PATH = os.path.join(packagedir, "scripts", "task_prescript.py")
 INTERACTIVE_TASK_PRESCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "prescript.py")
 INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH = os.path.join(interactive_path_folder, "user_interaction_requirements.txt")
 INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "postscript.py")
-DDM_REQS_PATH = os.path.join(packagedir, "ddm", "ddm_requirements.txt")
+DEFAULT_REQS_PATH = os.path.join(packagedir, "ddm", "ddm_requirements.txt")
 EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX = "execution_engine_runtime_config"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
 
@@ -143,10 +143,17 @@ def _create_python_task(gateway, config, data_client, results_so_far, wf_id, tas
         if requirements_file:
             requirements += _get_requirements_from_file(requirements_file)
         if config.DATASET_MANAGEMENT == "DDM":
-            requirements += _get_requirements_from_file(DDM_REQS_PATH)
+            requirements += _get_requirements_from_file(DEFAULT_REQS_PATH)
         print(f"Setting virtual environment to {requirements}")
         task.setVirtualEnv(requirements=requirements)
     else:
+        
+        # Set pre_script for all non-interactive tasks
+        gateway = reconnect_if_needed(gateway, config)
+        pre_script = gateway.createPreScript(proactive.ProactiveScriptLanguage().python())
+        pre_script.setImplementationFromFile(TASK_PRESCRIPT_FULL_PATH)
+        task.setPreScript(pre_script)
+
         if requirements_file:
             if not python_version:
                 print("You need to set a Python version when configuring a virtual environment.")
@@ -161,14 +168,14 @@ def _create_python_task(gateway, config, data_client, results_so_far, wf_id, tas
             print(f"Setting python version to {python_version_path}")
             task.setDefaultPython(python_version_path)
             requirements = _get_requirements_from_file(requirements_file)
-            requirements += _get_requirements_from_file(DDM_REQS_PATH)
+            requirements += _get_requirements_from_file(DEFAULT_REQS_PATH)
             print(f"Setting virtual environment to {requirements}")
             task.setVirtualEnv(requirements=requirements)
         elif python_version and not requirements_file:
             python_version_path = config.PROACTIVE_PYTHON_VERSIONS[python_version]
             print(f"Setting python version to {python_version_path}")
             task.setDefaultPython(python_version_path)
-            requirements = _get_requirements_from_file(DDM_REQS_PATH)
+            requirements = _get_requirements_from_file(DEFAULT_REQS_PATH)
             print(f"Setting virtual environment to {requirements}")
             task.setVirtualEnv(requirements=requirements)
         else:
@@ -206,9 +213,6 @@ def _create_python_task(gateway, config, data_client, results_so_far, wf_id, tas
     for dependent_module in dependent_modules:
         task.addInputFile(dependent_module)
         dependent_modules_folders.append(os.path.dirname(dependent_module))
-    # Adding the helper to all tasks as input:
-    PROACTIVE_HELPER_RELATIVE_PATH = os.path.relpath(PROACTIVE_HELPER_FULL_PATH)
-    task.addInputFile(PROACTIVE_HELPER_RELATIVE_PATH)
 
     with open(runtime_config_path, 'w') as f:
         dataset_config = {}
@@ -216,6 +220,7 @@ def _create_python_task(gateway, config, data_client, results_so_far, wf_id, tas
         dataset_config["DDM_URL"] = config.DDM_URL
         dataset_config["DDM_TOKEN"] = config.DDM_TOKEN
         runtime_job_config = {}
+        runtime_job_config["EXECUTIONWARE"] = config.EXECUTIONWARE
         runtime_job_config["mapping"] = mapping
         runtime_job_config["exp_engine_metadata"] = exp_engine_metadata
         runtime_job_config["dataset_config"] = dataset_config
@@ -227,8 +232,6 @@ def _create_python_task(gateway, config, data_client, results_so_far, wf_id, tas
             json.dump(results_so_far, f)
         task.addInputFile(results_file_path)
 
-    proactive_helper_folder = os.path.dirname(PROACTIVE_HELPER_RELATIVE_PATH)
-    dependent_modules_folders.append(proactive_helper_folder)
     task.addVariable("dependent_modules_folders", ','.join(dependent_modules_folders))
     for dependency in dependencies:
         print(f"Adding dependency of '{task_name}' to '{dependency.getTaskName()}'")

@@ -22,4 +22,4 @@ ENV PORT=5556
 EXPOSE 5556
 
 ENTRYPOINT ["python"]
-CMD ["run.py"]
+CMD ["api.py"]

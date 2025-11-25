@@ -1,0 +1,31 @@
+workflow SingleTaskW {
+
+    START -> Task1 -> Task2 -> END;
+
+    task Task1 {
+        implementation "TestDatasetManagementTask1";
+    }
+
+    task Task2 {
+        implementation "TestDatasetManagementTask2";
+    }
+
+    define input data InputFile;
+    configure data InputFile {
+        name "titanic.csv";
+        project "test_project";
+    }
+
+    define output data OutputFile;
+    configure data OutputFile {
+        name "titanic_once_more.csv";
+    }
+
+    InputFile --> Task1.TestDatasetManagementTask1InputFile;
+    Task1.TestDatasetManagementTask1OutputFile --> Task2.TestDatasetManagementTask2InputFile;
+    Task2.TestDatasetManagementTask2OutputFile --> OutputFile;
+
+}
+
+workflow SingleTaskAW from SingleTaskW {
+}

@@ -1,0 +1,48 @@
+import "tests/advanced_configurations/control_parallel_nodes.xxp";
+
+experiment ControlParallelNodes {
+
+    intent testComplexControl;
+
+    control {
+          // You can run different spaces in parallel
+          START -> (S1 || S2);
+    }
+
+    space S1 of ComplexControlAW1 {
+        strategy gridsearch;
+        param_values param1_vp = enum(2, 5, 1);
+        task Task1 {
+            param param1 = param1_vp;
+        }
+    }
+
+    space S2 of ComplexControlAW2 {
+        strategy gridsearch;
+        param_values param1_vp = range(3, 6);
+        task Task1 {
+            param param1 = param1_vp;
+        }
+    }
+
+    space S3 of ComplexControlAW2 {
+        strategy gridsearch;
+        param_values param1_vp = range(4, 5);
+        task Task1 {
+            param param1 = param1_vp;
+        }
+    }
+
+    task T1 {
+        implementation "ExpTask1";
+    }
+
+    task T2 {
+        implementation "ExpTask1";
+    }
+
+    interaction I1 {
+        implementation "ExpInteraction1";
+    }
+
+}

@@ -1,0 +1,32 @@
+workflow DemoWorkflow {
+
+    START -> Task1 -> Task2 -> END;
+
+    task Task1 {
+        implementation "kubeflow_tests/simple_two_tasks/task1";
+    }
+    
+    task Task2 {
+        implementation "kubeflow_tests/simple_two_tasks/task2";
+    }
+
+    define input data InputFile;
+    configure data InputFile {
+        name "titanic.csv";
+        project "test_kubeflow";
+    }
+    
+    define output data OutputFile;
+    configure data OutputFile {
+        name "titanic_once_more.csv";
+    }
+
+    InputFile --> Task1.task1inputfile;
+    Task1.output2 --> OutputFile;
+    Task1.output1 --> Task2.input2;
+
+}
+
+workflow DemoInputFile from DemoWorkflow {
+
+}

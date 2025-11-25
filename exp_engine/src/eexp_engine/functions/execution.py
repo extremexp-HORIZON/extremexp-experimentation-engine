@@ -200,6 +200,8 @@ class Execution:
         # Check circuit breaker for connection failures
         self._check_connection_failure(connection_error)
 
+        self.data.update_workflow(wf_id, {"end": self.data.get_current_time()})
+        self.data.update_metrics_of_workflow(wf_id, result)
         workflow_results = {}
         workflow_results["configuration"] = ()
         workflow_results["result"] = result
@@ -342,6 +344,7 @@ class Execution:
 
     def run_scheduled_workflows_from_db(self, node, space_workflow_ids):
         """Execute scheduled workflows for this space by reconstructing each workflow from DB task parameters."""
+        import json
         space_results = {}
         run_count_in_space = 1
         # Cache configurations per wf_id to avoid recomputation
@@ -375,7 +378,14 @@ class Execution:
                 p.join()
                 self.subprocesses -= 1
                 result, connection_error = results[wf_id]
-
+                print("####################")
+                print("####################")
+                print("####################")
+                print(wf_id, result)
+                print("####################")
+                print("####################")
+                print("####################")
+               
                 # Check circuit breaker for connection failures
                 self._check_connection_failure(connection_error)
 

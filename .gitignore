@@ -7,6 +7,7 @@ intents/untracked
 streamlit
 exp_engine/IDEKO1
 exp_engine/src/eexp_engine.egg-info
+exp_engine_helpers/src/eexp_engine_utils.egg-info
 eexp_config.py
 MOBY
 exp_engine/dist

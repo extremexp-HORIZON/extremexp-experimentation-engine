@@ -1,5 +1,8 @@
+eexp_engine_helpers
 textX>=4.0.1
 proactive>=14.1.0.2411110237.dev0
 kfp>=2.14.6
 kfp-kubernetes>=2.14.6
-minio
+minio>=7.2.18
+InquirerPy
+rich

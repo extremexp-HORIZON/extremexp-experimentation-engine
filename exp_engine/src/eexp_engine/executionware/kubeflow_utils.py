@@ -194,6 +194,7 @@ def _create_exp_engine_metadata(exp_id, exp_name, wf_id):
 def _create_dataset_config(config):
     """Create experiment engine metadata"""
     dataset_config = {}
+    dataset_config["EXECUTIONWARE"] = getattr(config, "EXECUTIONWARE", None)
     dataset_config["DATASET_MANAGEMENT"] = getattr(config, "DATASET_MANAGEMENT", None)
     dataset_config["DDM_URL"] = getattr(config, "DDM_URL", None)
     dataset_config["DDM_TOKEN"] = getattr(config, "DDM_TOKEN", None)
@@ -230,14 +231,6 @@ def _get_requirements_from_file(reqs_file):
 def _get_task_dependencies(task):
     """Get task dependencies from the task object as a dictionary with relative paths and file contents"""
     dependencies = {}
-
-    # Always include kubeflow_helper.py (similar to proactive_helper.py in ProActive)
-    if os.path.exists(KUBEFLOW_HELPER_FULL_PATH):
-        try:
-            with open(KUBEFLOW_HELPER_FULL_PATH, "r", encoding="utf-8") as f:
-                dependencies["kubeflow_helper.py"] = f.read()
-        except Exception as e:
-            logger.warning(f"Could not read kubeflow_helper.py: {e}")
 
     if not hasattr(task, "dependent_modules"):
         return dependencies

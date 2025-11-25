@@ -1,0 +1,54 @@
+import "tests/advanced_configurations/space_configuration_validation.xxp";
+
+experiment SpaceConfigurationValidation {
+    intent testComplexControl;
+
+    control {
+          S1 -> S2;
+    }
+
+    space S1 of ComplexControlAW1 {
+        strategy randomsearch;
+        runs = 1;
+        param_values param1_vp = enum(2, 5, 7);
+        task Task1 {
+            param param1 = param1_vp;
+        }
+    }
+
+    space S2 of ComplexControlAW2 {
+        strategy gridsearch;
+
+        param_values param1_vp = range(3, 5);
+        param_values param1_vp = enum(5, 6);
+
+        // You can use external functions in order to filter or generate space configurations ("library-tasks/experiment_conditions.py", "library-tasks/experiment_configurations.py")
+        filter "configuration_filter_S2";
+        generator "configuration_generator_S2";
+
+        task Task1 {
+            param param1 = param1_vp;
+        }
+    }
+
+    space S3 of ComplexControlAW2 {
+        strategy gridsearch;
+        param_values param1_vp = range(4, 5);
+        task Task1 {
+            param param1 = param1_vp;
+        }
+    }
+
+    task T1 {
+        implementation "ExpTask1";
+    }
+
+    task T2 {
+        implementation "ExpTask1";
+    }
+
+    interaction I1 {
+        implementation "ExpInteraction1";
+    }
+
+}

@@ -1,0 +1,24 @@
+import "tests/kubeflow_tests/demo_two_spaces_parallel.xxp";
+
+experiment DemoWP5Experiment {
+
+    control {
+          START -> (S1 || S2) -> END;
+    }
+
+    space S1 of DemoParallelEx {
+        strategy gridsearch;
+        param_values demo_param_value = enum(4);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+    
+    space S2 of DemoParallelEx {
+        strategy gridsearch;
+        param_values demo_param_value = enum(4);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+}

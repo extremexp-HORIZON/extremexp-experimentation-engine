@@ -77,7 +77,7 @@ def _create_kubeflow_component(task):
 
     # Create the component function
     @component(
-        base_image=base_image, packages_to_install=["fsspec", "s3fs", "requests", "minio"] + requirements,
+        base_image=base_image, packages_to_install=["eexp_engine_helpers"] + requirements,
     )
     def task_component(
         task_name: str,

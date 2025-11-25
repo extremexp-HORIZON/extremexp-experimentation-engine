@@ -2,16 +2,13 @@
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.package-data]
-"*" = ["*"]
-
 [project]
-name = "eexp_engine"
+name = "eexp_engine_utils"
 version = "0.0.41"
 authors = [
   { name="Ilias Gerostathopoulos", email="iliasger@gmail.com" },
 ]
-description = "A command-line version of the experimentation engine of the ExtremeXP project"
+description = "Helper utilities for eexp_engine - supporting ProActive and Kubeflow execution environments"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -19,13 +16,12 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
-dynamic = ["dependencies"]
-
-[tool.setuptools.dynamic]
-dependencies = {file = "requirements-library.txt"}
-
-[project.scripts]
-eexp-run = "eexp_engine.runner:main"
+dependencies = [
+    "requests==2.32.5",
+    "fsspec==2025.10.0",
+    "s3fs==2025.10.0",
+    "minio==7.2.18",
+]
 
 [project.urls]
 Homepage = "https://github.com/extremexp-HORIZON/extremexp-experimentation-engine"

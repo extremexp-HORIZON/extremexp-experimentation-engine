@@ -1,0 +1,13 @@
+import "tests/dataset_management/test_local.xxp";
+
+experiment TestLocalDatasetManagementExp {
+
+    control {
+          START -> S1 -> END;
+    }
+
+    space S1 of SingleTaskAW {
+        strategy gridsearch;
+    }
+
+}

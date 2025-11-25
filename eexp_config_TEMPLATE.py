@@ -1,22 +1,21 @@
 # Main folders (mandatory) - paths are just examples
-TASK_LIBRARY_PATH = 'exp_engine/library-tasks'
-EXPERIMENT_LIBRARY_PATH = 'exp_engine/library-experiments'
+TASK_LIBRARY_PATH = 'playground/tasks'
+EXPERIMENT_LIBRARY_PATH = 'playground/experiments'
 # The ones below has to be a path relative to the script that invokes the client.run()
-DATASET_LIBRARY_RELATIVE_PATH = 'exp_engine/library-datasets'
-PYTHON_DEPENDENCIES_RELATIVE_PATH = 'exp_engine/tasks'
-
+DATASET_LIBRARY_RELATIVE_PATH = 'playground/datasets'
+PYTHON_DEPENDENCIES_RELATIVE_PATH = 'playground/dependencies'
 # Reference here the Python file that holds the functions used in the evaluation of conditions.
 # Path is relative to the script that invokes the client.run()
-PYTHON_CONDITIONS = 'exp_engine.library-tasks.experiment_conditions'
+PYTHON_CONDITIONS = 'playground/tasks/experiment_conditions'
 
 # The Python file that holds any functions used for filtering or generating configurations for spaces
-PYTHON_CONFIGURATIONS = 'exp_engine.library-tasks.experiment_configurations'
+PYTHON_CONFIGURATIONS = 'playground/tasks/experiment_configurations'
 
 # number of workflows that the engine can run in parallel per node at any given moment (if omitted, value is 1)
 MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = 3
 MAX_EXPERIMENTS_IN_PARALLEL = 4
 
-EXECUTIONWARE = "PROACTIVE" # other option: "LOCAL"
+EXECUTIONWARE = "PROACTIVE" # other options: "LOCAL" & "KUBEFLOW"
 # Proactive details (only needed if EXECUTIONWARE = "PROACTIVE" above)
 PROACTIVE_URL = "http://146.124.106.171:8880"
 # Proactive credentials (mandatory - ask ICOM)
@@ -37,8 +36,10 @@ DATA_ABSTRACTION_ACCESS_TOKEN = ''
 # possible values: DDM (Decentralized Data Management), LOCAL
 DATASET_MANAGEMENT = "DDM"
 DATASET_MANAGEMENT_URL = "https://ddm.extremexp-icom.intracom-telecom.com"
-PORTAL_USERNAME = "" # the same as the one you use to login to the portal, if in doubt ask ICOM
-PORTAL_PASSWORD = "" # the same as the one you use to login to the portal, if in doubt ask ICOM
+
+# ExtremeExp Portal credentials (he same as the one you use to login to the portal)
+PORTAL_USERNAME = ""
+PORTAL_PASSWORD = ""
 
 # logging configuration, optional; if not set, all loggers have INFO level
 LOGGING_CONFIG = {

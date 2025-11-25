@@ -1,0 +1,3 @@
+requests
+numpy
+eexp_engine_helpers

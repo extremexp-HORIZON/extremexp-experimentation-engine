@@ -169,7 +169,6 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
     mode_str = "async" if async_execution else "sync"
     logger.info(f"[run] starting experiment creation ({mode_str} mode)")
     logger.info(f"relpath: {os.path.relpath(config.EXPERIMENT_LIBRARY_PATH)}")
-    logger.info(f"listing experiment library: {os.listdir(config.EXPERIMENT_LIBRARY_PATH)}")
 
     try:
         final_exp_spec = get_final_experiment_spec(config, exp_name)
@@ -207,7 +206,7 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
 
         def _execute_async():
             try:
-                run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client, cancel_flag)
+                run_experiment(exp_id, final_exp_spec, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client, cancel_flag)
             except Exception as e:
                 logger.exception(f"Experiment {exp_id} crashed: {e}")
                 error_logger.write_error_log(
@@ -230,7 +229,7 @@ def run(runner_file, exp_name, config, async_execution: bool = False):
         # Sync execution
         try:
             logger.info(f"Experiment {exp_id} executing synchronously")
-            run_experiment(exp_id, workflow_specification, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client)
+            run_experiment(exp_id, final_exp_spec, os.path.dirname(os.path.abspath(runner_file)), config_obj, data_client)
             logger.info(f"Experiment {exp_id} finished (synchronous mode)")
         except Exception as e:
             logger.exception(f"Experiment {exp_id} crashed: {e}")

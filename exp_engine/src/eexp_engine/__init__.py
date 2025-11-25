@@ -1,10 +1,5 @@
 from .functions import parsing
 from .functions.execution import Execution
-# Import Kubeflow converter (optional dependency)
-try:
-    from .kubeflow import KubeflowConverter
-except ImportError:
-    KubeflowConverter = None
 import logging
 
 logger = logging.getLogger(__name__)

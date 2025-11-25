@@ -1,0 +1,28 @@
+import "tests/kubeflow_tests/demo_two_spaces_configuration.xxp";
+
+experiment DemoWP5Experiment {
+
+    control {
+          START -> S1 -> S2 -> END;
+    }
+
+    space S1 of Demo2SpacesSeq {
+        strategy gridsearch;
+        param_values demo_param_value = enum(4);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+    
+    space S2 of Demo2SpacesSeq {
+        strategy gridsearch;
+        param_values param1_vp = range(3, 5);
+        param_values param1_vp = enum(5, 6);
+        filter "configuration_filter_S2";
+        generator "configuration_generator_S2";
+
+        task Task1 {
+            param demo_param = param1_vp;
+        }
+    }
+}
