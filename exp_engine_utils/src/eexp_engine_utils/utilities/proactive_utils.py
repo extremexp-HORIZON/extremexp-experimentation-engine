@@ -6,13 +6,13 @@ import requests
 from io import BytesIO
 from typing import List, Dict, Any, Optional
 
-from .exceptions import (
+from ..exceptions import (
     DatasetNotFoundError,
     ConfigurationError,
     DataManagementError,
     ValidationError,
 )
-from .validation import validate_dataset_inputs, validate_variables, validate_variables_has_key
+from ..validation import validate_dataset_inputs, validate_variables, validate_variables_has_key
 
 METRICS_FILES_KEY = "file"
 OUTPUT_FILE = "output"

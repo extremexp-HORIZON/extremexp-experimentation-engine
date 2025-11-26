@@ -1,4 +1,5 @@
 from eexp_engine_utils import utils as ph
+variables, resultMap = ph.types.get_runtime_context()
 
 print("I'm ExpTask1")
 results = ph.get_experiment_results()

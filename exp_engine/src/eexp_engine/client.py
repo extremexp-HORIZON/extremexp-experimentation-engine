@@ -148,6 +148,8 @@ class Config:
         self.PROACTIVE_PASSWORD = config.PROACTIVE_PASSWORD
         self.PROACTIVE_PYTHON_VERSIONS = config.PROACTIVE_PYTHON_VERSIONS if 'PROACTIVE_PYTHON_VERSIONS' in dir(config) else None
         self.KUBEFLOW_URL = config.KUBEFLOW_URL if 'KUBEFLOW_URL' in dir(config) else None
+        self.KUBEFLOW_USERNAME = config.KUBEFLOW_USERNAME if 'KUBEFLOW_USERNAME' in dir(config) else None
+        self.KUBEFLOW_PASSWORD = config.KUBEFLOW_PASSWORD if 'KUBEFLOW_PASSWORD' in dir(config) else None
         self.KUBEFLOW_MINIO_ENDPOINT = config.KUBEFLOW_MINIO_ENDPOINT if 'KUBEFLOW_MINIO_ENDPOINT' in dir(config) else None
         self.KUBEFLOW_MINIO_USERNAME = config.KUBEFLOW_MINIO_USERNAME if 'KUBEFLOW_MINIO_USERNAME' in dir(config) else None
         self.KUBEFLOW_MINIO_PASSWORD = config.KUBEFLOW_MINIO_PASSWORD if 'KUBEFLOW_MINIO_PASSWORD' in dir(config) else None

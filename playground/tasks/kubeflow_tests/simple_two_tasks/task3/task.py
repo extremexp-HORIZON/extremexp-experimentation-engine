@@ -1,5 +1,7 @@
-print("hello world")
-from kubeflow_helper import load_dataset_local
+from eexp_engine_utils import types, utils
+variables, resultMap = types.get_runtime_context()
     
-ok = load_dataset_local(variables, "input3")
+print("hello world")
+
+[ok] = utils.load_datasets_ddm(variables, "input3", resultMap)
 print("Loaded data from task1:", ok)

@@ -1,8 +1,9 @@
-[sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
-import proactive_helper as ph
+from eexp_engine_utils import utils, types
 import threading
 import ctypes
 from flask import Flask, request, render_template_string
+
+variables, resultMap = types.get_runtime_context()
 
 print("I'm ExpInteraction1")
 results = ph.get_experiment_results(variables)

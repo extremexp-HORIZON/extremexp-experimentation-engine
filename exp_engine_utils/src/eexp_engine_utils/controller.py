@@ -1,35 +1,16 @@
-"""
-Controller module for eexp_engine_utils.
-
-This module provides a transparent proxy that routes function calls to the appropriate
-utils module (kubeflow_utils or proactive_utils) based on the EXECUTIONWARE configuration.
-
-Usage in tasks:
-    from eexp_engine_utils import utils
-
-    # All function calls are automatically routed to the correct implementation
-    data = utils.load_dataset(variables, resultMap, "input_key")
-    utils.save_dataset(variables, resultMap, "output_key", data)
-
-The routing is based on the EXECUTIONWARE environment variable or runtime config file.
-"""
-
 from __future__ import annotations
 
 import os
 import json
-from typing import Any, Dict, Optional, List, TYPE_CHECKING
+from typing import Any, Dict, Optional, List
 from types import ModuleType
-
-if TYPE_CHECKING:
-    from io import BytesIO
+from io import BytesIO
 
 from .exceptions import ExecutionwareError, ConfigurationError
 
 # Constants
 EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX = "execution_engine_runtime_config"
 
-# Module-level cache for the loaded utils module
 _utils_module_cache = None
 
 
@@ -37,12 +18,6 @@ class UtilsProxy:
     """
     A transparent proxy that routes all attribute/function calls to the appropriate
     utils module based on EXECUTIONWARE configuration.
-
-    This allows users to import 'utils' and use it directly without calling get_utils().
-
-    Example:
-        from eexp_engine_utils import utils
-        data = utils.load_dataset(variables, resultMap, "my_input")
     """
 
     def __getattr__(self, name):
@@ -71,12 +46,6 @@ class UtilsProxy:
         """Return the list of available attributes from the current utils module."""
         utils_module = get_utils()
         return dir(utils_module)
-
-    # ========================================================================
-    # Explicit method definitions for IDE support (IntelliSense/hover docs)
-    # ========================================================================
-    # These methods delegate to the actual implementation but provide type hints
-    # for better IDE support. The actual work is done by __getattr__ above.
 
     def get_experiment_results(self, variables: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -341,22 +310,11 @@ def get_utils() -> ModuleType:
     This function reads the runtime configuration to determine which execution
     environment is being used, and returns the corresponding utils module.
 
-    Routing logic:
-    - EXECUTIONWARE="KUBEFLOW" or "LOCAL" -> returns kubeflow_utils
-    - EXECUTIONWARE="PROACTIVE" -> returns proactive_utils
-
-    The result is cached after the first call for performance.
-
     Returns:
-        ModuleType: Either kubeflow_utils or proactive_utils module.
+        ModuleType: Either kubeflow_utils, local_utils, or proactive_utils module.
 
     Raises:
         ExecutionwareError: If EXECUTIONWARE has an unsupported value or cannot be determined.
-
-    Example:
-        >>> utils = get_utils()
-        >>> data = utils.load_dataset(variables, resultMap, "my_input")
-        >>> utils.save_dataset(variables, resultMap, "my_output", processed_data)
     """
     global _utils_module_cache
 
@@ -376,31 +334,14 @@ def get_utils() -> ModuleType:
         )
 
     # Import the appropriate utils module based on EXECUTIONWARE
-    if executionware in ["KUBEFLOW", "LOCAL"]:
-        from . import kubeflow_utils
+    if executionware == "KUBEFLOW":
+        from .utilities import kubeflow_utils
         _utils_module_cache = kubeflow_utils
+    elif executionware == "LOCAL":
+        from .utilities import local_utils
+        _utils_module_cache = local_utils
     elif executionware == "PROACTIVE":
-        from . import proactive_utils
+        from .utilities import proactive_utils
         _utils_module_cache = proactive_utils
 
     return _utils_module_cache
-
-
-def reset_cache() -> None:
-    """
-    Reset the cached utils module.
-
-    This is primarily useful for testing purposes, allowing you to reload
-    the utils module based on a changed configuration.
-
-    After calling this function, the next call to get_utils() will re-evaluate
-    the EXECUTIONWARE configuration and load the appropriate module.
-
-    Example:
-        >>> # Change environment for testing
-        >>> os.environ["EXECUTIONWARE"] = "PROACTIVE"
-        >>> reset_cache()
-        >>> utils = get_utils()  # Will load proactive_utils
-    """
-    global _utils_module_cache
-    _utils_module_cache = None

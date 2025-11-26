@@ -378,13 +378,6 @@ class Execution:
                 p.join()
                 self.subprocesses -= 1
                 result, connection_error = results[wf_id]
-                print("####################")
-                print("####################")
-                print("####################")
-                print(wf_id, result)
-                print("####################")
-                print("####################")
-                print("####################")
                
                 # Check circuit breaker for connection failures
                 self._check_connection_failure(connection_error)
