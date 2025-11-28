@@ -1,4 +1,4 @@
-eexp_engine_helpers
+eexp_engine_utils
 textX>=4.0.1
 proactive>=14.1.0.2411110237.dev0
 kfp>=2.14.6
