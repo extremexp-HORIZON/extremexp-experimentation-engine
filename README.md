@@ -199,7 +199,7 @@ The Experimentation Engine can be deployed as a REST API service using Docker, a
 
 The service provides a Flask-based REST API with the following endpoints:
 
-- `POST /exp/run/<experimentname>` - Run an experiment
+- `POST /exp/run` - Run an experiment
 - `GET /exp/workflow/kill/<workflow_id>` - Kill a workflow
 - `GET /exp/workflow/pause/<workflow_id>` - Pause a workflow
 - `GET /exp/workflow/resume/<workflow_id>` - Resume a workflow
@@ -208,12 +208,15 @@ The service provides a Flask-based REST API with the following endpoints:
 - `GET /exp/experiment/resume/<experiment_id>` - Resume an experiment
 - `GET /exp/experiment/status/<experiment_id>` - Get experiment status
 
+For more information see [here](https://extremexp-horizon.github.io/extremexp-experimentation-engine/expengine_service/)
+
 ### Deployment Options
 
 #### Option 1: Using Docker Compose (Recommended)
 
 1. **Configure the service:**
    - Ensure your `eexp_config.py` is properly configured
+   - **Important:** Set `WORKSPACE_ROOT` in your `eexp_config.py` to specify the base directory for experiment files and resources when running as a service
    - Update `docker-compose.yaml` if needed to adjust ports or volumes
 
 2. **Start the service:**
