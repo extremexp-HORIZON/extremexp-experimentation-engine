@@ -1,4 +1,5 @@
 from typing import Any, Dict
+from collections.abc import Mapping
 from .exceptions import ValidationError
 
 
@@ -15,9 +16,10 @@ def validate_variables(variables: Any) -> None:
     if variables is None:
         raise ValidationError("variables parameter cannot be None")
 
-    if not isinstance(variables, dict):
+    # Accept dict or any dict-like object (including ProActive's JavaMap)
+    if not isinstance(variables, (dict, Mapping)):
         raise ValidationError(
-            f"variables must be a dict, got {type(variables).__name__}"
+            f"variables must be a dict or dict-like object, got {type(variables).__name__}"
         )
 
 
@@ -34,9 +36,10 @@ def validate_result_map(resultMap: Any) -> None:
     if resultMap is None:
         raise ValidationError("resultMap parameter cannot be None")
 
-    if not isinstance(resultMap, dict):
+    # Accept dict or any dict-like object (including ProActive's JavaMap)
+    if not isinstance(resultMap, (dict, Mapping)):
         raise ValidationError(
-            f"resultMap must be a dict, got {type(resultMap).__name__}"
+            f"resultMap must be a dict or dict-like object, got {type(resultMap).__name__}"
         )
 
 

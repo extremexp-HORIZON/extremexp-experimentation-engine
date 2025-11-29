@@ -15,5 +15,6 @@ task DemoWP5Task1 {
     }
 
     implementation "demo_tasks/DemoWP5Task1/task.py";
-    python_version "3.8";
+    python_version "3.9";
+    venv "demo_tasks/DemoWP5Task1/requirements.txt";
 }

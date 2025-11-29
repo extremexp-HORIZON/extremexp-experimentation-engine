@@ -6,8 +6,8 @@ task Task2 {
     define input data dataframe_json;
     define output data dataframe_json;
 
-    implementation "Task2/task.py";
-    venv "Task2/requirements.txt";
+    implementation "UserInteraction/Task2/task.py";
+    venv "UserInteraction/Task2/requirements.txt";
 
     define metric TestUserAction {
         kind single-value;

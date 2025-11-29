@@ -4,4 +4,6 @@ task DemoWP5Task2V1 {
 
     define input data DemoWP5Task2InputFile;
     define output data DemoWP5Task2OutputFile;
+    python_version "3.9";
+    venv "demo_tasks/DemoWP5Task1/requirements.txt";
 }

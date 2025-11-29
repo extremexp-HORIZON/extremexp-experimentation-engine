@@ -4,7 +4,7 @@ task Task1 {
 
     define output data dataframe_json;
 
-    implementation "Task1/task.py";
+    implementation "UserInteraction/Task1/task.py";
     venv "Task1/requirements.txt";
     python_version "3.9";
 }

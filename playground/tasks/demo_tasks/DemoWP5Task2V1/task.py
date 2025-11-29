@@ -1,5 +1,4 @@
 from eexp_engine_utils import utils, types
-variables, resultMap = types.get_runtime_context()
 
 print("Running DemoWP5Task2V1")
 

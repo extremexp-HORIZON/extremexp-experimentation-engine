@@ -3,15 +3,15 @@ workflow UserInteraction {
     START -> Task1 -> Task2 -> Task3 -> END;
 
     task Task1 {
-        implementation "Task1";
+        implementation "UserInteraction/Task1";
     }
 
     task Task2 {
-        implementation "Task2";
+        implementation "UserInteraction/Task2";
     }
 
     task Task3 {
-        implementation "Task3";
+        implementation "UserInteraction/Task3";
     }
 
 }

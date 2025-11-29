@@ -3,7 +3,7 @@ import "tests/simple_configurations/demo_wp5.xxp";
 experiment DemoWP5Experiment {
 
     control {
-          START -> S1 -> S2 -> END;
+          START -> S2 -> END;
     }
 
     space S1 of DemoWP5AssembledWorkflow1 {

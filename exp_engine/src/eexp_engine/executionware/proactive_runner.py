@@ -10,7 +10,7 @@ TASK_PRESCRIPT_FULL_PATH = os.path.join(packagedir, "scripts", "task_prescript.p
 INTERACTIVE_TASK_PRESCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "prescript.py")
 INTERACTIVE_TASK_PRESCRIPT_REQS_FULL_PATH = os.path.join(interactive_path_folder, "user_interaction_requirements.txt")
 INTERACTIVE_TASK_POSTSCRIPT_FULL_PATH = os.path.join(interactive_path_folder, "postscript.py")
-DEFAULT_REQS_PATH = os.path.join(packagedir, "ddm", "ddm_requirements.txt")
+DEFAULT_REQS_PATH = os.path.join(packagedir, "default_task_requirements", "task_requirements.txt")
 EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX = "execution_engine_runtime_config"
 PROACTIVE_FORK_SCRIPTS_PATH = os.path.join(packagedir, "scripts")
 
@@ -325,16 +325,6 @@ def _submit_job_and_retrieve_results_and_outputs(wf_id, gateway, job, task_statu
             logger.error(f"Connection error during job monitoring: {e}")
             data_client.update_workflow(wf_id, {"status": "FAILED"})
             raise
-
-    # print("Getting job results...")
-    # job_result = gateway.getJobResult(job_id, 300000)
-    # print("****")
-    # print(type(job_result))
-    # print(job_result)
-    # print("****")
-
-    # task_result = gateway.getTaskResult(job_id, "TrainModel", 300000)
-    # print(task_result)
 
     logger.info("Getting job result map...")
     gateway = reconnect_if_needed(gateway, config)
