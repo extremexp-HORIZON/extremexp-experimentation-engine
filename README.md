@@ -30,7 +30,7 @@ The ExtremeXP Experimentation Engine is the core component implementing Continuo
 ### Prerequisites
 
 - Python >= 3.8
-- Virtual environment (recommended)
+- Java 11 (For Proactive ExecutionWare)
 
 ### Quick Install
 
