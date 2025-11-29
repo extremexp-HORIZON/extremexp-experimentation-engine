@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from apiHandler import apiHandler
 import logging
@@ -9,10 +9,13 @@ cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 
-@app.route('/exp/run/<experimentname>', methods=["POST"])
+@app.route('/exp/run', methods=["POST"])
 @cross_origin()
-def run(experimentname):
-    return apiHandler.run_exp(experimentname)
+def run():
+    data = request.get_json()
+    exp_name = data.get('exp_name')
+    username = data.get('username')
+    return apiHandler.run_exp(username, exp_name)
 
 @app.route("/exp/workflow/kill/<workflow_id>", methods=["GET"])
 @cross_origin()

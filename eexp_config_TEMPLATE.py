@@ -1,3 +1,7 @@
+# Workspace root (optional) - Set this if you are using eexp_egnine as a service.
+# Point this to the root directory where all user workspaces will be created.
+WORKSPACE_ROOT = None
+
 # Main folders (mandatory) - paths are just examples
 TASK_LIBRARY_PATH = 'playground/tasks'
 EXPERIMENT_LIBRARY_PATH = 'playground/experiments'

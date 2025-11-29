@@ -16,14 +16,50 @@ class ApiHandler:
         self.config = importlib.import_module("eexp_config")
         self.data = DataAbstractionClient(self.config)
 
-    def run_exp(self, exp_name):
+    def _create_user_config(self, username):
+
+        # Create a new module-like object to hold the user-specific config
+        user_config = type('UserConfig', (), {})()
+
+        # Copy all attributes from the base config
+        for attr in dir(self.config):
+            if not attr.startswith('_'):
+                setattr(user_config, attr, getattr(self.config, attr))
+
+        # Update library paths to be user-scoped
+        if hasattr(self.config, 'WORKSPACE_ROOT') and self.config.WORKSPACE_ROOT is not None:
+            # Each user has isolated workspace
+            user_workspace = os.path.join(self.config.WORKSPACE_ROOT, username)
+            user_config.EXPERIMENT_LIBRARY_PATH = os.path.join(user_workspace, "experiments")
+            user_config.WORKFLOW_LIBRARY_PATH = os.path.join(user_workspace, "workflows")
+            user_config.TASK_LIBRARY_PATH = os.path.join(user_workspace, "tasks")
+            user_config.DATASET_LIBRARY_RELATIVE_PATH = os.path.join(user_workspace, "datasets")
+            user_config.PYTHON_DEPENDENCIES_RELATIVE_PATH = os.path.join(user_workspace, "dependencies")
+
+            # Update condition and configuration paths if they exist
+            if hasattr(self.config, 'PYTHON_CONDITIONS') and self.config.PYTHON_CONDITIONS:
+                user_config.PYTHON_CONDITIONS = os.path.join(user_workspace, "tasks/experiment_conditions")
+            if hasattr(self.config, 'PYTHON_CONFIGURATIONS') and self.config.PYTHON_CONFIGURATIONS:
+                user_config.PYTHON_CONFIGURATIONS = os.path.join(user_workspace, "tasks/experiment_configurations")
+        else:
+            user_config.EXPERIMENT_LIBRARY_PATH = os.path.join(username, "experiments")
+            user_config.WORKFLOW_LIBRARY_PATH = os.path.join(username, "workflows")
+            user_config.TASK_LIBRARY_PATH = os.path.join(username, "tasks")
+
+        return user_config
+
+    def run_exp(self, username, exp_name):
         try:
-            exp_id = client.run(__file__, exp_name, self.config, async_execution=True)
+            # Create a user-scoped config
+            user_config = self._create_user_config(username)
+
+            exp_id = client.run(__file__, exp_name, user_config, async_execution=True)
             body = {
                 "experiment": {
                     "id": exp_id,
                     "name": exp_name,
-                    "status": "scheduled"
+                    "status": "scheduled",
+                    "user": username
                 },
                 "message": "experiment scheduled."
             }
