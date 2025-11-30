@@ -46,6 +46,15 @@ class DataAbstractionClient:
         logger.info(f"POST {url} -> {r.status_code}")
         return r.json()
 
+    def query_experiments(self, query_body):
+        url = f"{self._base}/experiments-query"
+        r = requests.post(url, json=query_body, headers=self._headers)
+        logger.info(f"POST {url} -> {r.status_code}")
+        if r.status_code == 200:
+            return r.json()
+        logger.error(f"Failed to query experiments: {r.text}")
+        return []
+
     # ----- Workflows -----
     def create_workflow(self, exp_id, body):
         url = f"{self._base}/workflows"
