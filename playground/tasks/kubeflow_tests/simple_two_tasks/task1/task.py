@@ -1,9 +1,8 @@
-from eexp_engine_utils import types, utils
+from eexp_engine_utils import utils
 from classes.ok import print_if_i_want
 import pandas as pd
 import os
 from io import BytesIO
-variables, resultMap = types.get_runtime_context()
 
 print("hello world")
 MINIO_USERNAME = os.getenv("KUBEFLOW_MINIO_USERNAME")

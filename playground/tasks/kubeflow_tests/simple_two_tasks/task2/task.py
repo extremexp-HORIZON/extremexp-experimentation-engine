@@ -1,8 +1,6 @@
-from eexp_engine_utils import types, utils
+from eexp_engine_utils import utils
 import pandas as pd
     
-variables, resultMap = types.get_runtime_context()
-
 print("hello world")
 
 [ok] = utils.load_datasets_ddm(variables, "input2", resultMap)
