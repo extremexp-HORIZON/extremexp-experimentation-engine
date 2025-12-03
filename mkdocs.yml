@@ -56,4 +56,5 @@ nav:
     - Overview: executionware/overview.md
     - Local: executionware/local.md
     - Proactive: executionware/proactive.md
+    - Kubeflow: executionware/kubeflow.md
   - ExpEngine as a Service: expengine_service.md

@@ -8,104 +8,77 @@ Local ExecutionWare uses the local filesystem to store intermediate data between
 
 ## Helper Functions
 
-Import the local helper module in your tasks:
+Import the utilities in your tasks:
 ```python
-import local_helper as lh
+from eexp_engine_utils import utils
 ```
+
+!!! info "Universal Interface"
+    The `utils` module automatically detects the ExecutionWare backend and routes function calls appropriately. The same import works for Local, Proactive, and Kubeflow ExecutionWare.
 
 ### Data Loading Functions
 
-#### load_datasets()
-Load multiple datasets with a single call:
+#### load_dataset()
+Load a dataset:
 ```python
 # Load single dataset
-dataset = lh.load_datasets(variables, "dataset_key")
-
-# Load multiple datasets
-train_data, test_data = lh.load_datasets(variables, "train_data", "test_data")
+dataset = utils.load_dataset(variables, resultMap, "dataset_key")
 ```
 
 **Parameters:**
 
 - `variables`: Dictionary containing workflow variables
-- `*keys`: Variable number of data keys to load
+- `resultMap`: Result mapping object (not used in Local, but required for API compatibility)
+- `key`: Data key to load
 
 **Returns:**
 
-- Single dataset if one key provided
-- Tuple of datasets if multiple keys provided
-
-#### Internal: _load_dataset()
-Loads a single dataset (used internally by `load_datasets`):
-```python
-data = lh._load_dataset(variables, "data_key")
-```
+- Dataset content
 
 ### Data Saving Functions
 
-#### save_datasets()
-Save multiple datasets and update variables:
+#### save_dataset()
+Save a dataset:
 ```python
-# Save datasets
-lh.save_datasets(variables, 
-                ("output_key1", processed_data1),
-                ("output_key2", processed_data2))
+# Save dataset
+utils.save_dataset(variables, resultMap, "output_key", processed_data)
 ```
 
 **Parameters:**
 
 - `variables`: Dictionary containing workflow variables
-- `*data`: Tuples of (key, value) pairs to save
+- `resultMap`: Result mapping object (not used in Local, but required for API compatibility)
+- `key`: Data key for saving
+- `value`: Data to save
 
 **Behavior:**
 
-- Saves each dataset using pickle serialization
-- Updates the variables.json file with new variables
-- Creates intermediate_files directory structure
+- Saves the dataset using pickle serialization
+- Updates the internal variables mapping
+- Creates intermediate_files directory structure as needed
 
-#### Internal: _save_dataset()
-Saves a single dataset (used internally by `save_datasets`):
+### Additional Helper Functions
+
+#### get_experiment_results()
+Retrieve results from previous experiment runs:
 ```python
-lh._save_dataset(variables, "output_key", data)
+results = utils.get_experiment_results()
 ```
-
-### Directory Management
-
-#### create_dir()
-Create a directory for intermediate files:
-```python
-folder_path = lh.create_dir(variables, "subfolder_name")
-```
-
-**Parameters:**
-
-- `variables`: Dictionary containing workflow variables
-- `key`: Name of the subdirectory to create
 
 **Returns:**
-- Path to the created directory
+- Experiment results dictionary
 
-### Result Management
-
-#### save_result()
-Save final experiment results:
+#### load_dataset_by_path()
+Load data directly from a file path:
 ```python
-result = {
-    "accuracy": 0.95,
-    "f1_score": 0.92,
-    "model_params": {"max_depth": 5}
-}
-lh.save_result(result)
+data = utils.load_dataset_by_path("/path/to/file.csv")
 ```
 
 **Parameters:**
+- `path`: Absolute file path
 
-- `result`: Dictionary containing experiment results
-
-**Behavior:**
-
-- Saves results to `results.json` file
-- Uses JSON serialization with NumPy support
+**Returns:**
+- File content
 
 ## Task Implementation Example
 
@@ -114,7 +87,7 @@ Here's a complete example of a task using Local ExecutionWare:
 ```python
 import os
 import sys
-import local_helper as lh
+from eexp_engine_utils import utils
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
@@ -124,7 +97,7 @@ for folder in variables.get("dependent_modules_folders").split(","):
 
 # Load input data
 print("Loading dataset...")
-dataset = lh.load_datasets(variables, "dataset")
+dataset = utils.load_dataset(variables, resultMap, "dataset")
 
 # Process the data
 print("Splitting dataset...")
@@ -132,29 +105,20 @@ train_data, test_data = train_test_split(dataset, test_size=0.2, random_state=42
 
 # Save output data
 print("Saving results...")
-lh.save_datasets(variables, 
-                ("train_data", train_data),
-                ("test_data", test_data))
-
-# Save experiment metadata
-result = {
-    "train_size": len(train_data),
-    "test_size": len(test_data),
-    "split_ratio": 0.8
-}
-lh.save_result(result)
+utils.save_dataset(variables, resultMap, "train_data", train_data)
+utils.save_dataset(variables, resultMap, "test_data", test_data)
 
 print("Task completed successfully!")
 ```
 
 ## Data Flow Between Tasks
 
-1. **First Task**: Saves data using `save_datasets()`
+1. **First Task**: Saves data using `utils.save_dataset()`
 2. **Process ID**: Each task gets a unique process ID
 3. **Intermediate Storage**: Data stored in `intermediate_files/process_id/`
-4. **Next Task**: Loads data using `load_datasets()`
-5. **Mapping**: Uses `execution_engine_mapping.json` to resolve data keys
-   > `execution_engine_mapping.json` is an internal file that the engine creates and deletes when needed
+4. **Next Task**: Loads data using `utils.load_dataset()`
+5. **Mapping**: Uses internal mapping to resolve data keys between tasks
+   > The engine automatically manages intermediate file paths and cleanup
 
 ## Limitations
 

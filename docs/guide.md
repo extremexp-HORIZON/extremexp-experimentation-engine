@@ -77,18 +77,76 @@ Next, you'll create a configuration file and define:
       ```text
       .
       ├── experiments/
+      ├── workflows/
       ├── datasets/
       ├── tasks/
       └── dependencies/
       ```
 
 3. Edit `eexp_config.py`:
-      - Check out the configuration [example](config.md#configuration-file-structure)
       - For detailed information, see the [Configuration](config.md) page
 
 ---
 
-## Step 3 — Create your experiment
+## Step 3 — Create your Workflow
+
+1. From the root directory navigate to the experiments directory:
+
+      ```bash
+      cd workflows
+      ```
+
+2. Create a *demo* experiment:
+
+      ```bash
+      touch demo-workflow.xxp
+      ```
+   > All DSL files should have `.xxp` format. 
+
+3. Edit `demo-workflow.xxp` file with the following content:
+
+    ??? info "example"
+        ```dsl
+        workflow DemoWorkflow {
+            START -> Task1 -> Task2 -> END;
+
+        task Task1 {
+            implementation "demo/task1";
+        }
+
+        task Task2;
+
+        define input data InputFile;
+        define output data OutputFile;
+
+        configure data InputFile {
+            path "demo/test.json";
+        }
+
+        configure data OutputFile {
+            path "output/test_local/test_output.json";
+        }
+
+        InputFile --> Task1.Task1InputFile;
+        Task1.Task1OutputFile --> Task2.Task2InputFile;
+        Task2.Task2OutputFile --> OutputFile;
+        }
+
+        workflow AssembledWorkflow1 from DemoWorkflow {
+            task Task2 {
+                  implementation "demo/Task1V1";
+            }
+        }
+
+        workflow AssembledWorkflow2 from DemoWorkflow {
+            task Task2 {
+                  implementation "demo_tasks/Task1V2";
+            }
+        }
+        ```
+      For detailed information about the DSL syntax and available options, see the [Experiment](dsl/experiments.md) & [Workflow](dsl/workflows.md) DSL page
+
+## Step 4 — Create your experiment
 
 1. From the root directory navigate to the experiments directory:
 
@@ -107,43 +165,8 @@ Next, you'll create a configuration file and define:
 
     ??? info "example"
         ```dsl
-        workflow DemoWorkflow {
-          START -> Task1 -> Task2 -> END;
-        
-          task Task1 {
-            implementation "demo/task1";
-          }
-        
-          task Task2;
-        
-          define input data InputFile;
-          define output data OutputFile;
-        
-          configure data InputFile {
-            path "demo/test.json";
-          }
-        
-          configure data OutputFile {
-            path "output/test_local/test_output.json";
-          }
-        
-          InputFile --> Task1.Task1InputFile;
-          Task1.Task1OutputFile --> Task2.Task2InputFile;
-          Task2.Task2OutputFile --> OutputFile;
-        }
-        
-        workflow AssembledWorkflow1 from DemoWorkflow {
-          task Task2 {
-            implementation "demo/Task1V1";
-          }
-        }
-        
-        workflow AssembledWorkflow2 from DemoWorkflow {
-          task Task2 {
-            implementation "demo_tasks/Task1V2";
-          }
-        }
-        
+        import "demo-workflow.xxp";
+
         experiment DemoWP5Experiment {
           control {
             START -> S1 -> S2 -> END;
@@ -170,7 +193,7 @@ Next, you'll create a configuration file and define:
       For detailed information about the DSL syntax and available options, see the [Experiment](dsl/experiments.md) & [Workflow](dsl/workflows.md) DSL page
 
 
-## Step 4 — Create your dataset
+## Step 5 — Create your dataset
 
 1. From the root directory navigate to the datasets directory:
 
@@ -202,9 +225,9 @@ Next, you'll create a configuration file and define:
 ---
 
 
-## Step 5 - Create Task Specifications
+## Step 6 - Create Task Specifications
 
-In the `demo-experiment.xxp` we defined two Tasks inside the workflow block *(Task1, Task2)*.
+In the `demo-workflow.xxp` we defined two Tasks inside the workflow block *(Task1, Task2)*.
 Next up we are going to create and edit the corresponding `<task>.xxp` files for these two Tasks.
 
 1. From the root directory navigate to the *tasks* directory:
@@ -307,12 +330,17 @@ Next up we are going to create and edit the corresponding `<task>.xxp` files for
 
     ??? info "task1.py file"
         ```py
-        [sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
-        import proactive_helper as ph
+        import os
+        import sys
+
+        # Import the utilities - automatically routes to correct backend (Proactive, Kubeflow, or Local)
+        from eexp_engine_utils import utils
 
         print("Running DemoWP5Task1")
 
-        dataset = ph.load_dataset(variables, resultMap, "DemoWP5Task1InputFile")
+        # For Proactive/Kubeflow, pass both variables and resultMap
+        # For Local, only variables is needed
+        dataset = utils.load_dataset(variables, resultMap, "DemoWP5Task1InputFile")
 
         demo_param = variables.get("demo_param")
         print(f"with value of demo_param: {demo_param}")
@@ -323,31 +351,35 @@ Next up we are going to create and edit the corresponding `<task>.xxp` files for
         print(f"Increasing this parameter by {increment} and adding the result to the metric {metric_name}")
         resultMap.put(metric_name, int(demo_param) + increment)
 
-        ph.save_dataset(variables, resultMap, "DemoWP5Task1OutputFile", dataset).       
+        utils.save_dataset(variables, resultMap, "DemoWP5Task1OutputFile", dataset)
         ```
-    
+
     ??? info "task2V1.py file"
         ```py
-        [sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
-        import proactive_helper as ph
+        import os
+        import sys
+
+        from eexp_engine_utils import utils
 
         print("Running DemoWP5Task2V1")
 
-        dataset = ph.load_dataset(variables, resultMap, "DemoWP5Task2InputFile")
+        dataset = utils.load_dataset(variables, resultMap, "DemoWP5Task2InputFile")
 
-        ph.save_dataset(variables, resultMap, "DemoWP5Task2OutputFile", dataset).       
+        utils.save_dataset(variables, resultMap, "DemoWP5Task2OutputFile", dataset)
         ```
-    
+
     ??? info "task2V2.py file"
         ```py
-        [sys.path.append(os.path.join(os.getcwd(), folder)) for folder in variables.get("dependent_modules_folders").split(",")]
-        import proactive_helper as ph
+        import os
+        import sys
+
+        from eexp_engine_utils import utils
 
         print("Running DemoWP5Task2V2")
 
-        dataset = ph.load_dataset(variables, resultMap, "DemoWP5Task2InputFile")
+        dataset = utils.load_dataset(variables, resultMap, "DemoWP5Task2InputFile")
 
-        ph.save_dataset(variables, resultMap, "DemoWP5Task2OutputFile", dataset)
+        utils.save_dataset(variables, resultMap, "DemoWP5Task2OutputFile", dataset)
         ```
 
       <!-- - [task1.py](examples.md#task1py)
@@ -362,17 +394,51 @@ Next up we are going to create and edit the corresponding `<task>.xxp` files for
 
 ## Step 7 - Run the experiment
 
-1. Create `run_experiment.py` in your project root.
-    ```py
-    from eexp_engine import client
-    import eexp_config
+### Method 1: Using the CLI (`eexp-run`)
 
-    exp_name = 'example_exp'
+The easiest way to run experiments is using the command-line interface:
 
-    client.run(__file__, exp_name, eexp_config)
-    ```
+```bash
+eexp-run
+```
 
-2. Run the experiment using:
-    ```bash
-    python3 run_experiment.py
-    ```
+This launches an interactive menu where you can:
+
+1. Browse available experiments from your `EXPERIMENT_LIBRARY_PATH`
+2. Select an experiment to run
+3. Monitor execution progress
+
+### Method 2: Programmatically
+
+Create a Python script (e.g., `run_experiment.py`) in your project root:
+
+```python
+from eexp_engine import client
+from eexp_engine.runner import select_file
+import eexp_config
+
+if __name__ == "__main__":
+    # Interactive selection
+    selected_file, exp_name = select_file()
+    if selected_file and exp_name:
+        client.run(selected_file, exp_name, eexp_config)
+```
+
+Or run a specific experiment directly:
+
+```python
+from eexp_engine import client
+import eexp_config
+
+if __name__ == "__main__":
+    experiment_file = "experiments"
+    experiment_name = "demo-experiment"
+
+    client.run(experiment_file, experiment_name, eexp_config)
+```
+
+Then execute:
+
+```bash
+python run_experiment.py
+```

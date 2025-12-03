@@ -162,7 +162,7 @@ Configures the actual file paths for the data objects:
 - `OutputFile` writes to the specified path
 
 !!! note
-    For more examples on Data Configuration check out [Github Examples](https://github.com/extremexp-HORIZON/extremexp-experimentation-engine/tree/main/exp_engine/library-experiments/tests/dataset_management)
+    For more examples on Data Configuration check out [Github Examples](https://github.com/extremexp-HORIZON/extremexp-experimentation-engine/tree/main/playground/experiments/tests)
 
 ### 6. Data Flow Connections
 ```dsl

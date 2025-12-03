@@ -26,17 +26,20 @@ Proactive ExecutionWare internally uses runtime configuration files that contain
 
 ## Helper Functions
 
-Import the proactive helper module in your tasks:
+Import the utilities in your tasks:
 ```python
-import proactive_helper as ph
+from eexp_engine_utils import utils
 ```
+
+!!! info "Universal Interface"
+    The `utils` module automatically detects the ExecutionWare backend and routes function calls appropriately. The same import works for Local, Proactive, and Kubeflow ExecutionWare.
 
 ### Data Loading Functions
 
 #### load_dataset()
 Load a single dataset:
 ```python
-dataset = ph.load_dataset(variables, resultMap, "input_key")
+dataset = utils.load_dataset(variables, resultMap, "input_key")
 ```
 
 **Parameters:**
@@ -52,7 +55,7 @@ dataset = ph.load_dataset(variables, resultMap, "input_key")
 #### load_datasets()
 Load multiple datasets:
 ```python
-datasets = ph.load_datasets(variables, resultMap, "input_key")
+datasets = utils.load_datasets(variables, resultMap, "input_key")
 ```
 
 **Parameters:**
@@ -70,7 +73,7 @@ datasets = ph.load_datasets(variables, resultMap, "input_key")
 #### save_dataset()
 Save a single dataset:
 ```python
-ph.save_dataset(variables, resultMap, "output_key", data)
+utils.save_dataset(variables, resultMap, "output_key", data)
 ```
 
 **Parameters:**
@@ -83,9 +86,9 @@ ph.save_dataset(variables, resultMap, "output_key", data)
 #### save_datasets()
 Save multiple datasets with optional filenames:
 ```python
-ph.save_datasets(variables, resultMap, "output_key", 
-                [data1, data2], 
-                ['file1.csv', 'file2.csv'])
+utils.save_datasets(variables, resultMap, "output_key",
+                   [data1, data2],
+                   ['file1.csv', 'file2.csv'])
 ```
 
 **Parameters:**
@@ -98,30 +101,18 @@ ph.save_datasets(variables, resultMap, "output_key",
 
 ### Directory Management
 
-#### create_dir()
-Create a directory for intermediate files:
-```python
-folder_path = ph.create_dir(variables, "subfolder_name")
-```
-
-#### get_file_path()
-Get a file path within a configured directory:
-```python
-file_path = ph.get_file_path(variables, "data_folder_key", "filename.csv")
-```
-
-### Utility Functions
+### Additional Helper Functions
 
 #### get_experiment_results()
 Load experiment results from previous runs:
 ```python
-results = ph.get_experiment_results()
+results = utils.get_experiment_results()
 ```
 
 #### load_dataset_by_path()
 Load data directly from a file path:
 ```python
-data = ph.load_dataset_by_path("/path/to/file.csv")
+data = utils.load_dataset_by_path("/path/to/file.csv")
 ```
 
 ### File Upload and Download
@@ -148,8 +139,9 @@ data = ph.load_dataset_by_path("/path/to/file.csv")
 # -*- coding: utf-8 -*-
 import os
 import sys
-import proactive_helper as ph
+from eexp_engine_utils import utils
 import pandas as pd
+from io import BytesIO
 
 # Add dependent modules to path
 for folder in variables.get("dependent_modules_folders").split(","):
@@ -157,7 +149,7 @@ for folder in variables.get("dependent_modules_folders").split(","):
 
 # Load input data
 print("Loading dataset...")
-dataset_bytes = ph.load_dataset(variables, resultMap, "dataset")
+dataset_bytes = utils.load_dataset(variables, resultMap, "dataset")
 
 # Convert bytes to DataFrame
 dataset = pd.read_csv(BytesIO(dataset_bytes))
@@ -169,7 +161,7 @@ processed_data = dataset.dropna()
 output_bytes = processed_data.to_csv(index=False).encode('utf-8')
 
 # Save output data
-ph.save_dataset(variables, resultMap, "processed_data", output_bytes)
+utils.save_dataset(variables, resultMap, "processed_data", output_bytes)
 
 print("Task completed successfully!")
 ```
@@ -178,10 +170,11 @@ print("Task completed successfully!")
 ```python
 import os
 import sys
-import proactive_helper as ph
+from eexp_engine_utils import utils
 import pandas as pd
 import pickle
 import json
+from io import BytesIO
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
@@ -191,8 +184,8 @@ for folder in variables.get("dependent_modules_folders").split(","):
     sys.path.append(os.path.join(os.getcwd(), folder))
 
 # Load training data
-train_data_bytes = ph.load_dataset(variables, resultMap, "train_data")
-test_data_bytes = ph.load_dataset(variables, resultMap, "test_data")
+train_data_bytes = utils.load_dataset(variables, resultMap, "train_data")
+test_data_bytes = utils.load_dataset(variables, resultMap, "test_data")
 
 # Convert to DataFrames
 train_df = pd.read_csv(BytesIO(train_data_bytes))
@@ -226,9 +219,9 @@ results = {
 results_bytes = json.dumps(results).encode('utf-8')
 
 # Save multiple outputs
-ph.save_datasets(variables, resultMap, "ml_outputs", 
-                [model_bytes, predictions_bytes, results_bytes],
-                ['model.pkl', 'predictions.csv', 'results.json'])
+utils.save_datasets(variables, resultMap, "ml_outputs",
+                   [model_bytes, predictions_bytes, results_bytes],
+                   ['model.pkl', 'predictions.csv', 'results.json'])
 
 print(f"Model trained with accuracy: {accuracy:.4f}")
 ```
@@ -237,9 +230,10 @@ print(f"Model trained with accuracy: {accuracy:.4f}")
 ```python
 import os
 import sys
-import proactive_helper as ph
+from eexp_engine_utils import utils
 import pandas as pd
 import json
+import pickle
 from io import BytesIO
 
 # Add dependent modules to path
@@ -263,8 +257,8 @@ def df_to_csv_bytes(df):
 
 # Load model and data
 print("Loading model and test data...")
-model_data = ph.load_dataset(variables, resultMap, "trained_model")
-test_data = ph.load_dataset(variables, resultMap, "test_data")
+model_data = utils.load_dataset(variables, resultMap, "trained_model")
+test_data = utils.load_dataset(variables, resultMap, "test_data")
 
 # Deserialize model
 model = pickle.loads(model_data)
@@ -313,7 +307,7 @@ filenames = [
 ]
 
 print("Uploading results to DDM...")
-ph.save_datasets(variables, resultMap, "analysis_results", outputs, filenames)
+utils.save_datasets(variables, resultMap, "analysis_results", outputs, filenames)
 
 print(f"Analysis complete. AUC: {auc:.4f}")
 ```

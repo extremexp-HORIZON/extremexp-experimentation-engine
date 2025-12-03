@@ -17,44 +17,52 @@ Each ExecutionWare implementation offers a consistent API through helper functio
 
 ## Available ExecutionWare Types
 
-ExtremeXP currently supports two main ExecutionWare implementations:
+ExtremeXP currently supports three main ExecutionWare implementations:
 
 ### 1. Local ExecutionWare
-- **Purpose**: Executes workflows locally on a single machine
+- **Purpose**: Executes workflows locally on a single machine using subprocess
 - **Data Management**: Files are stored locally using the filesystem
 - **Use Case**: Development, testing, and small-scale experiments
-- **Helper Module**: `local_helper`
+- **Helper Module**: Access via `eexp_engine_utils`
 
 ### 2. Proactive ExecutionWare
-- **Purpose**: Executes workflows on distributed computing infrastructure
-- **Data Management**: Supports both local files and distributed data management (Zenoh)
-- **Use Case**: Large-scale experiments, cloud deployments, and distributed computing
-- **Helper Module**: `proactive_helper`
+- **Purpose**: Executes workflows on ProActive Scheduler (distributed computing)
+- **Data Management**: Supports both local files and DDM (Distributed Data Management)
+- **Use Case**: Production experiments, distributed computing with ActiveEon ProActive
+- **Helper Module**: Access via `eexp_engine_utils`
+
+### 3. Kubeflow ExecutionWare
+- **Purpose**: Executes workflows as Kubeflow Pipelines on Kubernetes clusters
+- **Data Management**: Supports both local files (MinIO S3 for artifact storage ) and DDM (Distributed Data Management)
+- **Use Case**: Cloud-native deployments, Kubernetes infrastructure, ML pipelines
+- **Helper Module**: Access via `eexp_engine_utils`
 
 ## How Tasks Use ExecutionWare
 
-Tasks import the appropriate helper module and use its functions to handle data operations:
+Tasks use the utilities from `eexp_engine_utils` to interact with the execution environment. The utilities automatically detect which ExecutionWare backend is being used and route function calls to the appropriate implementation:
 
 ```python
-# Example task using Proactive ExecutionWare
-import proactive_helper as ph
+from eexp_engine_utils import utils
 
 # Load input data
-dataset = ph.load_dataset(variables, resultMap, "input_data")
+dataset = utils.load_dataset(variables, resultMap, "input_data")
 
 # Process the data
 processed_data = process_dataset(dataset)
 
 # Save output data
-ph.save_dataset(variables, resultMap, "output_data", processed_data)
+utils.save_dataset(variables, resultMap, "output_data", processed_data)
 ```
+
+This approach allows you to write task implementations once and run them on any ExecutionWare backend (Local, Proactive, or Kubeflow) without modification.
 
 ## ExecutionWare Selection
 
 The choice of ExecutionWare depends on your deployment requirements:
 
 - **Local ExecutionWare**: Choose for development, testing, or single-machine experiments
-- **Proactive ExecutionWare**: Choose for production deployments, distributed computing, or when using cloud infrastructure
+- **Proactive ExecutionWare**: Choose for production deployments with ActiveEon ProActive infrastructure
+- **Kubeflow ExecutionWare**: Choose for Kubernetes-based deployments, cloud-native applications, or when you need ML pipeline integration
 
 ## Data Management Integration
 
@@ -65,8 +73,13 @@ ExecutionWare supports different data management backends:
 
 #### Proactive ExecutionWare:
    - **Local Files**: Traditional filesystem-based storage
-   - **Zenoh DDM**: Distributed data management for cloud and cluster environments
+   - **DDM**: Distributed data management for cloud and cluster environments
    - **Hybrid Approaches**: Combination of local and distributed storage
+
+#### Kubeflow ExecutionWare:
+   - **MinIO S3**: Object storage for artifacts and intermediate files
+   - **DDM**: Distributed data management integration
+   - **Kubernetes Volumes**: Persistent volume claims for data storage
 
 The workflow DSL automatically handles the appropriate data management configuration based on the ExecutionWare type and configuration settings.
 
@@ -76,10 +89,12 @@ ExecutionWare behavior is controlled through configuration files:
 
 - **Local**: `variables.json`, `execution_engine_mapping.json`
 - **Proactive**: Runtime configuration files with execution engine metadata
+- **Kubeflow**: Runtime configuration files with execution engine metadata
 
 ## Next Steps
 
-Each ExecutionWare provides a set of helper functions that tasks use to interact with the execution environment:
+Learn more about each ExecutionWare implementation and their specific helper functions:
 
-- **[Local Helper](local.md)**: Learn how to use local execution helper functions for development and testing.
-- **[Proactive Helper](proactive.md)**: Learn how to use proactive helper functions for production deployments.
+- **[Local ExecutionWare](local.md)**: Helper functions for local development and testing
+- **[Proactive ExecutionWare](proactive.md)**: Helper functions for ProActive-based production deployments
+- **[Kubeflow ExecutionWare](kubeflow.md)**: Helper functions for Kubernetes and Kubeflow Pipelines
