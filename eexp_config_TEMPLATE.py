@@ -5,15 +5,16 @@ WORKSPACE_ROOT = None
 # Main folders (mandatory) - paths are just examples
 TASK_LIBRARY_PATH = 'playground/tasks'
 EXPERIMENT_LIBRARY_PATH = 'playground/experiments'
+WORKFLOW_LIBRARY_PATH = 'playground/workflows'
 # The ones below has to be a path relative to the script that invokes the client.run()
 DATASET_LIBRARY_RELATIVE_PATH = 'playground/datasets'
 PYTHON_DEPENDENCIES_RELATIVE_PATH = 'playground/dependencies'
 # Reference here the Python file that holds the functions used in the evaluation of conditions.
 # Path is relative to the script that invokes the client.run()
-PYTHON_CONDITIONS = 'playground/tasks/experiment_conditions'
+PYTHON_CONDITIONS = 'playground.tasks.experiment_conditions'
 
 # The Python file that holds any functions used for filtering or generating configurations for spaces
-PYTHON_CONFIGURATIONS = 'playground/tasks/experiment_configurations'
+PYTHON_CONFIGURATIONS = 'playground.tasks.experiment_configurations'
 
 # number of workflows that the engine can run in parallel per node at any given moment (if omitted, value is 1)
 MAX_WORKFLOWS_IN_PARALLEL_PER_NODE = 3

@@ -8,4 +8,5 @@ task Task1 {
     }
 
     implementation "Testcase_task1/task.py";
+     python_version '3.9';
 }

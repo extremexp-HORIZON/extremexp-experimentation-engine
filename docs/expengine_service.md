@@ -46,7 +46,7 @@ Failed experiments persist error logs with stack traces for debugging, with auto
 
 ### Configuration Requirements
 
-The service requires the following configuration in `eexp_config.py`:
+The service requires the following configuration to be set in `eexp_config.py` as well:
 
 ```python
 # Required: Base workspace directory for user-scoped files
@@ -54,16 +54,6 @@ WORKSPACE_ROOT = '/path/to/workspace'
 
 # Optional: Experiment queue settings
 MAX_EXPERIMENTS_IN_PARALLEL = 4  # Default: 4
-
-# ExecutionWare configuration (PROACTIVE, KUBEFLOW, or LOCAL)
-EXECUTIONWARE = "PROACTIVE"
-
-# Data Abstraction Layer
-DATA_ABSTRACTION_BASE_URL = "http://your-dal-server/api"
-DATA_ABSTRACTION_ACCESS_TOKEN = "your-token"
-
-# Dataset Management (LOCAL or DDM)
-DATASET_MANAGEMENT = "LOCAL"
 ```
 
 !!! info "WORKSPACE_ROOT Configuration"

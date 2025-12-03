@@ -8,6 +8,8 @@ import time
 import importlib
 import logging
 from multiprocessing import Process, Queue
+import os
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +82,9 @@ class Execution:
             return False
         else:
             condition_str_list = condition_str.split()
+            cwd = os.getcwd()
+            if cwd not in sys.path:
+                sys.path.insert(0, cwd)
             python_conditions = importlib.import_module(self.config.PYTHON_CONDITIONS)
             condition = getattr(python_conditions, condition_str_list[0])
             args = condition_str_list[1:] + [self.results]
