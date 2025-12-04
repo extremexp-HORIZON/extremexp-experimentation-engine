@@ -1,8 +1,0 @@
-task Task3 {
-
-    define input data dataframe_json;
-
-    implementation "Task3/task.py";
-    venv "Task3/requirements.txt";
-    python_version "3.9";
-}

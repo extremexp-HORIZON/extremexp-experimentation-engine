@@ -1,0 +1,8 @@
+from eexp_engine_utils import utils
+import pandas as pd
+    
+print("hello world")
+
+[ok] = utils.load_datasets_ddm(variables, "input2", resultMap)
+df = pd.read_csv(ok)
+print("Loaded data from task1:", df.head())

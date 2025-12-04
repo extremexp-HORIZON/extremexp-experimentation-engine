@@ -1,0 +1,25 @@
+workflow DemoWorkflow {
+
+    START -> Task1 -> Task2 -> Task3 -> END;
+
+    task Task1 {
+        implementation "kubeflow_tests/simple_two_tasks/task1";
+    }
+    
+    task Task2 {
+        implementation "kubeflow_tests/simple_two_tasks/task2";
+    }
+    
+    task Task3 {
+        implementation "kubeflow_tests/simple_two_tasks/task3";
+    }
+
+    Task1.output1 --> Task2.input2;
+    Task1.output1 --> Task3.input3;
+
+
+}
+
+workflow Demo1Workflow from DemoWorkflow {
+
+}

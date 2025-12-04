@@ -1,5 +1,5 @@
 from ..data_abstraction_layer.data_abstraction_api import DataAbstractionClient
-from ..executionware import proactive_runner, local_runner
+from ..executionware import proactive_runner, local_runner, kubeflow_runner
 from ..models.experiment import *
 import pprint
 import itertools
@@ -8,6 +8,8 @@ import time
 import importlib
 import logging
 from multiprocessing import Process, Queue
+import os
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +82,9 @@ class Execution:
             return False
         else:
             condition_str_list = condition_str.split()
+            cwd = os.getcwd()
+            if cwd not in sys.path:
+                sys.path.insert(0, cwd)
             python_conditions = importlib.import_module(self.config.PYTHON_CONDITIONS)
             condition = getattr(python_conditions, condition_str_list[0])
             args = condition_str_list[1:] + [self.results]
@@ -200,6 +205,8 @@ class Execution:
         # Check circuit breaker for connection failures
         self._check_connection_failure(connection_error)
 
+        self.data.update_workflow(wf_id, {"end": self.data.get_current_time()})
+        self.data.update_metrics_of_workflow(wf_id, result)
         workflow_results = {}
         workflow_results["configuration"] = ()
         workflow_results["result"] = result
@@ -342,6 +349,7 @@ class Execution:
 
     def run_scheduled_workflows_from_db(self, node, space_workflow_ids):
         """Execute scheduled workflows for this space by reconstructing each workflow from DB task parameters."""
+        import json
         space_results = {}
         run_count_in_space = 1
         # Cache configurations per wf_id to avoid recomputation
@@ -375,7 +383,7 @@ class Execution:
                 p.join()
                 self.subprocesses -= 1
                 result, connection_error = results[wf_id]
-
+               
                 # Check circuit breaker for connection failures
                 self._check_connection_failure(connection_error)
 
@@ -527,6 +535,8 @@ class Execution:
                 result = proactive_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config, results_so_far)
             elif self.config.EXECUTIONWARE == "LOCAL":
                 result = local_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config)
+            elif self.config.EXECUTIONWARE == "KUBEFLOW":
+                result = kubeflow_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config, results_so_far)
             else:
                 logger.error("You need to setup an executionware")
                 exit(0)

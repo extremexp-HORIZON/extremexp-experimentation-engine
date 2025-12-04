@@ -1,0 +1,4 @@
+task DemoTask2 {
+    implementation "kubeflow_tests/simple_two_tasks/task";
+    python_version "3.9";
+}

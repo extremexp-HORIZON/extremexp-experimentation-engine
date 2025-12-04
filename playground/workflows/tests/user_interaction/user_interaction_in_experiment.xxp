@@ -1,0 +1,23 @@
+workflow ComplexControlW {
+
+    START -> Task1 -> Task2 -> END;
+
+    task Task1 {
+        implementation "Testcase_task1";
+    }
+
+    task Task2;
+
+}
+
+workflow ComplexControlAW1 from ComplexControlW {
+    task Task2 {
+        implementation "Testcase_task2_v1";
+    }
+}
+
+workflow ComplexControlAW2 from ComplexControlW {
+    task Task2 {
+        implementation "Testcase_task2_v2";
+    }
+}

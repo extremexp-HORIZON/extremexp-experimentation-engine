@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eexp_engine_utils"
+version = "0.0.46"
+authors = [
+  { name="Ilias Gerostathopoulos", email="iliasger@gmail.com" },
+]
+description = "Helper utilities for eexp_engine - supporting ProActive and Kubeflow execution environments"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "requests==2.32.5",
+    "fsspec==2025.10.0",
+    "s3fs==2025.10.0",
+    "minio==7.2.18",
+    "pandas==2.2.0",
+    "numpy==1.26.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/extremexp-HORIZON/extremexp-experimentation-engine"
+Issues = "https://github.com/extremexp-HORIZON/extremexp-experimentation-engine/issues"

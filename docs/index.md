@@ -11,17 +11,18 @@ The Experimentation Engine (ExpEngine in short) serves as the core component of 
 
 ``` mermaid
 classDiagram
-  ExcecutionWare <-- ExperimentationEngine:runs on
-  ExcecutionWare <|-- LocalExec
-  ExcecutionWare <|-- Proactive
+  ExecutionWare <-- ExperimentationEngine:runs on
+  ExecutionWare <|-- LocalExec
+  ExecutionWare <|-- Proactive
+  ExecutionWare <|-- Kubeflow
   DataManager <-- ExperimentationEngine:uses
   DataManager <|-- LocalStorage
   DataManager <|-- DDM
   DAL <-- ExperimentationEngine:uses
   class ExperimentationEngine{
     dataManager: DataManager
-    executionWare: ExcecutionWare
-    dal: Dal
+    executionWare: ExecutionWare
+    dal: DAL
   }
   class DataManager{
   }
@@ -29,11 +30,13 @@ classDiagram
   }
   class DDM{
   }
-  class ExcecutionWare{
+  class ExecutionWare{
   }
   class LocalExec{
   }
   class Proactive{
+  }
+  class Kubeflow{
   }
   class DAL{
   }
@@ -48,12 +51,13 @@ DataManager handles the retrieval and storage of datasets (files) during experim
 - **LocalStorage**: Uses the local file system (of the machine where the experiment is launched) for retrieving and saving datasets. This is useful when using the module as a stand-alone component, i.e., without depending on the Decentralized Data Management (DDM) component of the ExtremeXP framework. 
 - **DDM**: Uses the API endpoints of the DDM component of the ExtremeXP framework for retrieving and saving datasets. Internally, DDM uses the Zenoh framework, making it possible to manage datasets distributed over a cluster of machines. This implementation provides more flexibility for accessing datasets generated via workflows from different components of the framework (e.g., from the Experiment Visualization component).
 
-### 2. ExecutionWare 
+### 2. ExecutionWare
 
-ExecutionWare handles the scheduling and execution of workflows generated during the execution of an experiment via the Experimentation Engine. Two implementations are currently supported.
+ExecutionWare handles the scheduling and execution of workflows generated during the execution of an experiment via the Experimentation Engine. Three implementations are currently supported.
 
-- **LocalExec**: Workflows are executed directly on the local machine (where the experiment is launched) as Python processes. This is useful mostly for debugging purposes and offers fewer integration possibilities compared to Proactive.
-- **Proactive**: Workflows are transformed into Proactive “jobs” and submitted for execution to Activeeon’s ProActive platform. The Proactive Python client is used for this, which internally connects to ProActive via dedicated endpoints. The Experimentation Engine periodically polls to obtain the status of execution of the submitted workflows.
+- **Local**: Workflows are executed directly on the local machine (where the experiment is launched) as Python processes. This is useful mostly for debugging purposes and offers fewer integration possibilities compared to Proactive or Kubeflow.
+- **Proactive**: Workflows are transformed into Proactive "jobs" and submitted for execution to Activeeon's ProActive platform. The Proactive Python client is used for this, which internally connects to ProActive via dedicated endpoints. The Experimentation Engine periodically polls to obtain the status of execution of the submitted workflows.
+- **Kubeflow**: Workflows are executed on Kubeflow Pipelines, leveraging Kubernetes for distributed computing. Tasks are containerized and executed as Kubeflow pipeline components, with MinIO for artifact storage and comprehensive resource management capabilities.
 
 ### 3. DAL (Data Abstraction Layer)
 
@@ -61,18 +65,31 @@ The DAL is an interface for saving and retrieving (i) metadata about experiments
 
 ---
 
-Given the above modular and adaptable architecture, the Experimentation Engine performs the following key steps when provided with an experiment definition: 
+### 4. Experiment Queue
+
+The Experiment Queue is a new component that manages concurrent experiment execution with queuing capabilities when ExpEngine is used as a Service. It provides:
+
+- **Asynchronous Execution**: Submit experiments for background execution via the REST API
+- **Concurrency Control**: Configurable limit on simultaneously running experiments (default: 4)
+- **Queue Management**: Automatic queuing of experiments when the system is at capacity
+- **Status Tracking**: Monitor experiment status, queue position, and runtime
+- **Cancellation Support**: Gracefully cancel queued or running experiments
+- **User Isolation**: Separate experiment queues per user for multi-tenant deployments
+
+---
+
+Given the above modular and adaptable architecture, the Experimentation Engine performs the following key steps when provided with an experiment definition:
 
 1. It parses the experiment definition written in the ExtremeXP Domain-Specific Language (DSL) using textX, a Python tool for working with textual DSLs.
-2. It executes the steps of an experiment according to its control logic (in sequence or in parallel). It can do so in a conditional way, i.e., execute steps based on the results of previous ones.  
-3. For each step being executed, it generates the necessary executable workflows, i.e., the workflows consisting of non-abstract, fully parametrized tasks.
-4. It submits the executable workflows for execution. 
-5. It retrieves the results of each executed workflow (such as metrics values, generated datasets) and saves them alongside the metadata of the experiment and the executed workflows. 
-6. It may submit special types of workflows for execution, which consist of tasks that expect input from users – “user-interaction” tasks. Inputs from users are also saved together with the results of each workflow. 
+2. It validates the experiment configuration and authenticates with required services (DDM, DAL, ExecutionWare backends).
+3. It executes the steps of an experiment according to its control logic (in sequence or in parallel). It can do so in a conditional way, i.e., execute steps based on the results of previous ones.
+4. For each step being executed, it generates the necessary executable workflows, i.e., the workflows consisting of non-abstract, fully parametrized tasks.
+5. It submits the executable workflows for execution via the selected ExecutionWare backend.
+6. It retrieves the results of each executed workflow (such as metrics values, generated datasets) and saves them alongside the metadata of the experiment and the executed workflows.
+7. It may submit special types of workflows for execution, which consist of tasks that expect input from users – "user-interaction" tasks. Inputs from users are also saved together with the results of each workflow.
 
 ---
 
 - **Start with the [User Guide](guide.md)**  
 - **Learn about [Configuration](config.md)**  
 - **Understand the [DSL Syntax](dsl/experiments.md)**  
-- **See [Examples](examples.md)**

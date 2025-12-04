@@ -1,0 +1,11 @@
+task Task2 {
+    implementation "Testcase_task2_v1/task.py";
+
+    define metric some_value {
+        semanticType ML_Accuracy;
+        kind single-value;
+        type double;
+    }
+
+    python_version "3.8";
+}
