@@ -1,5 +1,5 @@
 from ..data_abstraction_layer.data_abstraction_api import DataAbstractionClient
-from ..executionware import proactive_runner, local_runner, prefect_runner
+from ..executionware import proactive_runner, local_runner, kubeflow_runner, prefect_runner
 from ..models.experiment import *
 import pprint
 import itertools
@@ -8,6 +8,8 @@ import time
 import importlib
 import logging
 from multiprocessing import Process, Queue
+import os
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,8 @@ class Execution:
         self.queues_for_workflows = {}
         self.subprocesses = 0
         self.cancel_flag = cancel_flag
+        self.consecutive_connection_failures = 0
+        self.max_consecutive_connection_failures = getattr(config, 'MAX_CONSECUTIVE_CONNECTION_FAILURES', 3)
 
     def _check_cancellation(self, context=""):
         """Check if experiment has been cancelled and raise exception if so."""
@@ -48,6 +52,27 @@ class Execution:
             logger.info(msg)
             raise RuntimeError("Experiment cancelled by user")
 
+    def _check_connection_failure(self, workflow_failed_with_connection_error):
+        """Check if we should abort experiment due to consecutive connection failures.
+
+        Args:
+            workflow_failed_with_connection_error: Boolean indicating if the workflow failed due to connection error
+
+        Raises:
+            RuntimeError: If max consecutive connection failures exceeded
+        """
+        if workflow_failed_with_connection_error:
+            self.consecutive_connection_failures += 1
+            logger.warning(f"Connection failure {self.consecutive_connection_failures}/{self.max_consecutive_connection_failures}")
+
+            if self.consecutive_connection_failures >= self.max_consecutive_connection_failures:
+                msg = f"Aborting experiment {self.exp_id}: {self.consecutive_connection_failures} consecutive connection failures"
+                logger.error(msg)
+                raise RuntimeError(msg)
+        else:
+            # Reset counter on successful workflow execution
+            self.consecutive_connection_failures = 0
+
     def evaluate_condition(self, condition_str):
         if condition_str == "True":
             return True
@@ -57,6 +82,9 @@ class Execution:
             return False
         else:
             condition_str_list = condition_str.split()
+            cwd = os.getcwd()
+            if cwd not in sys.path:
+                sys.path.insert(0, cwd)
             python_conditions = importlib.import_module(self.config.PYTHON_CONDITIONS)
             condition = getattr(python_conditions, condition_str_list[0])
             args = condition_str_list[1:] + [self.results]
@@ -74,8 +102,14 @@ class Execution:
         """Entry point to execute the experiment control flow."""
         start_node = next(node for node in self.exp.control_node_containers if not node.is_next)
         self.data.update_experiment(self.exp_id, {"status": "running", "start": self.data.get_current_time()})
-        self.execute_nodes_in_container(start_node)
-        self.data.update_experiment(self.exp_id, {"status": "completed", "end": self.data.get_current_time()})
+        try:
+            self.execute_nodes_in_container(start_node)
+            self.data.update_experiment(self.exp_id, {"status": "completed", "end": self.data.get_current_time()})
+        except RuntimeError as e:
+            # Handle both cancellation and circuit breaker exceptions
+            logger.error(f"Experiment {self.exp_id} failed: {e}")
+            self.data.update_experiment(self.exp_id, {"status": "failed", "end": self.data.get_current_time()})
+            raise
 
     def execute_nodes_in_container_sequential_DEPRECATED(self, control_node_container):
         all_control_nodes = self.exp.spaces + self.exp.tasks + self.exp.interactions
@@ -163,9 +197,16 @@ class Execution:
         self.queues_for_workflows[wf_id] = queue_for_workflow
         p = Process(target=self.execute_wf, args=(node.wf, wf_id, queue_for_workflow, self.results))
         p.start()
-        result = self.queues_for_workflows[wf_id].get()
+        result_tuple = self.queues_for_workflows[wf_id].get()
         p.join()
 
+        result, connection_error = result_tuple
+
+        # Check circuit breaker for connection failures
+        self._check_connection_failure(connection_error)
+
+        self.data.update_workflow(wf_id, {"end": self.data.get_current_time()})
+        self.data.update_metrics_of_workflow(wf_id, result)
         workflow_results = {}
         workflow_results["configuration"] = ()
         workflow_results["result"] = result
@@ -308,6 +349,7 @@ class Execution:
 
     def run_scheduled_workflows_from_db(self, node, space_workflow_ids):
         """Execute scheduled workflows for this space by reconstructing each workflow from DB task parameters."""
+        import json
         space_results = {}
         run_count_in_space = 1
         # Cache configurations per wf_id to avoid recomputation
@@ -335,12 +377,16 @@ class Execution:
                 time.sleep(1)
             results = {}
             for (wf_id, p) in processes:
-                result = self.queues_for_workflows[wf_id].get()
-                results[wf_id] = result
+                result_tuple = self.queues_for_workflows[wf_id].get()
+                results[wf_id] = result_tuple
             for (wf_id, p) in processes:
                 p.join()
                 self.subprocesses -= 1
-                result = results[wf_id]
+                result, connection_error = results[wf_id]
+               
+                # Check circuit breaker for connection failures
+                self._check_connection_failure(connection_error)
+
                 self.data.update_workflow(wf_id, {"end": self.data.get_current_time()})
                 self.data.update_metrics_of_workflow(wf_id, result)
                 if self.config.DATASET_MANAGEMENT == "DDM":
@@ -468,51 +514,6 @@ class Execution:
 
         return wf_id
 
-    # TODO: Check if we can get rid of this method
-    # def run_scheduled_workflows(self, configured_workflows_of_space, configurations_of_space):
-    #     space_results = {}
-    #     wf_ids = self.data.get_experiment(self.exp_id)["workflow_ids"]
-    #     wf_ids_of_this_space = [w for w in wf_ids if w in configured_workflows_of_space.keys()]
-    #     run_count_in_space = 1
-    #     while True:
-    #         scheduled_wf_ids = [wf_id for wf_id in wf_ids_of_this_space if self.data.get_workflow(wf_id)["status"] == "scheduled"]
-    #         if len(scheduled_wf_ids) == 0:
-    #             # all workflows have been executed
-    #             break
-    #         processes = []
-    #         for wf_id in scheduled_wf_ids:
-    #             if self.subprocesses == self.config.MAX_WORKFLOWS_IN_PARALLEL_PER_NODE:
-    #                 # parallelization limit reached
-    #                 break
-    #             self.data.update_workflow(wf_id, {"status": "running", "start": self.data.get_current_time()})
-    #             workflow_to_run = configured_workflows_of_space[wf_id]
-    #             queue_for_workflow = Queue()
-    #             self.queues_for_workflows[wf_id] = queue_for_workflow
-    #             p = Process(target=self.execute_wf, args=(workflow_to_run, wf_id, queue_for_workflow))
-    #             processes.append((wf_id, p))
-    #             p.start()
-    #             self.subprocesses += 1
-    #             time.sleep(1)
-    #         results = {}
-    #         for (wf_id, p) in processes:
-    #             result = self.queues_for_workflows[wf_id].get()
-    #             results[wf_id] = result
-    #         for (wf_id, p) in processes:
-    #             p.join()
-    #             self.subprocesses -= 1
-    #             result = results[wf_id]
-    #             self.data.update_workflow(wf_id, {"end": self.data.get_current_time()})
-    #             self.data.update_metrics_of_workflow(wf_id, result)
-    #             if self.config.DATASET_MANAGEMENT == "DDM":
-    #                 self.data.update_files_of_workflow(wf_id, result)
-    #             workflow_results = {}
-    #             workflow_results["configuration"] = configurations_of_space[wf_id]
-    #             workflow_results["result"] = result
-    #             space_results[run_count_in_space] = workflow_results
-    #             # TODO fix this count in case of reordering
-    #             run_count_in_space += 1
-    #     return space_results
-
     def get_workflow_to_run(self, node, c_dict):
         assembled_workflow = next(w for w in self.assembled_flat_wfs if w.name == node.assembled_workflow)
         # TODO subclass the Workflow to capture different types (assembled, configured, etc.)
@@ -528,11 +529,14 @@ class Execution:
         return configured_workflow
 
     def execute_wf(self, w, wf_id, queue_for_workflow, results_so_far=None):
+        connection_error_occurred = False
         try:
             if self.config.EXECUTIONWARE == "PROACTIVE":
                 result = proactive_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config, results_so_far)
             elif self.config.EXECUTIONWARE == "LOCAL":
                 result = local_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config)
+            elif self.config.EXECUTIONWARE == "KUBEFLOW":
+                result = kubeflow_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config, results_so_far)
             elif self.config.EXECUTIONWARE == "PREFECT":
                 result = prefect_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config)
             else:
@@ -543,19 +547,24 @@ class Execution:
                 import json
                 # Serialize and deserialize to create a clean, picklable copy
                 clean_result = json.loads(json.dumps(result, default=str))
-                queue_for_workflow.put(clean_result)
+                queue_for_workflow.put((clean_result, connection_error_occurred))
                 print(f"Successfully put clean result in queue for {wf_id}")
             except Exception as json_e:
                 print(f"JSON serialization failed for {wf_id}: {json_e}, trying direct put")
                 try:
-                    queue_for_workflow.put(result)
+                    queue_for_workflow.put((result, connection_error_occurred))
                     print(f"Successfully put original result in queue for {wf_id}")
                 except Exception as pickle_e:
                     print(f"Pickling failed for {wf_id}: {pickle_e}, putting empty dict")
-                    queue_for_workflow.put({})
+                    queue_for_workflow.put(({}, connection_error_occurred))
+        except ConnectionError as e:
+            connection_error_occurred = True
+            logger.error(f"Connection error at subprocess for {wf_id}: {e}")
+            print(f"Connection error occurred, putting empty dict with error flag in queue for {wf_id}")
+            queue_for_workflow.put(({}, connection_error_occurred))
         except Exception as e:
             logger.error(f"Exception at subprocess: {e}")
             print(f"Exception occurred, putting empty dict in queue for {wf_id}")
-            queue_for_workflow.put({})
+            queue_for_workflow.put(({}, connection_error_occurred))
 
 

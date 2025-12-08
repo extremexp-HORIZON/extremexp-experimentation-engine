@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eexp_engine"
-version = "0.0.41"
+version = "0.0.46"
 authors = [
   { name="Ilias Gerostathopoulos", email="iliasger@gmail.com" },
 ]
@@ -24,6 +24,9 @@ dynamic = ["dependencies"]
 [tool.setuptools.dynamic]
 dependencies = {file = "requirements-library.txt"}
 
+[project.scripts]
+eexp-run = "eexp_engine.runner:main"
+
 [project.urls]
-Homepage = "https://colab-repo.intracom-telecom.com/colab-projects/extremexp/experiment-execution/experimentation-engine/extremexp-experimentation-engine"
-Issues = "https://colab-repo.intracom-telecom.com/colab-projects/extremexp/experiment-execution/experimentation-engine/extremexp-experimentation-engine/-/issues"
+Homepage = "https://github.com/extremexp-HORIZON/extremexp-experimentation-engine"
+Issues = "https://github.com/extremexp-HORIZON/extremexp-experimentation-engine/issues"

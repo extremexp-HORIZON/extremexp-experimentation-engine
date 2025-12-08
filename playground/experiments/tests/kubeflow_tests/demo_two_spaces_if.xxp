@@ -1,0 +1,24 @@
+import "tests/kubeflow_tests/demo_two_spaces_if.xxp";
+
+experiment DemoWP5Experiment {
+
+    control {
+        S1 ?-> S2 {condition "check_results 100"};
+    }
+
+    space S1 of DemoConditionCheck {
+        strategy gridsearch;
+        param_values demo_param_value = enum(4);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+    
+    space S2 of DemoConditionCheck {
+        strategy gridsearch;
+        param_values demo_param_value = enum(4);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+}

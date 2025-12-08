@@ -1,0 +1,16 @@
+import "tests/kubeflow_tests/demo.xxp";
+
+experiment DemoWP5Experiment {
+
+    control {
+          START -> S1 -> END;
+    }
+
+    space S1 of Demo1Workflow {
+        strategy gridsearch;
+        param_values demo_param_value = enum(4);
+        task Task1 {
+            param demo_param = demo_param_value;
+        }
+    }
+}

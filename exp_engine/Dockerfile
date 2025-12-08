@@ -21,5 +21,5 @@ RUN pip install -e .
 ENV PORT=5556
 EXPOSE 5556
 
-ENTRYPOINT ["python"]
-CMD ["run.py"]
+# Run with uvicorn for FastAPI (async ASGI server)
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "5556"]

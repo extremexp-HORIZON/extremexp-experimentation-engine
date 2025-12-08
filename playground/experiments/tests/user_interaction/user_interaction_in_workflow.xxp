@@ -1,0 +1,13 @@
+import "tests/user_interaction/user_interaction_in_workflow.xxp";
+
+experiment UserInteractionExp {
+
+    control {
+        START -> S1 -> END;
+    }
+
+    space S1 of AssembledUserInteraction {
+        strategy gridsearch;
+    }
+
+}

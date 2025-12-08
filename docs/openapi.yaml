@@ -1,0 +1,610 @@
+openapi: 3.0.0
+info:
+  title: ExtremeXP Experimentation Engine API
+  version: 1.0.0
+
+tags:
+  - name: Experiment Execution
+    description: Run and monitor experiments
+  - name: Experiment Control
+    description: Control experiment lifecycle (pause, resume, kill)
+  - name: Workflow Control
+    description: Control workflow lifecycle (pause, resume, kill)
+  - name: Queue Management
+    description: Monitor experiment queue status
+  - name: Health
+    description: Service health check
+
+paths:
+  # ====================================
+  # EXPERIMENT EXECUTION
+  # ====================================
+
+  /exp/run:
+    post:
+      tags:
+        - Experiment Execution
+      summary: Run an experiment asynchronously
+      description: |
+        Submit a new experiment for asynchronous execution. The experiment is added to the queue
+        and executed when resources are available. Returns immediately with experiment details.
+
+        The experiment will be run in the user's workspace based on the username provided.
+      operationId: runExperiment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunExperimentRequest'
+            examples:
+              basic:
+                summary: Basic experiment run
+                value:
+                  exp_name: "MyExperiment"
+                  username: "researcher1"
+      responses:
+        '202':
+          description: Experiment accepted and queued for execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentResponse'
+              examples:
+                queued:
+                  summary: Experiment queued
+                  value:
+                    id: "exp_abc123def456"
+                    name: "MyExperiment"
+                    status: "scheduled"
+                    user: "researcher1"
+                    queue_position: 2
+                    queue_status: "queued"
+                running:
+                  summary: Experiment running
+                  value:
+                    id: "exp_xyz789ghi012"
+                    name: "MyExperiment"
+                    status: "running"
+                    user: "researcher1"
+                    queue_status: "running"
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "BAD_REQUEST"
+                  message: "Invalid experiment name or username"
+                  exp_name: "MyExperiment"
+        '404':
+          description: Experiment specification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "SPEC_NOT_FOUND"
+                  message: "Experiment specification 'MyExperiment' not found in user workspace"
+                  exp_name: "MyExperiment"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "INTERNAL_ERROR"
+                  message: "Failed to start experiment execution"
+                  exp_name: "MyExperiment"
+                  details:
+                    exception: "Configuration error: missing PROACTIVE_URL"
+
+  /exp/experiment/status/{experiment_id}:
+    get:
+      tags:
+        - Experiment Execution
+      summary: Get experiment status
+      description: |
+        Retrieve the current status of an experiment including queue position (if queued)
+        and error logs (if failed).
+      operationId: getExperimentStatus
+      parameters:
+        - name: experiment_id
+          in: path
+          required: true
+          description: Unique identifier of the experiment
+          schema:
+            type: string
+          example: "exp_abc123def456"
+      responses:
+        '200':
+          description: Experiment status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExperimentStatusResponse'
+              examples:
+                running:
+                  summary: Running experiment
+                  value:
+                    id: "exp_abc123def456"
+                    name: "MyExperiment"
+                    status: "running"
+                    user: "researcher1"
+                queued:
+                  summary: Queued experiment
+                  value:
+                    id: "exp_abc123def456"
+                    name: "MyExperiment"
+                    status: "scheduled"
+                    user: "researcher1"
+                    queue_position: 3
+                    queue_status: "queued"
+                completed:
+                  summary: Completed experiment
+                  value:
+                    id: "exp_abc123def456"
+                    name: "MyExperiment"
+                    status: "completed"
+                    user: "researcher1"
+                failed:
+                  summary: Failed experiment with error log
+                  value:
+                    id: "exp_abc123def456"
+                    name: "MyExperiment"
+                    status: "failed"
+                    user: "researcher1"
+                    error_log: "Traceback (most recent call last):\n  File...\nValueError: Invalid parameter value"
+        '404':
+          description: Experiment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error:
+                  code: "NOT_FOUND"
+                  message: "Experiment with id 'exp_abc123def456' not found"
+
+  /exp/experiments/query:
+    post:
+      tags:
+        - Experiment Execution
+      summary: Query experiments by username
+      description: |
+        Retrieve a list of experiments belonging to a specific user from the
+        Data Abstraction Layer.
+      operationId: queryExperiments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+              properties:
+                username:
+                  type: string
+                  description: Username to query experiments for
+                  example: "researcher1"
+      responses:
+        '200':
+          description: List of experiments matching the query
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExperimentResponse'
+              example:
+                - id: "exp_abc123"
+                  name: "ModelTraining"
+                  status: "completed"
+                  user: "researcher1"
+                - id: "exp_def456"
+                  name: "DataProcessing"
+                  status: "running"
+                  user: "researcher1"
+        '500':
+          description: Failed to query experiments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ====================================
+  # EXPERIMENT CONTROL
+  # ====================================
+
+  /exp/experiment/kill/{experiment_id}:
+    get:
+      tags:
+        - Experiment Control
+      summary: Kill an experiment
+      description: |
+        Terminate a running or scheduled experiment and all its workflows.
+        If the experiment is queued, it will be removed from the queue.
+      operationId: killExperiment
+      parameters:
+        - name: experiment_id
+          in: path
+          required: true
+          description: Unique identifier of the experiment to kill
+          schema:
+            type: string
+          example: "exp_abc123def456"
+      responses:
+        '200':
+          description: Experiment killed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Experiment exp_abc123def456 killed successfully"
+        '404':
+          description: Experiment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /exp/experiment/pause/{experiment_id}:
+    get:
+      tags:
+        - Experiment Control
+      summary: Pause an experiment
+      description: |
+        Pause all running workflows in an experiment. Only applicable to ProActive ExecutionWare.
+      operationId: pauseExperiment
+      parameters:
+        - name: experiment_id
+          in: path
+          required: true
+          description: Unique identifier of the experiment to pause
+          schema:
+            type: string
+          example: "exp_abc123def456"
+      responses:
+        '200':
+          description: Experiment paused successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Experiment exp_abc123def456 paused successfully"
+        '404':
+          description: Experiment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /exp/experiment/resume/{experiment_id}:
+    get:
+      tags:
+        - Experiment Control
+      summary: Resume an experiment
+      description: |
+        Resume all paused workflows in an experiment. Only applicable to ProActive ExecutionWare.
+      operationId: resumeExperiment
+      parameters:
+        - name: experiment_id
+          in: path
+          required: true
+          description: Unique identifier of the experiment to resume
+          schema:
+            type: string
+          example: "exp_abc123def456"
+      responses:
+        '200':
+          description: Experiment resumed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Experiment exp_abc123def456 resumed successfully"
+        '404':
+          description: Experiment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ====================================
+  # WORKFLOW CONTROL
+  # ====================================
+
+  /exp/workflow/kill/{workflow_id}:
+    get:
+      tags:
+        - Workflow Control
+      summary: Kill a workflow
+      description: Terminate a running or scheduled workflow by its ID
+      operationId: killWorkflow
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          description: Unique identifier of the workflow to kill
+          schema:
+            type: string
+          example: "workflow_123456"
+      responses:
+        '200':
+          description: Workflow killed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Workflow workflow_123456 killed successfully"
+        '404':
+          description: Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /exp/workflow/pause/{workflow_id}:
+    get:
+      tags:
+        - Workflow Control
+      summary: Pause a workflow
+      description: |
+        Pause a running workflow. Only applicable to ProActive ExecutionWare.
+      operationId: pauseWorkflow
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          description: Unique identifier of the workflow to pause
+          schema:
+            type: string
+          example: "workflow_123456"
+      responses:
+        '200':
+          description: Workflow paused successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Workflow workflow_123456 paused successfully"
+        '404':
+          description: Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /exp/workflow/resume/{workflow_id}:
+    get:
+      tags:
+        - Workflow Control
+      summary: Resume a workflow
+      description: |
+        Resume a paused workflow. Only applicable to ProActive ExecutionWare.
+      operationId: resumeWorkflow
+      parameters:
+        - name: workflow_id
+          in: path
+          required: true
+          description: Unique identifier of the workflow to resume
+          schema:
+            type: string
+          example: "workflow_123456"
+      responses:
+        '200':
+          description: Workflow resumed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Workflow workflow_123456 resumed successfully"
+        '404':
+          description: Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ====================================
+  # QUEUE MANAGEMENT
+  # ====================================
+
+  /exp/queue/status:
+    get:
+      tags:
+        - Queue Management
+      summary: Get queue status
+      description: |
+        Retrieve the current status of the experiment execution queue,
+        including the number of running and queued experiments.
+      operationId: getQueueStatus
+      responses:
+        '200':
+          description: Queue status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueStatusResponse'
+              example:
+                running: 4
+                queued: 2
+
+  # ====================================
+  # HEALTH CHECK
+  # ====================================
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check if the API service is running and healthy
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  service:
+                    type: string
+                    example: "eexp-engine-api"
+
+# ====================================
+# COMPONENT SCHEMAS
+# ====================================
+
+components:
+  schemas:
+    RunExperimentRequest:
+      type: object
+      required:
+        - exp_name
+        - username
+      properties:
+        exp_name:
+          type: string
+          description: Name of the experiment specification to run
+          example: "MyExperiment"
+        username:
+          type: string
+          description: Username of the experiment owner (determines workspace)
+          example: "researcher1"
+      description: Request body for running a new experiment
+
+    ExperimentResponse:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - user
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the experiment
+          example: "exp_abc123def456"
+        name:
+          type: string
+          description: Name of the experiment
+          example: "MyExperiment"
+        status:
+          type: string
+          description: Current status of the experiment
+          enum:
+            - scheduled
+            - running
+            - completed
+            - failed
+            - killed
+            - paused
+          example: "running"
+        user:
+          type: string
+          description: Username of the experiment owner
+          example: "researcher1"
+        queue_position:
+          type: integer
+          description: Position in queue (only present if queued)
+          example: 2
+        queue_status:
+          type: string
+          description: Queue status (only present for async experiments)
+          enum:
+            - running
+            - queued
+          example: "queued"
+      description: Experiment information response
+
+    ExperimentStatusResponse:
+      allOf:
+        - $ref: '#/components/schemas/ExperimentResponse'
+        - type: object
+          properties:
+            error_log:
+              type: string
+              description: Error log with stack trace (only present if status is 'failed')
+              example: "Traceback (most recent call last):\n  File...\nValueError: Invalid parameter"
+      description: Detailed experiment status including error logs if failed
+
+    QueueStatusResponse:
+      type: object
+      required:
+        - running
+        - queued
+      properties:
+        running:
+          type: integer
+          description: Number of experiments currently running
+          example: 4
+        queued:
+          type: integer
+          description: Number of experiments waiting in queue
+          example: 2
+      description: Current status of the experiment queue
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Error code
+              enum:
+                - NOT_FOUND
+                - SPEC_NOT_FOUND
+                - INTERNAL_ERROR
+                - BAD_REQUEST
+              example: "NOT_FOUND"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "Experiment not found"
+            exp_name:
+              type: string
+              description: Name of the experiment (if applicable)
+              example: "MyExperiment"
+            details:
+              type: object
+              description: Additional error details
+              additionalProperties: true
+              example:
+                exception: "ValueError: Invalid parameter value"
+      description: Standardized error response

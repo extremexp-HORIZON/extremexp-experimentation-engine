@@ -1,0 +1,20 @@
+task DemoWP5Task1 {
+
+    define input data DemoWP5Task1InputFile;
+    define output data DemoWP5Task1OutputFile;
+
+    define param demo_param {
+        type Integer;
+        default 10;
+        range (4, 20, 2);
+    }
+
+    define metric ParamIncreasedBy5 {
+        kind single-value;
+        type Integer;
+    }
+
+    implementation "demo_tasks/DemoWP5Task1/task.py";
+    python_version "3.9";
+    venv "demo_tasks/DemoWP5Task1/requirements.txt";
+}

@@ -7,9 +7,11 @@ intents/untracked
 streamlit
 exp_engine/IDEKO1
 exp_engine/src/eexp_engine.egg-info
+exp_engine_utils/src/eexp_engine_utils.egg-info
 eexp_config.py
 MOBY
 exp_engine/dist
+exp_engine_utils/dist
 exp_engine/library-datasets/output
 local_env
 intermediate_files
@@ -19,3 +21,4 @@ results.json
 exec_task.py
 extremexp-experimentation-engine.iml
 .sdkmanrc
+**/.DS_Store

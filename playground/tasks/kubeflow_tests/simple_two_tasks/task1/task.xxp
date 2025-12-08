@@ -1,0 +1,23 @@
+task DemoTask1 {
+
+    define input data task1inputfile; 
+    define output data output1;
+    define output data output2;
+
+    define param demo_param {
+        type Integer;
+        default 10;
+        range (4, 20, 2);
+    }
+
+    define metric I2CAT_accuracy {
+        semanticType ML_Accuracy;
+        kind single-value;
+        type double;
+    }
+
+    implementation "kubeflow_tests/simple_two_tasks/task1/task.py";
+    python_version "3.9";
+    venv "kubeflow_tests/simple_two_tasks/requirements.txt";
+    dependency "kubeflow/**";
+}
