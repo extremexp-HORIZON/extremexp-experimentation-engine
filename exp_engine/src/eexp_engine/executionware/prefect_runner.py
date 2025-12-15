@@ -17,7 +17,8 @@ from exp_engine.src.eexp_engine.executionware.proactive_runner import (
 LOCAL_HELPER_FULL_PATH = os.path.dirname(os.path.abspath(__file__))
 EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX = "execution_engine_runtime_config"
 EXECUTION_ENGINE_MAPPING_FILE = "execution_engine_mapping.json"
-
+VARIABLES = "variables.json"
+RESULT = "results.json"
 # -------------------------
 # Helpers
 # -------------------------
@@ -123,9 +124,14 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config):
     sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
     mapping = _create_execution_engine_mapping(sorted_tasks)
 
+    if not os.path.exists("intermediate_files"):
+        os.makedirs("intermediate_files")
     with open(EXECUTION_ENGINE_MAPPING_FILE, 'w') as f:
         json.dump(mapping, f)
-    # Runtime config
+    with open(VARIABLES, 'w') as f:
+        json.dump({}, f)
+    with open(RESULT, 'w') as f:
+        json.dump({}, f)
     runtime_config_path = f"{EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX}_{wf_id}.json"
     with open(runtime_config_path, "w") as f:
         json.dump(
