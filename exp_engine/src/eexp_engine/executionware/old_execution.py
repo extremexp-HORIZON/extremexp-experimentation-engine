@@ -5,7 +5,6 @@ import tempfile
 from pathlib import Path
 from prefect import flow, task
 import os
-from functools import partial
 
 from exp_engine.src.eexp_engine.executionware.proactive_runner import (
     _create_execution_engine_mapping,
@@ -36,45 +35,67 @@ def rewrite_resultmap(lines):
             out.append(l)
     return out
 
+
 # -------------------------
-# Top-level Prefect task
+# Dynamic Prefect Task
 # -------------------------
-def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
+def create_task_from_obj(
+    task_obj,
+    wf_id,
+    exp_id,
+    mapping,
+    runner_folder,
+):
     impl_file = task_obj.impl_file
 
     @task(name=task_obj.name, log_prints=True)
     def prefect_task(prev_result_map=None):
         print(f"[{task_obj.name}] ▶ START")
+
+        # ✅ ProActive-style shared resultMap
         resultMap = dict(prev_result_map or {})
 
-        # Set PYTHONPATH for dependent modules
+        # -----------------------------
+        # PYTHONPATH (dependent modules)
+        # -----------------------------
         paths = [LOCAL_HELPER_FULL_PATH]
         for dep in getattr(task_obj, "dependent_modules", []):
             dep_path = dep.split("/**")[0] if "/**" in dep else dep
             paths.append(str(Path(runner_folder) / dep_path))
         sys.path = paths + sys.path
 
-        # Variables
+        # -----------------------------
+        # Variables (ProActive-style)
+        # -----------------------------
         variables = {
             "wf_id": wf_id,
             "exp_id": exp_id,
             "task_name": task_obj.name,
         }
+
+        # 🔥 CRITICAL: inject previous outputs like ProActive
         for k, v in resultMap.items():
             variables[k] = v
 
+        # ----------------------------------
         # Apply execution engine mapping
+        # ----------------------------------
         task_mapping = mapping.get(task_obj.name, {})
+
         for target_key, source_key in task_mapping.items():
-            value = resultMap.get(source_key)
-            variables[target_key] = value
             if source_key in resultMap:
-                variables[source_key] = resultMap[source_key]
+                value = resultMap[source_key]
+                variables[source_key] = value   # 🔥 REQUIRED
+                variables[target_key] = value
+            else:
+                variables[target_key] = None
 
         # Input files
         for f in getattr(task_obj, "input_files", []):
             key = f.name_in_task_signature
             value = normalize_path(f.path)
+
+            # 🔥 Do NOT overwrite mapped values
             if key not in variables or variables[key] is None:
                 variables[key] = value
 
@@ -89,7 +110,9 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
         print(f"[{task_obj.name}] Variables:")
         print(variables)
 
+        # -----------------------------
         # Execute task implementation
+        # -----------------------------
         with open(impl_file, "r") as f:
             lines = f.readlines()
 
@@ -107,7 +130,9 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
         runpy.run_path(
             tmp_path,
             run_name="__main__",
-            init_globals={"resultMap": resultMap},
+            init_globals={
+                "resultMap": resultMap,
+            },
         )
 
         print(f"[{task_obj.name}] ✔ DONE")
@@ -115,14 +140,15 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
 
     return prefect_task
 
+
 # -------------------------
-# Prefect flow
+# Prefect Flow
 # -------------------------
 def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config):
     sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
     mapping = _create_execution_engine_mapping(sorted_tasks)
 
-    # Runtime config
+    # Runtime config (compatibility only)
     runtime_config_path = f"{EXECUTION_ENGINE_RUNTIME_CONFIG_PREFIX}_{wf_id}.json"
     with open(runtime_config_path, "w") as f:
         json.dump(
@@ -138,9 +164,9 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config):
             f,
         )
 
-    # Build top-level tasks
+    # Create Prefect tasks
     task_funcs = {
-        t.name: build_prefect_task(
+        t.name: create_task_from_obj(
             task_obj=t,
             wf_id=wf_id,
             exp_id=exp_id,
@@ -153,17 +179,13 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config):
     @flow(name=f"{w.name}_{wf_id}", log_prints=True)
     def dynamic_flow():
         prev_result_map = None
-        results_futures = {}
+        results = {}
 
-        # Schedule each task as a Prefect future
         for t in sorted_tasks:
-            print(f"🧩 Scheduling task {t.name}")
-            future = task_funcs[t.name].submit(prev_result_map)
-            results_futures[t.name] = future
-            prev_result_map = future  # pass future downstream
+            print(f"🧩 Running task {t.name}")
+            prev_result_map = task_funcs[t.name](prev_result_map)
+            results[t.name] = prev_result_map
 
-        # Resolve all futures
-        results = {k: v.result() for k, v in results_futures.items()}
         return results
 
     return dynamic_flow()

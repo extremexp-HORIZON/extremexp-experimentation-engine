@@ -2,7 +2,7 @@ import logging
 from typing import List
 from venv import logger
 
-from eexp_engine.executionware.proactive_runner import _create_execution_engine_mapping
+from exp_engine.src.eexp_engine.executionware.proactive_runner import _create_execution_engine_mapping
 
 from ..models.task import Task
 from ..models.workflow import Workflow

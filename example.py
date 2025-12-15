@@ -1,5 +1,5 @@
-from eexp_engine import client
-from eexp_engine.runner import select_file
+from exp_engine.src.eexp_engine import client
+from exp_engine.src.eexp_engine.runner import select_file
 import eexp_config
 
 if __name__ == "__main__":

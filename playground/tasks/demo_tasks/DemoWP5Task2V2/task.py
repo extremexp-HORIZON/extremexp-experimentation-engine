@@ -1,4 +1,4 @@
-from eexp_engine_utils import utils, types
+from eexp_engine_utils import utils
 
 print("Running DemoWP5Task2V2")
 
