@@ -41,6 +41,7 @@ class Execution:
         self.subprocesses = 0
         self.cancel_flag = cancel_flag
         self.consecutive_connection_failures = 0
+        self.execution_history = []
         self.max_consecutive_connection_failures = getattr(config, 'MAX_CONSECUTIVE_CONNECTION_FAILURES', 3)
 
     def _check_cancellation(self, context=""):
@@ -73,6 +74,13 @@ class Execution:
             # Reset counter on successful workflow execution
             self.consecutive_connection_failures = 0
 
+    def _convert_path_to_module(self, path_or_module):
+        """Convert file path to module notation for importlib."""
+        module_path = path_or_module.replace('/', '.').replace('\\', '.')
+        if module_path.endswith('.py'):
+            module_path = module_path[:-3]
+        return module_path
+
     def evaluate_condition(self, condition_str):
         if condition_str == "True":
             return True
@@ -85,7 +93,9 @@ class Execution:
             cwd = os.getcwd()
             if cwd not in sys.path:
                 sys.path.insert(0, cwd)
-            python_conditions = importlib.import_module(self.config.PYTHON_CONDITIONS)
+            # Convert path to module notation
+            module_path = self._convert_path_to_module(self.config.PYTHON_CONDITIONS)
+            python_conditions = importlib.import_module(module_path)
             condition = getattr(python_conditions, condition_str_list[0])
             args = condition_str_list[1:] + [self.results]
             return condition(*args)
@@ -160,6 +170,13 @@ class Execution:
             logger.info("Results so far")
             pp = pprint.PrettyPrinter(indent=4)
             pp.pprint(self.results)
+
+        # Add nodes to execution history
+        # If multiple nodes ran in parallel, add them as a list otherwise add the single node directly
+        if len(control_node_container.parallel_node_names) > 1:
+            self.execution_history.append(list(control_node_container.parallel_node_names))
+        else:
+            self.execution_history.append(control_node_container.parallel_node_names[0])
 
         self.execute_control_logic(control_node_container)
 
@@ -300,7 +317,9 @@ class Execution:
                 logger.error("Cannot filter configurations, missing PYTHON_CONFIGURATIONS path in eexp_engine")
             else:
                 try:
-                    python_configurations = importlib.import_module(self.config.PYTHON_CONFIGURATIONS)
+                    # Convert path to module notation
+                    module_path = self._convert_path_to_module(self.config.PYTHON_CONFIGURATIONS)
+                    python_configurations = importlib.import_module(module_path)
                     filter_fn = getattr(python_configurations, node.filter_function)
                     logger.info(f"Filtering configurations of space {node.name} using function {node.filter_function}()")
                     combos = filter_fn(combos)
@@ -312,7 +331,9 @@ class Execution:
                 logger.error("Cannot generate configurations, missing PYTHON_CONFIGURATIONS path in eexp_engine")
             else:
                 try:
-                    python_configurations = importlib.import_module(self.config.PYTHON_CONFIGURATIONS)
+                    # Convert path to module notation
+                    module_path = self._convert_path_to_module(self.config.PYTHON_CONFIGURATIONS)
+                    python_configurations = importlib.import_module(module_path)
                     gen_fn = getattr(python_configurations, node.generator_function)
                     logger.info(f"Generating configurations for space {node.name} using function {node.generator_function}()")
                     generated = gen_fn()
@@ -499,7 +520,8 @@ class Execution:
                     wf_metrics[t.name] = [m]
 
         wf_metadata = {
-            "wf_origin": workflow_origin
+            "wf_origin": workflow_origin,
+            "predecessor_nodes": self.execution_history.copy()
         }
         body = {
             "name": f"{self.exp_id}--w{self.run_count}",
