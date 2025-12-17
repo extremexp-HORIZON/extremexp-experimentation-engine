@@ -180,7 +180,7 @@ def save_dataset_local(
         folder_path = output_file_path.rsplit("/", 1)[0]
         _create_folder(folder_path)
         with open(output_file_path, "wb") as outfile:
-            outfile.write(value)
+            outfile.write(value.getbuffer())
         print(f"Saved external output data to {output_file_path}")
     else:
         job_id = variables.get("PA_JOB_ID")
@@ -542,7 +542,7 @@ def load_pickled_dataset_by_path(file_path: str):
     return file_contents
 
 
-def load_dataset_by_path(file_path: str) -> bytes:
+def load_dataset_by_path(file_path: str) -> BytesIO:
     """
     Load a dataset from a file path.
 
@@ -564,7 +564,7 @@ def load_dataset_by_path(file_path: str) -> bytes:
 
     with open(file_path, "rb") as f:
         file_contents = BytesIO(f.read())
-    return file_contents.getvalue()
+    return file_contents
 
 
 def create_dir(variables: Dict[str, Any], key: str) -> str:
