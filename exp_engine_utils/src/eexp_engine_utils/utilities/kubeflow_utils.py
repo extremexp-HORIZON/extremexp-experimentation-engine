@@ -69,7 +69,7 @@ def save_datasets(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str,
-    values: List[BytesIO],
+    values: List[Any],
     file_names: Optional[List[str]] = None,
 ) -> None:
     """
@@ -79,7 +79,7 @@ def save_datasets(
         variables: Runtime variables containing experiment metadata and mappings
         resultMap: Dictionary to store result metadata
         key: Dataset key
-        values: List of dataset values to save (BytesIO objects)
+        values: List of dataset values to save (Any objects)
         file_names: Optional list of filenames for the datasets
 
     Raises:
@@ -99,12 +99,6 @@ def save_datasets(
 
     if len(values) == 0:
         raise ValidationError("values list cannot be empty")
-
-    for i, value in enumerate(values):
-        if not isinstance(value, BytesIO):
-            raise ValidationError(
-                f"values[{i}] must be a BytesIO object, got {type(value).__name__}"
-            )
 
     if file_names is not None:
         if not isinstance(file_names, list):
@@ -135,7 +129,7 @@ def save_dataset(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str,
-    value: BytesIO
+    value: Any
 ) -> None:
     """
     Save a single dataset.
@@ -144,7 +138,7 @@ def save_dataset(
         variables: Runtime variables.
         resultMap: Dictionary to store result metadata
         key: Dataset key
-        value: Dataset value to save (BytesIO object)
+        value: Dataset value to save (Any object)
 
     Raises:
         ValidationError: If inputs are invalid
@@ -155,11 +149,6 @@ def save_dataset(
 
     if value is None:
         raise ValidationError("value parameter cannot be None")
-
-    if not isinstance(value, BytesIO):
-        raise ValidationError(
-            f"value must be a BytesIO object, got {type(value).__name__}"
-        )
 
     if DATASET_MANAGEMENT == "LOCAL":
         return save_dataset_local(variables, resultMap, key, value)
@@ -178,7 +167,7 @@ def load_datasets(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str
-) -> List[BytesIO]:
+) -> List[Any]:
     """
     Load multiple datasets.
 
@@ -188,7 +177,7 @@ def load_datasets(
         key: Dataset key to load
 
     Returns:
-        List[BytesIO]: List of loaded datasets
+        List[Any]: List of loaded datasets
 
     Raises:
         ValidationError: If inputs are invalid
@@ -215,7 +204,7 @@ def load_dataset(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str
-) -> BytesIO:
+) -> Any:
     """
     Load a single dataset.
 
@@ -225,7 +214,7 @@ def load_dataset(
         key: Dataset key to load
 
     Returns:
-        BytesIO: The loaded dataset as a file-like object
+        Any: The loaded dataset as a file-like object
 
     Raises:
         ValidationError: If inputs are invalid
@@ -255,7 +244,7 @@ def save_dataset_local(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str,
-    value: BytesIO
+    value: Any
 ) -> None:
     """Save dataset locally."""
     # Validate required keys in variables
@@ -315,7 +304,7 @@ def save_dataset_local(
         resultMap[key] = output_file_path
 
 
-def load_dataset_local(variables: Dict[str, Any], key: str) -> BytesIO:
+def load_dataset_local(variables: Dict[str, Any], key: str) -> Any:
     """Load dataset from local storage (filesystem or MinIO)."""
     print(f"Loading input data with key '{key}'")
 
@@ -431,7 +420,7 @@ def load_datasets_ddm(variables: dict, key: str, resultMap: dict) -> List[BytesI
 
 
 def save_datasets_ddm(
-    variables: dict, resultMap: dict, key: str, values: List[bytes], file_names: list[str] = None
+    variables: dict, resultMap: dict, key: str, values: List[Any], file_names: list[str] = None
 ):
     """Save multiple datasets to DDM."""
     # Validate required configuration

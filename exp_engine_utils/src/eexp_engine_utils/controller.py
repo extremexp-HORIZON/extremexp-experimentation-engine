@@ -67,7 +67,7 @@ class UtilsProxy:
         variables: Dict[str, Any],
         resultMap: Dict[str, Any],
         key: str,
-        values: List[BytesIO],
+        values: List[Any],
         file_names: Optional[List[str]] = None,
     ) -> None:
         """
@@ -77,7 +77,7 @@ class UtilsProxy:
             variables: Runtime variables containing experiment metadata and mappings
             resultMap: Dictionary to store result metadata
             key: Dataset key
-            values: List of dataset values to save (BytesIO objects)
+            values: List of dataset values to save (Any type)
             file_names: Optional list of filenames for the datasets
 
         Raises:
@@ -91,7 +91,7 @@ class UtilsProxy:
         variables: Dict[str, Any],
         resultMap: Dict[str, Any],
         key: str,
-        value: BytesIO
+        value: Any
     ) -> None:
         """
         Save a single dataset.
@@ -113,7 +113,7 @@ class UtilsProxy:
         variables: Dict[str, Any],
         resultMap: Dict[str, Any],
         key: str
-    ) -> List[BytesIO]:
+    ) -> List[Any]:
         """
         Load multiple datasets (typically used with DDM).
 
@@ -123,7 +123,7 @@ class UtilsProxy:
             key: Dataset key to load
 
         Returns:
-            List[BytesIO]: List of loaded dataset values
+            List[Any]: List of loaded dataset values
 
         Raises:
             ValidationError: If inputs are invalid
@@ -137,7 +137,7 @@ class UtilsProxy:
         variables: Dict[str, Any],
         resultMap: Dict[str, Any],
         key: str
-    ) -> BytesIO:
+    ) -> Any:
         """
         Load a single dataset.
 
@@ -147,7 +147,7 @@ class UtilsProxy:
             key: Dataset key to load
 
         Returns:
-            BytesIO: The loaded dataset value
+            Any: The loaded dataset value
 
         Raises:
             ValidationError: If inputs are invalid
@@ -193,7 +193,7 @@ class UtilsProxy:
         variables: Dict[str, Any],
         resultMap: Dict[str, Any],
         key: str,
-        value: BytesIO
+        value: Any
     ) -> None:
         """
         Save a dataset locally (without DDM).
@@ -213,7 +213,7 @@ class UtilsProxy:
         self,
         variables: Dict[str, Any],
         key: str
-    ) -> BytesIO:
+    ) -> Any:
         """
         Load a dataset locally (without DDM).
 
@@ -222,7 +222,7 @@ class UtilsProxy:
             key: Dataset key to load
 
         Returns:
-            BytesIO: The loaded dataset value
+            Any: The loaded dataset value
 
         Raises:
             ValidationError: If inputs are invalid

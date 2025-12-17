@@ -69,7 +69,7 @@ def save_datasets(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str,
-    values: List[BytesIO],
+    values: List[Any],
     file_names: Optional[List[str]] = None,
 ) -> None:
     """
@@ -124,7 +124,7 @@ def save_dataset(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str,
-    value: BytesIO
+    value: Any
 ) -> None:
     """
     Save a single dataset.
@@ -145,11 +145,6 @@ def save_dataset(
     if value is None:
         raise ValidationError("value parameter cannot be None")
 
-    if not isinstance(value, BytesIO):
-        raise ValidationError(
-            f"value must be a BytesIO object, got {type(value).__name__}"
-        )
-
     if DATASET_MANAGEMENT == "LOCAL":
         return save_dataset_local(variables, resultMap, key, value)
 
@@ -167,7 +162,7 @@ def save_dataset_local(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str,
-    value: BytesIO
+    value: Any
 ) -> None:
     """Save dataset locally using ProActive."""
 
@@ -180,7 +175,7 @@ def save_dataset_local(
         folder_path = output_file_path.rsplit("/", 1)[0]
         _create_folder(folder_path)
         with open(output_file_path, "wb") as outfile:
-            outfile.write(value.getbuffer())
+            outfile.write(value)
         print(f"Saved external output data to {output_file_path}")
     else:
         job_id = variables.get("PA_JOB_ID")
@@ -202,7 +197,7 @@ def save_datasets_ddm(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str,
-    values: List[bytes],
+    values: List[Any],
     file_names: Optional[List[str]] = None
 ) -> None:
     """Save multiple datasets to DDM using ProActive."""
@@ -288,7 +283,7 @@ def load_datasets(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str
-) -> List[BytesIO]:
+) -> List[Any]:
     """
     Load multiple datasets (requires DDM).
 
@@ -298,7 +293,7 @@ def load_datasets(
         key: Dataset key to load
 
     Returns:
-        List[BytesIO]: List of loaded datasets
+        List[Any]: List of loaded datasets
 
     Raises:
         ValidationError: If inputs are invalid
@@ -322,7 +317,7 @@ def load_dataset(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
     key: str
-) -> BytesIO:
+) -> Any:
     """
     Load a single dataset.
 
@@ -332,7 +327,7 @@ def load_dataset(
         key: Dataset key to load
 
     Returns:
-        BytesIO: The loaded dataset
+        Any: The loaded dataset
 
     Raises:
         ValidationError: If inputs are invalid
@@ -355,7 +350,7 @@ def load_dataset(
     raise ConfigurationError(error_msg)
 
 
-def load_dataset_local(variables: Dict[str, Any], key: str) -> BytesIO:
+def load_dataset_local(variables: Dict[str, Any], key: str) -> Any:
     """Load dataset from local storage using ProActive."""
     print(f"Loading input data with key '{key}'")
 
@@ -542,7 +537,7 @@ def load_pickled_dataset_by_path(file_path: str):
     return file_contents
 
 
-def load_dataset_by_path(file_path: str) -> BytesIO:
+def load_dataset_by_path(file_path: str) -> bytes:
     """
     Load a dataset from a file path.
 
@@ -563,7 +558,7 @@ def load_dataset_by_path(file_path: str) -> BytesIO:
         raise ValidationError(f"file_path must be a string, got {type(file_path).__name__}")
 
     with open(file_path, "rb") as f:
-        file_contents = BytesIO(f.read())
+        file_contents = f.read()
     return file_contents
 
 
