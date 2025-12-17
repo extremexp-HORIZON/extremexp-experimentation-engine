@@ -3,7 +3,7 @@ from eexp_engine import client
 from eexp_engine.data_abstraction_layer.data_abstraction_api import (
     DataAbstractionClient,
 )
-from exp_engine.api_error_handlers import create_error_response
+from api_error_handlers import create_error_response
 from fastapi.responses import JSONResponse
 import logging
 import importlib
