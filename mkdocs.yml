@@ -48,6 +48,7 @@ nav:
   - Home: index.md
   - User Guide: guide.md
   - Configuration: config.md
+  - Migration Guide: migration.md
   - DSL:
     - Experiments: dsl/experiments.md
     - Workflows: dsl/workflows.md
