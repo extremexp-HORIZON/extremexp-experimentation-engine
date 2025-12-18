@@ -431,10 +431,9 @@ from eexp_engine import client
 import eexp_config
 
 if __name__ == "__main__":
-    experiment_file = "experiments"
-    experiment_name = "demo-experiment"
+    experiment_name = "path/to/demo-experiment"
 
-    client.run(experiment_file, experiment_name, eexp_config)
+    client.run(__file__, experiment_name, eexp_config)
 ```
 
 Then execute:
