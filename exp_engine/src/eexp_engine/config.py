@@ -24,7 +24,7 @@ def get_ddm_token(config):
     if config.DATASET_MANAGEMENT != "DDM":
         return None
 
-    url = f"{config.DDM_URL}/extreme_auth/api/v1/person/login"
+    url = f"{config.DATASET_MANAGEMENT_URL}/extreme_auth/api/v1/person/login"
     data = {
         "username": config.PORTAL_USERNAME,
         "password": config.PORTAL_PASSWORD
@@ -82,9 +82,9 @@ class Config:
 
         # DDM-specific validation
         if config.DATASET_MANAGEMENT == "DDM":
-            if 'DDM_URL' not in dir(config) or len(config.DDM_URL) == 0:
+            if 'DATASET_MANAGEMENT_URL' not in dir(config) or len(config.DATASET_MANAGEMENT_URL) == 0:
                 raise exceptions.DatasetManagementSetToDDMButNoURLProvided(
-                    "Please set the variable DDM_URL in config.py")
+                    "Please set the variable DATASET_MANAGEMENT_URL in config.py")
             if 'PORTAL_USERNAME' not in dir(config) or len(config.PORTAL_USERNAME) == 0:
                 raise exceptions.DatasetManagementSetToDDMButNoPortalUserOrPasswordProvided(
                     "Please set the variable PORTAL_USERNAME in config.py")
@@ -93,7 +93,7 @@ class Config:
                     "Please set the variable PORTAL_PASSWORD in config.py")
 
         # DDM configuration
-        self.DDM_URL = config.DDM_URL if 'DDM_URL' in dir(config) else None
+        self.DDM_URL = config.DATASET_MANAGEMENT_URL if 'DATASET_MANAGEMENT_URL' in dir(config) else None
         self.DDM_TOKEN = get_ddm_token(config)
 
         # Data abstraction layer
