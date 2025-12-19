@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eexp_engine_utils"
-version = "1.0.0"
+version = "1.0.3"
 authors = [
-  { name="Ilias Gerostathopoulos", email="iliasger@gmail.com" },
+    { name="Ilias Gerostathopoulos, Konstantinos Kozanis", email="iliasger@gmail.com" },
 ]
 description = "Helper utilities for eexp_engine - supporting ProActive and Kubeflow execution environments"
 readme = "README.md"

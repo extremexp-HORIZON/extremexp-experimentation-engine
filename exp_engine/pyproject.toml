@@ -7,9 +7,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eexp_engine"
-version = "1.0.0"
+version = "1.0.3"
 authors = [
-  { name="Ilias Gerostathopoulos", email="iliasger@gmail.com" },
+  { name="Ilias Gerostathopoulos, Konstantinos Kozanis, Keerthiga Rajenthiram", email="iliasger@gmail.com" },
 ]
 description = "A command-line version of the experimentation engine of the ExtremeXP project"
 readme = "README.md"
