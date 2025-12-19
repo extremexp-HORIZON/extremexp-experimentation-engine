@@ -75,13 +75,33 @@ def _create_fork_env(gateway, proactive_job, config):
 
 
 def _create_execution_engine_mapping(tasks):
+    """Create mapping for execution engine.
+    TODO: Consolidate with _create_execution_engine_mapping() of kubeflow_utils"""
     mapping = {}
+    # Mapping of output variable names to their generating tasks
+    output_to_task = {}
     for t in tasks:
-        map = {}
-        mapping[t.name] = map
+        for ds in t.output_files:
+            # Map the output variable name to the task that generates it
+            output_to_task[ds.name_in_task_signature] = t.name
+
+    # Build the full mapping with source task information
+    for t in tasks:
+        inputs = {}
+        # Initialize the task entry in the mapping
+        if t.name not in mapping:
+            mapping[t.name] = inputs
+
         for ds in t.input_files:
             if ds.name_in_generating_task:
-                map[ds.name_in_task_signature] = ds.name_in_generating_task
+                # Find the task that generates this input by looking up the output variable name
+                source_task = output_to_task.get(ds.name_in_generating_task)
+                inputs[ds.name_in_task_signature] = {
+                    "file_name": ds.name_in_generating_task,
+                    "file_type": "intermediate",
+                    "source_task": source_task,
+                }
+
     print("EXECUTION ENGINE MAPPING")
     print("*****************")
     import pprint
@@ -117,6 +137,7 @@ def _create_python_task(gateway, config, data_client, results_so_far, wf_id, tas
     task.setTaskName(task_name)
     print(f"Setting implementation from file {task_impl}")
     task.setTaskImplementationFromFile(task_impl)
+    task.addVariable("task_name", task_name)
 
     if taskType=="interactive":
         print(f"Setting pre_script for interactive task {task_name}")
@@ -132,7 +153,6 @@ def _create_python_task(gateway, config, data_client, results_so_far, wf_id, tas
         task.setPostScript(post_script)
 
         task.addVariable("wf_id", wf_id)
-        task.addVariable("task_name", task_name)
         task.addVariable("data_abstraction_base_url", config.DATA_ABSTRACTION_BASE_URL)
         task.addVariable("data_abstraction_access_token", config.DATA_ABSTRACTION_ACCESS_TOKEN)
 

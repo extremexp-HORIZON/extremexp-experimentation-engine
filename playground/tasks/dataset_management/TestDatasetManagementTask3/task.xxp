@@ -1,0 +1,8 @@
+task TestDatasetManagementTask3 {
+
+    implementation "TestDatasetManagementTask3/task.py";
+    python_version "3.9";
+
+    define input data TestDatasetManagementTask3InputFile;
+    define output data TestDatasetManagementTask3OutputFile;
+}

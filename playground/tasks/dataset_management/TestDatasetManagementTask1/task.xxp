@@ -1,8 +1,7 @@
 task TestDatasetManagementTask1 {
 
     implementation "TestDatasetManagementTask1/task.py";
-    venv "TestDatasetManagementTask1/requirements.txt";
-    python_version "3.8";
+    python_version "3.9";
 
     define input data TestDatasetManagementTask1InputFile;
     define output data TestDatasetManagementTask1OutputFile;

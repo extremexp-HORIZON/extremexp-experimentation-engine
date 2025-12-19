@@ -167,8 +167,7 @@ def save_dataset_local(
     """Save dataset locally using ProActive."""
 
     # Validate required keys
-    validate_variables_has_key(variables, "PA_JOB_ID", "variables")
-    validate_variables_has_key(variables, "PA_TASK_ID", "variables")
+    validate_variables_has_key(variables, "task_name", "variables")
 
     if key in variables:
         output_file_path = variables.get(key)
@@ -178,14 +177,13 @@ def save_dataset_local(
             outfile.write(value)
         print(f"Saved external output data to {output_file_path}")
     else:
-        job_id = variables.get("PA_JOB_ID")
-        task_id = variables.get("PA_TASK_ID")
-        task_folder = os.path.join("/shared", job_id, task_id)
+        workflow_id = exp_engine_metadata["wf_id"]
+        task_name = variables.get("task_name")
+        task_folder = os.path.join("/shared", workflow_id, task_name)
         os.makedirs(task_folder, exist_ok=True)
         output_file_path = os.path.join(task_folder, key)
         with open(output_file_path, "wb") as outfile:
             pickle.dump(value, outfile)
-        variables.put("PREVIOUS_TASK_ID", str(task_id))
         print(f"Saved intermediate output data to {output_file_path}")
 
     if resultMap is not None:
@@ -355,21 +353,24 @@ def load_dataset_local(variables: Dict[str, Any], key: str) -> Any:
     print(f"Loading input data with key '{key}'")
 
     # Validate required keys
-    validate_variables_has_key(variables, "PA_JOB_ID", "variables")
-    validate_variables_has_key(variables, "PA_TASK_NAME", "variables")
+    validate_variables_has_key(variables, "task_name", "variables")
 
     if key in variables:
         input_filename = variables.get(key)
+        print(f"Loading external input data from {input_filename}")
         return load_dataset_by_path(input_filename)
     else:
-        job_id = variables.get("PA_JOB_ID")
-        task_id = variables.get("PREVIOUS_TASK_ID")
-        task_folder = os.path.join("/shared", job_id, task_id)
-        task_name = variables.get("PA_TASK_NAME")
+        task_name = variables.get("task_name")
+        workflow_id = exp_engine_metadata["wf_id"]
         if task_name in execution_engine_mapping:
-            if key in execution_engine_mapping[task_name]:
-                key = execution_engine_mapping[task_name][key]
-        input_filename = os.path.join(task_folder, key)
+            inputs = execution_engine_mapping[task_name]
+            if key in inputs:
+                input_map = inputs[key]
+                output_name = input_map["file_name"]
+                source_task = input_map["source_task"]
+        task_folder = os.path.join("/shared", workflow_id, source_task)
+        input_filename = os.path.join(task_folder, output_name)
+        print(f"Loading intermediate input data from {input_filename}")
         return load_pickled_dataset_by_path(input_filename)
 
 

@@ -1,0 +1,6 @@
+task TestDatasetManagementTask2 {
+
+    implementation "TestDatasetManagementTask2/task.py";
+    python_version "3.9";
+
+}
