@@ -206,13 +206,11 @@ def save_datasets_ddm(
         raise ConfigurationError("DDM_TOKEN is required when DATASET_MANAGEMENT=DDM")
 
     # Validate required keys
-    validate_variables_has_key(variables, "PA_TASK_NAME", "variables")
-    validate_variables_has_key(variables, "PA_JOB_NAME", "variables")
+    validate_variables_has_key(variables, "task_name", "variables")
 
     upload_url = f"{DDM_URL}/ddm/files/upload"
     file_url_template = f"{DDM_URL}/ddm/file/{{}}"
-    task_name = variables['PA_TASK_NAME']
-    variables.put("PREVIOUS_TASK_ID", str(task_name))
+    task_name = variables.get("task_name")
 
     project_id_prefix = os.path.join(exp_engine_metadata["exp_name"],
                                      exp_engine_metadata["exp_id"],
@@ -387,10 +385,10 @@ def load_datasets_ddm(
         raise ConfigurationError("DDM_TOKEN is required when DATASET_MANAGEMENT=DDM")
 
     # Validate required keys
-    validate_variables_has_key(variables, "PA_TASK_NAME", "variables")
+    validate_variables_has_key(variables, "task_name", "variables")
 
     file_url_template = f"{DDM_URL}/ddm/file/{{}}"
-    task_name = variables.get("PA_TASK_NAME")
+    task_name = variables.get("task_name")
     if key in variables:
         file_type = FILE_TYPE_EXTERNAL
         ddm_value = variables.get(key)
@@ -399,15 +397,17 @@ def load_datasets_ddm(
         project_id = ddm_value_parts[1]
     else:
         file_type = FILE_TYPE_INTERMEDIATE
-        fname = key
         if task_name in execution_engine_mapping:
-            if fname in execution_engine_mapping[task_name]:
-                fname = execution_engine_mapping[task_name][fname]
-        task_id = variables.get("PREVIOUS_TASK_ID")
+            inputs = execution_engine_mapping[task_name]
+            if key in inputs:
+                input_map = inputs[key]
+                fname = input_map["file_name"]
+                source_task = input_map["source_task"]
+
         project_id_prefix = os.path.join(exp_engine_metadata["exp_name"],
                                          exp_engine_metadata["exp_id"],
                                          exp_engine_metadata["wf_id"])
-        project_id = os.path.join(project_id_prefix, OUTPUT_FILE, task_id)
+        project_id = os.path.join(project_id_prefix, OUTPUT_FILE, source_task)
     results = _look_up_file_in_catalog(fname, project_id)
 
     contents = []

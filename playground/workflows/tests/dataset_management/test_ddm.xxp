@@ -1,6 +1,6 @@
 workflow SingleTaskW {
 
-    START -> Task1 -> Task2 -> END;
+    START -> Task1 -> Task2 -> Task3 -> END;
 
     task Task1 {
         implementation "TestDatasetManagementTask1";
@@ -8,6 +8,10 @@ workflow SingleTaskW {
 
     task Task2 {
         implementation "TestDatasetManagementTask2";
+    }
+
+    task Task3 {
+        implementation "TestDatasetManagementTask3";
     }
 
     define input data InputFile;
@@ -22,8 +26,8 @@ workflow SingleTaskW {
     }
 
     InputFile --> Task1.TestDatasetManagementTask1InputFile;
-    Task1.TestDatasetManagementTask1OutputFile --> Task2.TestDatasetManagementTask2InputFile;
-    Task2.TestDatasetManagementTask2OutputFile --> OutputFile;
+    Task1.TestDatasetManagementTask1OutputFile --> Task3.TestDatasetManagementTask3InputFile;
+    Task3.TestDatasetManagementTask3OutputFile --> OutputFile;
 
 }
 
