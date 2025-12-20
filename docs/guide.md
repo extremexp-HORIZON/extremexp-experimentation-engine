@@ -134,13 +134,13 @@ Next, you'll create a configuration file and define:
 
         workflow AssembledWorkflow1 from DemoWorkflow {
             task Task2 {
-                  implementation "demo/Task1V1";
+                  implementation "demo/task2V1";
             }
         }
 
         workflow AssembledWorkflow2 from DemoWorkflow {
             task Task2 {
-                  implementation "demo_tasks/Task1V2";
+                  implementation "demo/task2V2";
             }
         }
         ```
@@ -176,7 +176,7 @@ Next, you'll create a configuration file and define:
             strategy gridsearch;
             param_values demo_param_value = range(4, 6);
             task Task1 {
-              param demo_param = demo_param_values;
+              param demo_param = demo_param_value;
             }
           }
         
@@ -185,7 +185,7 @@ Next, you'll create a configuration file and define:
             runs = 1;
             param_values demo_param_value = enum(6);
             task Task1 {
-              param demo_param = demo_param_values;
+              param demo_param = demo_param_value;
             }
           }
         }
@@ -272,7 +272,7 @@ Next up we are going to create and edit the corresponding `<task>.xxp` files for
             }
         
             implementation "demo/Task1/task1.py";
-            python_version "3.8";
+            python_version "3.9";
             }
            ```
     ??? info "task2V1 xxp file"
@@ -284,7 +284,7 @@ Next up we are going to create and edit the corresponding `<task>.xxp` files for
             define output data Task2OutputFile;
 
             implementation "demo/task2V1/task2V1.py";
-
+            python_version "3.9";
             }
            ```
     ??? info "task2V2 xxp file"
@@ -296,7 +296,7 @@ Next up we are going to create and edit the corresponding `<task>.xxp` files for
             define output data Task2OutputFile;
 
             implementation "demo/task2V2/task2V2.py";
-
+            python_version "3.9";
             }
            ```
 
