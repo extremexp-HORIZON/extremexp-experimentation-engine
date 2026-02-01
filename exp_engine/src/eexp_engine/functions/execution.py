@@ -1,5 +1,5 @@
 from ..data_abstraction_layer.data_abstraction_api import DataAbstractionClient
-from ..executionware import proactive_runner, local_runner, kubeflow_runner, prefect_runner
+from ..executionware import proactive_runner, local_runner, kubeflow_runner, prefect_runner, airflow_runner
 from ..models.experiment import *
 import pprint
 import itertools
@@ -539,6 +539,8 @@ class Execution:
                 result = kubeflow_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config, results_so_far)
             elif self.config.EXECUTIONWARE == "PREFECT":
                 result = prefect_runner.execute_wf(w, self.exp_id, self.exp.name, wf_id, self.runner_folder, self.config)
+            elif self.config.EXECUTIONWARE == "AIRFLOW":
+                result = airflow_runner.create_airflow_dag(w, self.exp_id, self.exp.name, wf_id, self.runner_folder)
             else:
                 logger.error("You need to setup an executionware")
                 exit(0)
