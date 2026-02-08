@@ -3,6 +3,11 @@
 This guide provides a step-by-step walkthrough for using the **ExpEngine** within the **ExtremeXP** framework.  
 It uses a simple demo experiment to illustrate all steps.
 
+## Video tutorial 
+The user guide is also available in the form of the following video tutorial: 
+
+[![Watch the video](https://img.youtube.com/vi/2yUChB5ZOvk/0.jpg)](https://www.youtube.com/watch?v=2yUChB5ZOvk)
+
 ## Prerequisites
 
 - **Python** (>= 3.10)
