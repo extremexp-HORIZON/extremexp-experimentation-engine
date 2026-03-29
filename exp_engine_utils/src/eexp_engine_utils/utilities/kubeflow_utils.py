@@ -23,7 +23,7 @@ FILE_TYPE_INTERMEDIATE = "intermediate"
 try:
     DDM_URL = os.getenv("DDM_URL")
     DDM_TOKEN = os.getenv("DDM_TOKEN")
-    DATASET_MANAGEMENT = os.getenv("DATASET_MANAGEMENT")
+    DATASET_MANAGEMENT = "LOCAL"
     DATA_ABSTRACTION_BASE_URL = os.getenv("DATA_ABSTRACTION_BASE_URL")
     DATA_ABSTRACTION_ACCESS_TOKEN = os.getenv("DATA_ABSTRACTION_ACCESS_TOKEN")
     MINIO_USERNAME = os.getenv("KUBEFLOW_MINIO_USERNAME")
@@ -259,6 +259,9 @@ def save_dataset_local(
 ) -> None:
     """Save dataset locally."""
     # Validate required keys in variables
+
+    print(variables)
+
     validate_variables_has_key(variables, "exp_engine_metadata", "variables")
     validate_variables_has_key(variables, "task_name", "variables")
 
@@ -280,6 +283,7 @@ def save_dataset_local(
 
     file_type = task_outputs[key].get("file_type", "intermediate")
 
+
     if file_type == "intermediate":
         task_folder = os.path.join("/shared", workflow_id, task_id)
         os.makedirs(task_folder, exist_ok=True)
@@ -289,7 +293,27 @@ def save_dataset_local(
             pickle.dump(value, outfile)
 
         print(f"Saved output data to {output_file_path}")
+    elif file_type == "local":
+        file_path = task_outputs[key].get("file_path", "")
 
+        if not file_path:
+            raise ValidationError("Missing file_path for local output")
+
+        # Normalize path for OS safety
+        file_path = os.path.normpath(file_path)
+
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        # IMPORTANT: ensure pointer is at start
+        value.seek(0)
+
+        # Write BytesIO content to file
+        with open(file_path, "wb") as f:
+            f.write(value.getvalue())
+
+        output_file_path = file_path
+        print(f"Saved output data locally to {output_file_path}")
     else:
         file_path = task_outputs[key].get("file_path", "")
         client = Minio(
@@ -347,7 +371,18 @@ def load_dataset_local(variables: Dict[str, Any], key: str) -> BytesIO:
                     return open_minio_file(file_path)
                 else:
                     raise Exception(f"Invalid S3 path format: {file_path}")
-            else:  # intermediate file
+            elif mapping_info["file_type"] == "local":
+                file_path = mapping_info.get("file_path", "")
+
+                if not file_path:
+                    raise Exception("Missing local file path")
+
+                # Normalize path for OS compatibility (handles \\ vs / issues)
+                file_path = os.path.normpath(file_path)
+
+                with open(file_path, 'rb') as f:
+                    return BytesIO(f.read())
+            else:  # intermediate filef
                 source_task = mapping_info["source_task"]
                 output_name = mapping_info["file_name"]
 
@@ -356,7 +391,8 @@ def load_dataset_local(variables: Dict[str, Any], key: str) -> BytesIO:
                 input_filename = os.path.join(task_folder, output_name)
 
                 # Return open file object for consistency
-                return open(input_filename, 'rb')
+                with open(input_filename, 'rb') as f:
+                    return BytesIO(f.read())
 
     error_msg = f"Could not resolve input '{key}' for task '{current_task_name}'"
     raise DatasetNotFoundError(error_msg)

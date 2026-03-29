@@ -338,10 +338,15 @@ def get_utils() -> ModuleType:
         from .utilities import kubeflow_utils
         _utils_module_cache = kubeflow_utils
     elif executionware == "LOCAL":
-        from .utilities import local_utils
-        _utils_module_cache = local_utils
+        # from .utilities import local_utils
+        # _utils_module_cache = local_utils
+        from .utilities import kubeflow_utils
+        _utils_module_cache = kubeflow_utils
     elif executionware == "PROACTIVE":
         from .utilities import proactive_utils
         _utils_module_cache = proactive_utils
+    elif executionware == "PREFECT":
+        from .utilities import kubeflow_utils
+        _utils_module_cache = kubeflow_utils
 
     return _utils_module_cache

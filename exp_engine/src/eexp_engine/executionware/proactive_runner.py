@@ -82,10 +82,12 @@ def _create_execution_engine_mapping(tasks):
         for ds in t.input_files:
             if ds.name_in_generating_task:
                 map[ds.name_in_task_signature] = ds.name_in_generating_task
+
     print("EXECUTION ENGINE MAPPING")
     print("*****************")
     import pprint
     pprint.pp(mapping)
+
     print("*****************")
     return mapping
 

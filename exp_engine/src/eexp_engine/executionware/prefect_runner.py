@@ -7,9 +7,15 @@ from prefect import flow, task
 import os
 from functools import partial
 
-from exp_engine.src.eexp_engine.executionware.proactive_runner import (
+from exp_engine.src.eexp_engine.executionware.kubeflow_utils import _create_exp_engine_metadata
+# from exp_engine.src.eexp_engine.executionware.proactive_runner import (
+#     _create_execution_engine_mapping,
+# )
+
+from exp_engine.src.eexp_engine.executionware.prefect_utils import (
     _create_execution_engine_mapping,
 )
+
 
 # -------------------------
 # Constants
@@ -61,6 +67,8 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
             "wf_id": wf_id,
             "exp_id": exp_id,
             "task_name": task_obj.name,
+            "exp_engine_metadata": mapping.get("exp_engine_metadata"),
+            "mapping": mapping.get("mapping"),
         }
         for k, v in resultMap.items():
             variables[k] = v
@@ -68,8 +76,12 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
         # Apply execution engine mapping
         task_mapping = mapping.get(task_obj.name, {})
         for target_key, source_key in task_mapping.items():
+            if isinstance(source_key, dict):
+                source_key = source_key.get("file_name")
+
             value = resultMap.get(source_key)
             variables[target_key] = value
+
             if source_key in resultMap:
                 variables[source_key] = resultMap[source_key]
 
@@ -89,6 +101,7 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
             variables[k] = v
 
         print(f"[{task_obj.name}] Variables:")
+        print("banaan1234")
         print(variables)
 
         # Execute task implementation
@@ -120,9 +133,40 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
 # -------------------------
 # Prefect flow
 # -------------------------
+def to_dict(obj):
+    # basic types
+    if obj is None or isinstance(obj, (int, float, str, bool)):
+        return obj
+
+    # lists / tuples
+    if isinstance(obj, (list, tuple, set)):
+        return [to_dict(x) for x in obj]
+
+    # dicts
+    if isinstance(obj, dict):
+        return {k: to_dict(v) for k, v in obj.items()}
+
+    # objects with __dict__
+    if hasattr(obj, "__dict__"):
+        return {k: to_dict(v) for k, v in vars(obj).items()}
+
+    # fallback (e.g. external objects)
+    return str(obj)
+
 def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config):
+
+    print("chef123")
+    import pprint
+    pprint.pprint(to_dict(w))
+    print("chef1234")
     sorted_tasks = sorted(w.tasks, key=lambda t: t.order)
-    mapping = _create_execution_engine_mapping(sorted_tasks)
+
+    exp_engine_metadata = _create_exp_engine_metadata(exp_id, exp_name, wf_id)
+    exp_engine_runtime_config = {
+        "exp_engine_metadata": exp_engine_metadata,
+    }
+
+    mapping = _create_execution_engine_mapping(sorted_tasks, exp_engine_runtime_config)
 
     if not os.path.exists("intermediate_files"):
         os.makedirs("intermediate_files")

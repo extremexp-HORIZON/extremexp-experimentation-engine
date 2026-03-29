@@ -1,9 +1,7 @@
-from eexp_engine_utils import utils, types
+from eexp_engine_utils import utils
 import threading
 import ctypes
 from flask import Flask, request, render_template_string
-
-variables, resultMap = types.get_runtime_context()
 
 print("I'm ExpInteraction1")
 results = ph.get_experiment_results(variables)
