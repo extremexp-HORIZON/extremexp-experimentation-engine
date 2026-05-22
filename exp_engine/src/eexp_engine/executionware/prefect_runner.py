@@ -8,10 +8,6 @@ import os
 from functools import partial
 
 from exp_engine.src.eexp_engine.executionware.kubeflow_utils import _create_exp_engine_metadata
-# from exp_engine.src.eexp_engine.executionware.proactive_runner import (
-#     _create_execution_engine_mapping,
-# )
-
 from exp_engine.src.eexp_engine.executionware.prefect_utils import (
     _create_execution_engine_mapping,
 )
@@ -53,6 +49,7 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
     @task(name=task_obj.name, log_prints=True)
     def prefect_task(prev_result_map=None):
         print(f"[{task_obj.name}] ▶ START")
+
         resultMap = dict(prev_result_map or {})
 
         # Set PYTHONPATH for dependent modules
@@ -74,16 +71,40 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
             variables[k] = v
 
         # Apply execution engine mapping
-        task_mapping = mapping.get(task_obj.name, {})
-        for target_key, source_key in task_mapping.items():
-            if isinstance(source_key, dict):
-                source_key = source_key.get("file_name")
 
-            value = resultMap.get(source_key)
-            variables[target_key] = value
+        engine_mapping = mapping.get("mapping", mapping)
 
-            if source_key in resultMap:
-                variables[source_key] = resultMap[source_key]
+        task_mapping = engine_mapping.get(task_obj.name, {})
+        inputs_mapping = task_mapping.get("inputs", {})
+
+        for target_key, meta in inputs_mapping.items():
+            file_type = meta.get("file_type")
+
+            if file_type == "local":
+                variables[target_key] = normalize_path(
+                    meta.get("file_path")
+                )
+
+
+            elif file_type == "intermediate":
+                source_file_name = meta.get("file_name")
+                source_task = meta.get("source_task")
+                value = resultMap.get(source_file_name)
+
+                if value is None and source_task:
+                    value = resultMap.get(source_task, {}).get(source_file_name)
+
+                variables[target_key] = value
+
+                print(
+                    f"[{task_obj.name}] mapped intermediate "
+                    f"'{source_file_name}' -> '{target_key}' "
+                    f"with value '{value}'"
+                )
+
+        for input_name in getattr(task_obj, "prototypical_inputs", []):
+            if input_name not in variables or variables.get(input_name) is None:
+                variables[input_name] = resultMap.get(input_name)
 
         # Input files
         for f in getattr(task_obj, "input_files", []):
@@ -119,11 +140,31 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
             tmp.writelines(script_lines)
             tmp_path = tmp.name
 
-        runpy.run_path(
+        # runpy.run_path(
+        #     tmp_path,
+        #     run_name="__main__",
+        #     init_globals={"resultMap": resultMap},
+        # )
+        #
+        # print(f"[{task_obj.name}] ✔ DONE")
+        # return resultMap
+
+        globals_after_run = runpy.run_path(
             tmp_path,
             run_name="__main__",
             init_globals={"resultMap": resultMap},
         )
+
+        executed_variables = globals_after_run.get("variables", {})
+
+        # Capture declared logical/prototypical outputs written into variables
+        for output_name in getattr(task_obj, "prototypical_outputs", []):
+            if output_name in executed_variables:
+                resultMap[output_name] = executed_variables[output_name]
+                print(
+                    f"[{task_obj.name}] captured prototypical output "
+                    f"'{output_name}' from variables into resultMap"
+                )
 
         print(f"[{task_obj.name}] ✔ DONE")
         return resultMap
@@ -205,18 +246,21 @@ def execute_wf(w, exp_id, exp_name, wf_id, runner_folder, config):
 
     @flow(name=f"{w.name}_{wf_id}", log_prints=True)
     def dynamic_flow():
-        prev_result_map = None
-        results_futures = {}
+        results = {}
 
-        # Schedule each task as a Prefect future
         for t in sorted_tasks:
-            print(f"🧩 Scheduling task {t.name}")
-            future = task_funcs[t.name].submit(prev_result_map)
-            results_futures[t.name] = future
-            prev_result_map = future  # pass future downstream
+            deps = getattr(t, "dependencies", [])
 
-        # Resolve all futures
-        results = {k: v.result() for k, v in results_futures.items()}
+            if deps:
+                # merge results from dependency tasks
+                prev_result_map = {}
+                for dep in deps:
+                    prev_result_map.update(results[dep])
+            else:
+                prev_result_map = {}
+
+            results[t.name] = task_funcs[t.name](prev_result_map)
+
         return results
 
     return dynamic_flow()

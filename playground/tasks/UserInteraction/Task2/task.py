@@ -6,6 +6,7 @@ import ctypes
 # Load the dataframe passed from Task 1
 dataframe_json = variables.get("dataframe_json")
 df = pd.read_json(dataframe_json)
+interaction_done = threading.Event()
 
 class StoppableThread(threading.Thread):
     def get_id(self):  # pylint: disable=R1710
@@ -69,7 +70,9 @@ def continue_pipeline():
         print("Updated dataframe reloaded in Task 2:")
         print(df)
         # Save the updated dataframe to ProActive variables
-        variables.put("dataframe_json", df.to_json())
+        # variables.put("dataframe_json", df.to_json())
+        variables["dataframe_json"] = df.to_json()
+        interaction_done.set()
         print("Updated dataframe passed to Task 3.")
         # Display confirmation and the updated dataframe
         html_response = f'''
@@ -85,6 +88,7 @@ def continue_pipeline():
 @app.route('/stop', methods=['POST'])
 def stop_pipeline():
     print("User clicked Stop. Terminating pipeline.")
+    interaction_done.set()
     # Send a response before shutting down
     return "Pipeline terminated. You can close this page now.", 200
 
@@ -106,3 +110,5 @@ def run_flask_app():
 print("Starting Flask application...")
 flask_thread = StoppableThread(target=run_flask_app)
 flask_thread.start()
+
+interaction_done.wait()
