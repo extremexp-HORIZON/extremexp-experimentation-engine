@@ -75,7 +75,7 @@ def execute_task_logic(task_obj_data, wf_id, exp_id, mapping, runner_folder, **c
     return resultMap
 
 with DAG(
-    dag_id="SingleTaskAW_f0erGpwBbifMolPMMn8O",
+    dag_id="AssembledUserInteraction_q6U5XJ4BD4IGUmABU90N",
     start_date=datetime(2023, 1, 1),
     schedule_interval=None,
     catchup=False
@@ -86,11 +86,11 @@ with DAG(
         task_id='Task1',
         python_callable=execute_task_logic,
         op_kwargs={
-            'task_obj_data': {"name": "Task1", "impl_file": "playground/tasks\\TestDatasetManagementTask1/task.py", "params": {}, "dependent_modules": [], "prev_task_id": null},
-            'wf_id': "f0erGpwBbifMolPMMn8O",
-            'exp_id': "fkerGpwBbifMolPMKX9u",
-            'mapping': {"Task1": {}, "Task2": {"TestDatasetManagementTask2InputFile": "TestDatasetManagementTask1OutputFile"}},
-            'runner_folder': r"C:\Users\quinn\Documents\GitHub\extremexp-experimentation-engine\playground\experiments\tests\dataset_management"
+            'task_obj_data': {"name": "Task1", "impl_file": "playground/tasks\\UserInteraction/Task1/task.py", "params": {}, "dependent_modules": [], "prev_task_id": null},
+            'wf_id': "q6U5XJ4BD4IGUmABU90N",
+            'exp_id': "qqU5XJ4BD4IGUmABSt1Y",
+            'mapping': {"Task1": {}, "Task2": {}, "Task3": {}},
+            'runner_folder': r"C:\Users\quinn\Documents\GitHub\extremexp-experimentation-engine\playground\experiments\tests\user_interaction"
         },
     )
 
@@ -98,11 +98,24 @@ with DAG(
         task_id='Task2',
         python_callable=execute_task_logic,
         op_kwargs={
-            'task_obj_data': {"name": "Task2", "impl_file": "playground/tasks\\TestDatasetManagementTask2/task.py", "params": {}, "dependent_modules": [], "prev_task_id": "Task1"},
-            'wf_id': "f0erGpwBbifMolPMMn8O",
-            'exp_id': "fkerGpwBbifMolPMKX9u",
-            'mapping': {"Task1": {}, "Task2": {"TestDatasetManagementTask2InputFile": "TestDatasetManagementTask1OutputFile"}},
-            'runner_folder': r"C:\Users\quinn\Documents\GitHub\extremexp-experimentation-engine\playground\experiments\tests\dataset_management"
+            'task_obj_data': {"name": "Task2", "impl_file": "playground/tasks\\UserInteraction/Task2/task.py", "params": {}, "dependent_modules": [], "prev_task_id": "Task1"},
+            'wf_id': "q6U5XJ4BD4IGUmABU90N",
+            'exp_id': "qqU5XJ4BD4IGUmABSt1Y",
+            'mapping': {"Task1": {}, "Task2": {}, "Task3": {}},
+            'runner_folder': r"C:\Users\quinn\Documents\GitHub\extremexp-experimentation-engine\playground\experiments\tests\user_interaction"
+        },
+    )
+
+    tasks_operators['Task3'] = PythonOperator(
+        task_id='Task3',
+        python_callable=execute_task_logic,
+        op_kwargs={
+            'task_obj_data': {"name": "Task3", "impl_file": "playground/tasks\\UserInteraction/Task3/task.py", "params": {}, "dependent_modules": [], "prev_task_id": "Task2"},
+            'wf_id': "q6U5XJ4BD4IGUmABU90N",
+            'exp_id': "qqU5XJ4BD4IGUmABSt1Y",
+            'mapping': {"Task1": {}, "Task2": {}, "Task3": {}},
+            'runner_folder': r"C:\Users\quinn\Documents\GitHub\extremexp-experimentation-engine\playground\experiments\tests\user_interaction"
         },
     )
     tasks_operators['Task1'] >> tasks_operators['Task2']
+tasks_operators['Task2'] >> tasks_operators['Task3']

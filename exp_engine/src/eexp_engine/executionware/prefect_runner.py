@@ -159,14 +159,19 @@ def build_prefect_task(task_obj, wf_id, exp_id, mapping, runner_folder):
 
         # Capture declared logical/prototypical outputs written into variables
         for output_name in getattr(task_obj, "prototypical_outputs", []):
-            if output_name in executed_variables:
+            if output_name in resultMap and resultMap[output_name] is not None:
+                print(
+                    f"[{task_obj.name}] kept prototypical output "
+                    f"'{output_name}' from resultMap: {resultMap[output_name]}"
+                )
+            elif output_name in executed_variables and executed_variables[output_name] is not None:
                 resultMap[output_name] = executed_variables[output_name]
                 print(
                     f"[{task_obj.name}] captured prototypical output "
                     f"'{output_name}' from variables into resultMap"
                 )
 
-        print(f"[{task_obj.name}] ✔ DONE")
+        print(f"[{task_obj.name}] - DONE")
         return resultMap
 
     return prefect_task

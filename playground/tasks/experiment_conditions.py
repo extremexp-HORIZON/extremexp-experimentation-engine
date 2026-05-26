@@ -5,5 +5,5 @@ def check_results_less_than(threshold, results):
     print(results)
     print("===========")
     # return results['S1'][1]['result']['output'] < int(threshold)
-    return results['S1'][1]['result']['Task1']['output'] < int(threshold)
+    return results['S1'][1]['result']['Task1']['ParamIncreasedBy5'] < int(threshold)
 

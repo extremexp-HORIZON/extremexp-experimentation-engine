@@ -3,7 +3,7 @@ import "tests/simple_configurations/workflow_test_wp5.xxp";
 experiment DemoWP5Experiment {
 
     control {
-          START -> S1 -> S2 -> END;
+          S1 ?-> S2 { condition "check_results_less_than 5" };
     }
 
     space S1 of DemoWP5AssembledWorkflow1 {

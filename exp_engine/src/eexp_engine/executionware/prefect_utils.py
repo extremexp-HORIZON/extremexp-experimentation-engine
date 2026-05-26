@@ -1,5 +1,4 @@
 def _create_execution_engine_mapping(tasks, exp_engine_runtime_config):
-    print("banaan")
     """Create mapping for execution engine"""
     mapping = {}
     # Mapping of output variable names to their generating tasks
