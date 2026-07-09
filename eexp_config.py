@@ -38,8 +38,8 @@ KUBEFLOW_MINIO_USERNAME = ""
 KUBEFLOW_MINIO_PASSWORD = ""
 
 # Data abstraction credentials (mandatory - ask ICOM)
-DATA_ABSTRACTION_BASE_URL = "http://146.124.106.171:8445/api"
-DATA_ABSTRACTION_ACCESS_TOKEN = '668c8d6d014e0ef3a2f264d92ccd337a7451f6b2'
+DATA_ABSTRACTION_BASE_URL = "http://localhost:8445/api"
+DATA_ABSTRACTION_ACCESS_TOKEN = '43c2607cf7322b4cfbc4c9791aca9cc7be01d43d'
 
 # possible values: DDM (Decentralized Data Management), LOCAL
 DATASET_MANAGEMENT = "LOCAL"

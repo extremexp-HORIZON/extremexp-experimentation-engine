@@ -43,40 +43,6 @@ RESULT = "results.json"
 def normalize_path(p):
     return str(Path(p).as_posix()) if p else None
 
-def persist_output_if_needed(output_value, output_path):
-    """
-    Persist non-string intermediate objects in a file-friendly way.
-    This is needed because Airflow should pass file paths through XCom,
-    not large in-memory DataFrames.
-    """
-    if output_value is None or output_path is None:
-        return output_value
-
-    output_path = str(output_path)
-    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
-    # Pandas DataFrame
-    if hasattr(output_value, "to_csv"):
-        output_value.to_csv(output_path, index=False)
-        return output_path
-
-    # Bytes
-    if isinstance(output_value, bytes):
-        with open(output_path, "wb") as f:
-            f.write(output_value)
-        return output_path
-
-    # String
-    if isinstance(output_value, str):
-        with open(output_path, "w") as f:
-            f.write(output_value)
-        return output_path
-
-    # Generic fallback
-    with open(output_path, "w") as f:
-        f.write(str(output_value))
-
-    return output_path
 
 def rewrite_resultmap(lines):
     """
@@ -270,38 +236,9 @@ def build_airflow_task(
                 if key not in variables or variables[key] is None:
                     variables[key] = value
 
-            # # Output files
-            # for f in getattr(task_obj, "output_files", []):
-            #     variables[f.name_in_task_signature] = normalize_path(f.path)
-
-                #=================================================
-
             # Output files
-            task_mapping = engine_mapping.get(task_obj.name, {})
-            outputs_mapping = task_mapping.get("outputs", {})
-
             for f in getattr(task_obj, "output_files", []):
-                key = f.name_in_task_signature
-                value = normalize_path(f.path)
-
-            output_meta = outputs_mapping.get(key, {})
-            file_type = output_meta.get("file_type")
-
-            # Local output already has a real configured path
-            if value:
-                variables[key] = value
-
-            # Intermediate output often has no path in the config.
-            # Airflow needs an actual path so the next task can receive it through XCom.
-            elif file_type == "intermediate":
-                intermediate_path = Path("intermediate_files") / f"{wf_id}_{task_obj.name}_{key}.csv"
-                variables[key] = normalize_path(intermediate_path)
-
-            # Fallback for empty local outputs, just keep None
-            else:
-                variables[key] = value
-
-                #=================================================
+                variables[f.name_in_task_signature] = normalize_path(f.path)
 
             # Params
             for k, v in getattr(task_obj, "params", {}).items():
@@ -338,87 +275,26 @@ def build_airflow_task(
                 if tmp_path and os.path.exists(tmp_path):
                     os.remove(tmp_path)
 
-            # executed_variables = globals_after_run.get("variables", {})
-
-            # # Capture declared logical/prototypical outputs written into variables
-            # for output_name in getattr(task_obj, "prototypical_outputs", []):
-            #     if output_name in resultMap and resultMap[output_name] is not None:
-            #         print(
-            #             f"[{task_name}] kept prototypical output "
-            #             f"'{output_name}' from resultMap: {resultMap[output_name]}"
-            #         )
-
-            #     elif (
-            #         output_name in executed_variables
-            #         and executed_variables[output_name] is not None
-            #     ):
-            #         resultMap[output_name] = executed_variables[output_name]
-            #         print(
-            #             f"[{task_name}] captured prototypical output "
-            #             f"'{output_name}' from variables into resultMap"
-            #         )
-
-            # executed_variables = globals_after_run.get("variables", {})
-
-            # # Merge outputs back into resultMap.
-            # # This is essential for Airflow because downstream tasks receive only
-            # # the returned resultMap through XCom.
-            # task_mapping = engine_mapping.get(task_obj.name, {})
-            # outputs_mapping = task_mapping.get("outputs", {})
-
-            # for output_name in getattr(task_obj, "prototypical_outputs", []):
-            #     output_value = None
-
-            #     if resultMap.get(output_name) is not None:
-            #         output_value = resultMap[output_name]
-
-            #     elif executed_variables.get(output_name) is not None:
-            #         output_value = executed_variables[output_name]
-
-            #     elif variables.get(output_name) is not None:
-            #         output_value = variables[output_name]
-
-            #     if output_value is not None:
-            #         resultMap[output_name] = output_value
-            #         print(
-            #             f"[{task_obj.name}] captured output "
-            #             f"'{output_name}' into resultMap with value '{output_value}'"
-                    # )
-
             executed_variables = globals_after_run.get("variables", {})
 
-            task_mapping = engine_mapping.get(task_obj.name, {})
-            outputs_mapping = task_mapping.get("outputs", {})
-
+            # Capture declared logical/prototypical outputs written into variables
             for output_name in getattr(task_obj, "prototypical_outputs", []):
-                output_value = None
-
-                if resultMap.get(output_name) is not None:
-                    output_value = resultMap[output_name]
-
-                elif executed_variables.get(output_name) is not None:
-                    output_value = executed_variables[output_name]
-
-                elif variables.get(output_name) is not None:
-                    output_value = variables[output_name]
-
-                output_meta = outputs_mapping.get(output_name, {})
-                output_file_type = output_meta.get("file_type")
-
-                if output_value is not None:
-                    # For intermediate outputs, Airflow should pass a path through XCom.
-                    # If the task produced a DataFrame/object, persist it and return the path.
-                    if output_file_type == "intermediate":
-                        output_path = variables.get(output_name)
-                        output_value = persist_output_if_needed(output_value, output_path)
-
-                    resultMap[output_name] = output_value
-
+                if output_name in resultMap and resultMap[output_name] is not None:
                     print(
-                        f"[{task_obj.name}] captured output "
-                        f"'{output_name}' into resultMap with value '{output_value}'"
+                        f"[{task_name}] kept prototypical output "
+                        f"'{output_name}' from resultMap: {resultMap[output_name]}"
                     )
-            
+
+                elif (
+                    output_name in executed_variables
+                    and executed_variables[output_name] is not None
+                ):
+                    resultMap[output_name] = executed_variables[output_name]
+                    print(
+                        f"[{task_name}] captured prototypical output "
+                        f"'{output_name}' from variables into resultMap"
+                    )
+
             print(f"[{task_name}] ✔ DONE")
             return resultMap
 

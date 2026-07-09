@@ -22,3 +22,6 @@ exec_task.py
 extremexp-experimentation-engine.iml
 .sdkmanrc
 **/.DS_Store
+/.venv-airflow
+prefect_benchmark_results.csv
+airflow_debug.log

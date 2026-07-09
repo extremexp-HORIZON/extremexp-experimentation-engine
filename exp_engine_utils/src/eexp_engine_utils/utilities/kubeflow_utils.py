@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 import requests
 import json
 import fsspec
+import tempfile
 from minio import Minio
 
 from ..exceptions import (
@@ -249,8 +250,6 @@ def load_dataset(
 
 
 ########## LOCAL DATASET MANAGEMENT #############
-
-
 def save_dataset_local(
     variables: Dict[str, Any],
     resultMap: Dict[str, Any],
@@ -258,7 +257,6 @@ def save_dataset_local(
     value: BytesIO
 ) -> None:
     """Save dataset locally."""
-    # Validate required keys in variables
 
     print(variables)
 
@@ -266,6 +264,7 @@ def save_dataset_local(
     validate_variables_has_key(variables, "task_name", "variables")
 
     exp_engine_metadata = variables.get("exp_engine_metadata")
+
     if not isinstance(exp_engine_metadata, dict):
         raise ValidationError("exp_engine_metadata must be a dict")
 
@@ -273,56 +272,80 @@ def save_dataset_local(
 
     workflow_id = exp_engine_metadata.get("wf_id")
     task_id = variables.get("task_name")
-    task_outputs = variables.get("mapping", {}).get(task_id, {}).get("outputs", {})
+
+    task_outputs = (
+        variables.get("mapping", {})
+        .get(task_id, {})
+        .get("outputs", {})
+    )
+
     output_file_path = ""
 
-    # Check if key is in outputs
     if key not in task_outputs:
-        error_msg = f"Output key '{key}' not defined in task outputs mapping for task '{task_id}'"
+        error_msg = (
+            f"Output key '{key}' not defined in task outputs mapping "
+            f"for task '{task_id}'"
+        )
         raise ValidationError(error_msg)
 
     file_type = task_outputs[key].get("file_type", "intermediate")
 
+    # SAFE LOCAL SHARED DIRECTORY
+    shared_root = os.path.join(
+        tempfile.gettempdir(),
+        "extremexp_shared"
+    )
+
+    os.makedirs(shared_root, exist_ok=True)
 
     if file_type == "intermediate":
-        task_folder = os.path.join("/shared", workflow_id, task_id)
+
+        task_folder = os.path.join(
+            shared_root,
+            workflow_id,
+            task_id
+        )
+
         os.makedirs(task_folder, exist_ok=True)
+
         output_file_path = os.path.join(task_folder, key)
 
         with open(output_file_path, "wb") as outfile:
             pickle.dump(value, outfile)
 
         print(f"Saved output data to {output_file_path}")
+
     elif file_type == "local":
+
         file_path = task_outputs[key].get("file_path", "")
 
         if not file_path:
             raise ValidationError("Missing file_path for local output")
 
-        # Normalize path for OS safety
         file_path = os.path.normpath(file_path)
 
-        # Ensure directory exists
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
-        # IMPORTANT: ensure pointer is at start
         value.seek(0)
 
-        # Write BytesIO content to file
         with open(file_path, "wb") as f:
             f.write(value.getvalue())
 
         output_file_path = file_path
+
         print(f"Saved output data locally to {output_file_path}")
+
     else:
+
         file_path = task_outputs[key].get("file_path", "")
+
         client = Minio(
-                    MINIO_ENDPOINT,
-                    access_key=MINIO_USERNAME,
-                    secret_key=MINIO_PASSWORD,
-                    secure=False
-                )
-        # Local external save file handling
+            MINIO_ENDPOINT,
+            access_key=MINIO_USERNAME,
+            secret_key=MINIO_PASSWORD,
+            secure=False
+        )
+
         client.put_object(
             bucket_name="workflow-outputs",
             object_name=f"{workflow_id}/{key}",
@@ -330,24 +353,33 @@ def save_dataset_local(
             length=len(value.getvalue()),
             metadata={"save-path": file_path}
         )
-        output_file_path = f"s3://workflow-outputs/{workflow_id}/{key}"
-        print(f"Saved output data to MinIO: s3://workflow-outputs/{workflow_id}/{key}")
 
+        output_file_path = f"s3://workflow-outputs/{workflow_id}/{key}"
+
+        print(
+            f"Saved output data to MinIO: "
+            f"s3://workflow-outputs/{workflow_id}/{key}"
+        )
 
     if resultMap is not None:
-        print(f"Adding file path '{output_file_path}' for key '{key}' to result map")
+        print(
+            f"Adding file path '{output_file_path}' "
+            f"for key '{key}' to result map"
+        )
+
         resultMap[key] = output_file_path
+
 
 
 def load_dataset_local(variables: Dict[str, Any], key: str) -> BytesIO:
     """Load dataset from local storage (filesystem or MinIO)."""
     print(f"Loading input data with key '{key}'")
 
-    # Validate required keys
     validate_variables_has_key(variables, "exp_engine_metadata", "variables")
     validate_variables_has_key(variables, "task_name", "variables")
 
     exp_engine_metadata = variables.get("exp_engine_metadata")
+
     if not isinstance(exp_engine_metadata, dict):
         raise ValidationError("exp_engine_metadata must be a dict")
 
@@ -357,45 +389,83 @@ def load_dataset_local(variables: Dict[str, Any], key: str) -> BytesIO:
     current_task_name = variables.get("task_name")
     mapping = variables.get("mapping", {})
 
-    # Check mapping for input file details
+    # Base shared directory (TEMP SAFE)
+    shared_root = os.path.join(
+        tempfile.gettempdir(),
+        "extremexp_shared"
+    )
+
     if current_task_name in mapping:
-        # Check if key is in inputs
+
         if key in mapping[current_task_name]["inputs"]:
-            # Get mapping info
+
             mapping_info = mapping[current_task_name]["inputs"][key]
-            # Determine file type
-            if mapping_info["file_type"] == "external":
-                # Open file from MinIO
+
+            file_type = mapping_info.get("file_type")
+
+            # -------------------------
+            # EXTERNAL (MinIO / S3)
+            # -------------------------
+            if file_type == "external":
+
                 file_path = mapping_info.get("file_path", "")
-                if file_path.startswith("s3://"):
-                    return open_minio_file(file_path)
-                else:
+
+                if not file_path.startswith("s3://"):
                     raise Exception(f"Invalid S3 path format: {file_path}")
-            elif mapping_info["file_type"] == "local":
+
+                return open_minio_file(file_path)
+
+            # -------------------------
+            # LOCAL FILES
+            # -------------------------
+            elif file_type == "local":
+
                 file_path = mapping_info.get("file_path", "")
 
                 if not file_path:
                     raise Exception("Missing local file path")
 
-                # Normalize path for OS compatibility (handles \\ vs / issues)
                 file_path = os.path.normpath(file_path)
 
-                with open(file_path, 'rb') as f:
-                    return BytesIO(f.read())
-            else:  # intermediate filef
-                source_task = mapping_info["source_task"]
-                output_name = mapping_info["file_name"]
-
-                # Build path using source task name
-                task_folder = os.path.join("/shared", workflow_id, source_task)
-                input_filename = os.path.join(task_folder, output_name)
-
-                # Return open file object for consistency
-                with open(input_filename, 'rb') as f:
+                with open(file_path, "rb") as f:
                     return BytesIO(f.read())
 
-    error_msg = f"Could not resolve input '{key}' for task '{current_task_name}'"
-    raise DatasetNotFoundError(error_msg)
+            # -------------------------
+            # INTERMEDIATE FILES
+            # -------------------------
+            elif file_type == "intermediate":
+
+                source_task = mapping_info.get("source_task")
+                output_name = mapping_info.get("file_name")
+
+                if not source_task or not output_name:
+                    raise Exception(
+                        "Missing source_task or file_name for intermediate input"
+                    )
+
+                task_folder = os.path.join(
+                    shared_root,
+                    workflow_id,
+                    source_task
+                )
+
+                input_filename = os.path.join(
+                    task_folder,
+                    output_name
+                )
+
+                if not os.path.exists(input_filename):
+                    raise FileNotFoundError(
+                        f"Intermediate file not found: {input_filename}"
+                    )
+
+                with open(input_filename, "rb") as f:
+                    return BytesIO(f.read())
+
+    raise DatasetNotFoundError(
+        f"Could not resolve input '{key}' "
+        f"for task '{current_task_name}'"
+    )
 
 
 ########## DDM DATASET MANAGEMENT #############
